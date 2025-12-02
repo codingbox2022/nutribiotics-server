@@ -31,6 +31,8 @@ export class ProductsController {
     @Query('segment') segment?: string,
     @Query('form') form?: string,
     @Query('alertLevel') alertLevel?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ) {
     return this.productsService.findAll({
       search,
@@ -38,6 +40,8 @@ export class ProductsController {
       segment,
       form,
       alertLevel,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
     });
   }
 
