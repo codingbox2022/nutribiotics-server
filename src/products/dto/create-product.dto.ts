@@ -5,6 +5,7 @@ import {
   IsEnum,
   IsArray,
   IsOptional,
+  IsDateString,
   Min,
 } from 'class-validator';
 
@@ -73,4 +74,12 @@ export class CreateProductDto {
   @IsEnum(['ok', 'alert', 'opportunity'])
   @IsOptional()
   alertLevel?: string;
+
+  @IsDateString()
+  @IsOptional()
+  lastScanDate?: string | null;
+
+  @IsEnum(['not_started', 'running', 'completed', 'error'])
+  @IsOptional()
+  scanStatus?: string;
 }
