@@ -6,6 +6,7 @@ import {
   IsArray,
   IsOptional,
   IsDateString,
+  IsMongoId,
   Min,
 } from 'class-validator';
 
@@ -82,4 +83,8 @@ export class CreateProductDto {
   @IsEnum(['not_started', 'running', 'completed', 'error'])
   @IsOptional()
   scanStatus?: string;
+
+  @IsMongoId()
+  @IsOptional()
+  comparableWith?: string | null;
 }

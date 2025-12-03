@@ -1,60 +1,46 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
 export type ProductDocument = HydratedDocument<Product>;
 
 @Schema({ timestamps: true })
 export class Product {
-  @Prop({ required: true, unique: true })
-  sku: string;
-
   @Prop({ required: true })
   name: string;
 
   @Prop({ required: true })
-  line: string;
+  brand: string;
 
-  @Prop({ default: 'Core' })
-  segment: string;
+  @Prop({ type: Map, of: Number, required: true })
+  ingredients: Map<string, number>;
+
+  @Prop({ required: true })
+  totalContent: number;
 
   @Prop({
     required: true,
-    enum: ['capsules', 'sachets', 'ml', 'tablets', 'powder'],
+    enum: [
+      'cucharadas',
+      'cápsulas',
+      'tableta',
+      'softGel',
+      'gotas',
+      'sobre',
+      'vial',
+      'mililitro',
+      'push',
+    ],
   })
-  form: string;
+  presentation: string;
 
   @Prop({ required: true })
-  packSize: number;
-
-  @Prop({ required: true })
-  concentration: string;
-
-  @Prop({ required: true })
-  priceWithTax: number;
-
-  @Prop({ required: true })
-  priceWithoutTax: number;
+  portion: number;
 
   @Prop()
-  unitPrice: number;
+  imageUrl: string;
 
-  @Prop()
-  unitType: string;
-
-  @Prop({
-    enum: ['increase', 'decrease', 'maintain', 'promo'],
-    default: 'maintain',
-  })
-  recommendation: string;
-
-  @Prop({ default: '' })
-  recommendationRationale: string;
-
-  @Prop({ type: [String], default: [] })
-  tags: string[];
-
-  @Prop({ type: [String], default: [] })
-  ingredients: string[];
+  @Prop({ type: Types.ObjectId, ref: 'Product', default: null })
+  comparedTo: Types.ObjectId;
 
   @Prop({ enum: ['ok', 'alert', 'opportunity'], default: 'ok' })
   alertLevel: string;
