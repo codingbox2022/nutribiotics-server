@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { UsersService } from './users/users.service';
 import { IngredientsService } from './ingredients/ingredients.service';
+import { BrandsService } from './brands/brands.service';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -27,6 +28,9 @@ async function bootstrap() {
 
   const ingredientsService = app.get(IngredientsService);
   await ingredientsService.seedIngredients();
+
+  const brandsService = app.get(BrandsService);
+  await brandsService.seedBrands();
 
   await app.listen(process.env.PORT ?? 3000);
 }

@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
+import { CreateProductsBulkDto } from './dto/create-products-bulk.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
 @Controller('products')
@@ -19,6 +20,11 @@ export class ProductsController {
   @Post()
   create(@Body() createProductDto: CreateProductDto) {
     return this.productsService.create(createProductDto);
+  }
+
+  @Post('bulk')
+  createBulk(@Body() createProductsBulkDto: CreateProductsBulkDto) {
+    return this.productsService.createBulk(createProductsBulkDto.products);
   }
 
   @Get()

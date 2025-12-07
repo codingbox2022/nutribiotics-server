@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { ProductsModule } from './products/products.module';
 import { MarketplacesModule } from './marketplaces/marketplaces.module';
 import { IngredientsModule } from './ingredients/ingredients.module';
+import { BrandsModule } from './brands/brands.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { IngredientsModule } from './ingredients/ingredients.module';
     ProductsModule,
     MarketplacesModule,
     IngredientsModule,
+    BrandsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

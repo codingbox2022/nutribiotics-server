@@ -27,6 +27,23 @@ export class ProductsService {
     return product.save();
   }
 
+  async createBulk(
+    products: CreateProductDto[],
+  ): Promise<{ mainProduct: ProductDocument; comparables: ProductDocument[] }> {
+    const mainProduct = await this.create(products[0]);
+
+    const comparables = await Promise.all(
+      products.slice(1).map((p) =>
+        this.create({
+          ...p,
+          comparedTo: mainProduct._id.toString(),
+        }),
+      ),
+    );
+
+    return { mainProduct, comparables };
+  }
+
   async findAll(
     filters: FindAllFilters,
   ): Promise<PaginatedResult<ProductDocument>> {

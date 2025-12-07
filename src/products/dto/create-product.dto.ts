@@ -3,88 +3,55 @@ import {
   IsNotEmpty,
   IsNumber,
   IsEnum,
-  IsArray,
   IsOptional,
-  IsDateString,
   IsMongoId,
+  IsObject,
   Min,
 } from 'class-validator';
 
 export class CreateProductDto {
   @IsString()
   @IsNotEmpty()
-  sku: string;
-
-  @IsString()
-  @IsNotEmpty()
   name: string;
 
   @IsString()
   @IsNotEmpty()
-  line: string;
+  brand: string;
 
-  @IsString()
-  @IsOptional()
-  segment?: string;
-
-  @IsEnum(['capsules', 'sachets', 'ml', 'tablets', 'powder'])
-  form: string;
+  @IsObject()
+  @IsNotEmpty()
+  ingredients: Record<string, number>;
 
   @IsNumber()
   @Min(1)
-  packSize: number;
+  totalContent: number;
 
-  @IsString()
-  @IsNotEmpty()
-  concentration: string;
+  @IsEnum([
+    'cucharadas',
+    'cápsulas',
+    'tableta',
+    'softGel',
+    'gotas',
+    'sobre',
+    'vial',
+    'mililitro',
+    'push',
+  ])
+  presentation: string;
 
   @IsNumber()
-  @Min(0)
-  priceWithTax: number;
-
-  @IsNumber()
-  @Min(0)
-  priceWithoutTax: number;
-
-  @IsNumber()
-  @IsOptional()
-  unitPrice?: number;
-
-  @IsString()
-  @IsOptional()
-  unitType?: string;
-
-  @IsEnum(['increase', 'decrease', 'maintain', 'promo'])
-  @IsOptional()
-  recommendation?: string;
+  @Min(1)
+  portion: number;
 
   @IsString()
   @IsOptional()
-  recommendationRationale?: string;
+  imageUrl?: string;
 
-  @IsArray()
-  @IsString({ each: true })
+  @IsMongoId()
   @IsOptional()
-  tags?: string[];
-
-  @IsArray()
-  @IsString({ each: true })
-  @IsOptional()
-  ingredients?: string[];
+  comparedTo?: string;
 
   @IsEnum(['ok', 'alert', 'opportunity'])
   @IsOptional()
   alertLevel?: string;
-
-  @IsDateString()
-  @IsOptional()
-  lastScanDate?: string | null;
-
-  @IsEnum(['not_started', 'running', 'completed', 'error'])
-  @IsOptional()
-  scanStatus?: string;
-
-  @IsMongoId()
-  @IsOptional()
-  comparableWith?: string | null;
 }
