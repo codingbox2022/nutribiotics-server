@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery } from 'mongoose';
 import { Product, ProductDocument } from './schemas/product.schema';
@@ -23,13 +27,40 @@ export class ProductsService {
   ) {}
 
   async create(createProductDto: CreateProductDto): Promise<ProductDocument> {
-    const product = new this.productModel(createProductDto);
-    return product.save();
+    try {
+      const product = new this.productModel(createProductDto);
+      return await product.save();
+    } catch (error: any) {
+      if (error.code === 11000) {
+        throw new ConflictException(
+          `Ya existe un producto con el nombre "${createProductDto.name}" y marca "${createProductDto.brand}"`,
+        );
+      }
+      throw error;
+    }
   }
 
   async createBulk(
     products: CreateProductDto[],
   ): Promise<{ mainProduct: ProductDocument; comparables: ProductDocument[] }> {
+    // Validate all products don't already exist before creating any
+    const duplicates: string[] = [];
+    for (const product of products) {
+      const existing = await this.productModel
+        .findOne({ name: product.name, brand: product.brand })
+        .exec();
+      if (existing) {
+        duplicates.push(`"${product.name}" (${product.brand})`);
+      }
+    }
+
+    if (duplicates.length > 0) {
+      throw new ConflictException(
+        `Ya existen productos con estos nombres y marcas: ${duplicates.join(', ')}`,
+      );
+    }
+
+    // Create all products
     const mainProduct = await this.create(products[0]);
 
     const comparables = await Promise.all(
@@ -46,9 +77,12 @@ export class ProductsService {
 
   async findAll(
     filters: FindAllFilters,
-  ): Promise<PaginatedResult<ProductDocument>> {
+  ): Promise<PaginatedResult<any>> {
     const { page = 1, limit = 10, ...filterParams } = filters;
     const query: FilterQuery<ProductDocument> = {};
+
+    // Only return original products (not compared products)
+    query.comparedTo = null;
 
     if (filterParams.search) {
       query.$or = [
@@ -75,10 +109,24 @@ export class ProductsService {
 
     const skip = (page - 1) * limit;
 
-    const [data, total] = await Promise.all([
+    const [originalProducts, total] = await Promise.all([
       this.productModel.find(query).skip(skip).limit(limit).exec(),
       this.productModel.countDocuments(query).exec(),
     ]);
+
+    // For each original product, fetch its compared products
+    const data = await Promise.all(
+      originalProducts.map(async (product) => {
+        const comparedProducts = await this.productModel
+          .find({ comparedTo: product._id.toString() })
+          .exec();
+
+        return {
+          ...product.toObject(),
+          comparedProducts: comparedProducts.map((p) => p.toObject()),
+        };
+      }),
+    );
 
     return {
       data,
@@ -98,13 +146,22 @@ export class ProductsService {
     id: string,
     updateProductDto: UpdateProductDto,
   ): Promise<ProductDocument> {
-    const product = await this.productModel
-      .findByIdAndUpdate(id, updateProductDto, { new: true })
-      .exec();
-    if (!product) {
-      throw new NotFoundException(`Product with ID ${id} not found`);
+    try {
+      const product = await this.productModel
+        .findByIdAndUpdate(id, updateProductDto, { new: true })
+        .exec();
+      if (!product) {
+        throw new NotFoundException(`Product with ID ${id} not found`);
+      }
+      return product;
+    } catch (error: any) {
+      if (error.code === 11000) {
+        throw new ConflictException(
+          `Ya existe un producto con el nombre "${updateProductDto.name}" y marca "${updateProductDto.brand}"`,
+        );
+      }
+      throw error;
     }
-    return product;
   }
 
   async remove(id: string): Promise<void> {

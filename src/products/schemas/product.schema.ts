@@ -56,3 +56,6 @@ export class Product {
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
+
+ProductSchema.set('autoIndex', true);
+ProductSchema.index({ name: 1, brand: 1 }, { unique: true });
