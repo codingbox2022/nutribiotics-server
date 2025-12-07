@@ -9,6 +9,7 @@ import { Product, ProductDocument } from './schemas/product.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PaginatedResult } from '../common/interfaces/response.interface';
+import { PricesService } from '../prices/prices.service';
 
 interface FindAllFilters {
   search?: string;
@@ -24,6 +25,7 @@ interface FindAllFilters {
 export class ProductsService {
   constructor(
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
+    private pricesService: PricesService,
   ) {}
 
   async create(createProductDto: CreateProductDto): Promise<ProductDocument> {
@@ -114,16 +116,25 @@ export class ProductsService {
       this.productModel.countDocuments(query).exec(),
     ]);
 
-    // For each original product, fetch its compared products
+    // For each original product, fetch its compared products and latest price
     const data = await Promise.all(
       originalProducts.map(async (product) => {
-        const comparedProducts = await this.productModel
-          .find({ comparedTo: product._id.toString() })
-          .exec();
+        const [comparedProducts, prices] = await Promise.all([
+          this.productModel
+            .find({ comparedTo: product._id.toString() })
+            .exec(),
+          this.pricesService.findAll({
+            productId: product._id.toString(),
+            limit: 1,
+          }),
+        ]);
+
+        const latestPrice = prices.data.length > 0 ? prices.data[0].value : null;
 
         return {
           ...product.toObject(),
           comparedProducts: comparedProducts.map((p) => p.toObject()),
+          latestPrice,
         };
       }),
     );

@@ -9,6 +9,7 @@ import { ProductsModule } from './products/products.module';
 import { MarketplacesModule } from './marketplaces/marketplaces.module';
 import { IngredientsModule } from './ingredients/ingredients.module';
 import { BrandsModule } from './brands/brands.module';
+import { PricesModule } from './prices/prices.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { BrandsModule } from './brands/brands.module';
     MarketplacesModule,
     IngredientsModule,
     BrandsModule,
+    PricesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
