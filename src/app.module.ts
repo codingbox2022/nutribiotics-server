@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { BullModule } from '@nestjs/bullmq';
+import { BullBoardModule } from '@bull-board/nestjs';
+import { ExpressAdapter } from '@bull-board/express';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
@@ -10,6 +13,8 @@ import { MarketplacesModule } from './marketplaces/marketplaces.module';
 import { IngredientsModule } from './ingredients/ingredients.module';
 import { BrandsModule } from './brands/brands.module';
 import { PricesModule } from './prices/prices.module';
+import { QueuesModule } from './queues/queues.module';
+import { IngestionRunsModule } from './ingestion-runs/ingestion-runs.module';
 
 @Module({
   imports: [
@@ -23,6 +28,20 @@ import { PricesModule } from './prices/prices.module';
       }),
       inject: [ConfigService],
     }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        connection: {
+          host: configService.get<string>('REDIS_HOST'),
+          port: configService.get<number>('REDIS_PORT'),
+        },
+      }),
+      inject: [ConfigService],
+    }),
+    BullBoardModule.forRoot({
+      route: '/queues',
+      adapter: ExpressAdapter,
+    }),
     UsersModule,
     AuthModule,
     ProductsModule,
@@ -30,6 +49,8 @@ import { PricesModule } from './prices/prices.module';
     IngredientsModule,
     BrandsModule,
     PricesModule,
+    IngestionRunsModule,
+    QueuesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
