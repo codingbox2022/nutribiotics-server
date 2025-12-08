@@ -8,6 +8,7 @@ import { NotificationsService } from './notifications.service';
 import { PriceComparisonProcessor } from './price-comparison.processor';
 import { QueuesController } from './queues.controller';
 import { IngestionRunsModule } from '../ingestion-runs/ingestion-runs.module';
+import { ScrapingModule } from '../scraping/scraping.module';
 import { Product, ProductSchema } from '../products/schemas/product.schema';
 import {
   Marketplace,
@@ -17,6 +18,7 @@ import {
 @Module({
   imports: [
     IngestionRunsModule,
+    ScrapingModule,
     MongooseModule.forFeature([
       { name: Product.name, schema: ProductSchema },
       { name: Marketplace.name, schema: MarketplaceSchema },

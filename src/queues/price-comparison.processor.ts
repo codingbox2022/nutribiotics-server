@@ -4,6 +4,7 @@ import { Job } from 'bullmq';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { IngestionRunsService } from '../ingestion-runs/ingestion-runs.service';
+import { ScrapingService } from '../scraping/scraping.service';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
 import {
   Marketplace,
@@ -22,6 +23,7 @@ export class PriceComparisonProcessor extends WorkerHost {
 
   constructor(
     private readonly ingestionRunsService: IngestionRunsService,
+    private readonly scrapingService: ScrapingService,
     @InjectModel(Product.name)
     private productModel: Model<ProductDocument>,
     @InjectModel(Marketplace.name)
@@ -66,64 +68,104 @@ export class PriceComparisonProcessor extends WorkerHost {
         await this.ingestionRunsService.markAsRunning(runId);
       }
 
-      await this.delay(2000);
       await job.updateProgress(25);
 
-      // Step 2: Simulate scraping competitor prices for each product-marketplace combination
+      // Step 2: Scrape real prices for each product-marketplace combination
       this.logger.log('Step 2: Scraping competitor prices...');
-      let processedProducts = 0;
-      const sampleSize = Math.min(10, totalProducts); // Sample first 10 products for mock results
+      let processedLookups = 0;
 
-      for (let i = 0; i < sampleSize; i++) {
-        const product = products[i];
-        const marketplace =
-          marketplaces[i % totalMarketplaces] || marketplaces[0];
+      // Ensure runId is defined before processing
+      if (!runId) {
+        throw new Error('Run ID is required for processing');
+      }
+      const validRunId = runId;
 
-        if (!marketplace) continue;
+      // Iterate through ALL product-marketplace combinations
+      for (const product of products) {
+        for (const marketplace of marketplaces) {
+          try {
+            // TODO: Get actual product URL from ProductMarketplace collection
+            // For now, skip products without proper URL mapping
+            const url = `${marketplace.baseUrl}/product/${product.name.toLowerCase().replace(/\s+/g, '-')}`;
+            this.logger.warn(
+              `No URL mapping found for ${product.name} on ${marketplace.name}. Using generated URL: ${url}`,
+            );
+            continue;
 
-        // Simulate network delay for each lookup (500ms - 1.5s per lookup)
-        const lookupDelay = Math.floor(Math.random() * 1000) + 500;
-        this.logger.log(
-          `Scraping ${product.name} from ${marketplace.name}...`,
+            // Scrape the product price using Stagehand
+            const scrapeResult = await this.scrapingService.scrapeProductPrice(
+              url,
+              marketplace.name,
+            );
+
+            // Determine lookup status based on scraping result
+            let lookupStatus: 'success' | 'not_found' | 'error' = 'success';
+            if (!scrapeResult.success) {
+              lookupStatus = 'error';
+            } else if (!scrapeResult.inStock || !scrapeResult.price) {
+              lookupStatus = 'not_found';
+            }
+
+            // Record the lookup result
+            await this.ingestionRunsService.addLookupResult(validRunId, {
+              productId: product._id,
+              productName: product.name,
+              marketplaceId: marketplace._id,
+              marketplaceName: marketplace.name,
+              url,
+              price: scrapeResult.price,
+              currency: scrapeResult.currency,
+              inStock: scrapeResult.inStock,
+              scrapedAt: new Date(),
+              lookupStatus,
+            });
+
+            processedLookups++;
+            await this.ingestionRunsService.updateProgress(
+              validRunId,
+              Math.floor((processedLookups / totalLookups) * totalProducts),
+            );
+
+            // Add a small delay between requests to avoid rate limiting (1-2 seconds)
+            await this.delay(1000 + Math.random() * 1000);
+          } catch (error) {
+            // Log error but continue processing other product-marketplace combinations
+            this.logger.error(
+              `Failed to scrape ${product.name} from ${marketplace.name}: ${error.message}`,
+            );
+
+            // Record the failed lookup
+            await this.ingestionRunsService.addLookupResult(validRunId, {
+              productId: product._id,
+              productName: product.name,
+              marketplaceId: marketplace._id,
+              marketplaceName: marketplace.name,
+              url: `${marketplace.baseUrl}/product/${product.name.toLowerCase().replace(/\s+/g, '-')}`,
+              price: undefined,
+              currency: undefined,
+              inStock: false,
+              scrapedAt: new Date(),
+              lookupStatus: 'error',
+            });
+
+            processedLookups++;
+          }
+        }
+
+        // Update job progress periodically
+        const progressPercentage = Math.min(
+          75,
+          25 + Math.floor((processedLookups / totalLookups) * 50),
         );
-        await this.delay(lookupDelay);
-
-        // Simulate lookup for this product-marketplace pair
-        await this.ingestionRunsService.addLookupResult(runId, {
-          productId: product._id,
-          productName: product.name,
-          marketplaceId: marketplace._id,
-          marketplaceName: marketplace.name,
-          url: `${marketplace.baseUrl}/product/${product.name.toLowerCase().replace(/\s+/g, '-')}`,
-          price:
-            Math.random() > 0.2
-              ? Math.floor(Math.random() * 50000 + 10000)
-              : undefined,
-          currency: 'COP',
-          inStock: Math.random() > 0.3,
-          scrapedAt: new Date(),
-          lookupStatus: Math.random() > 0.1 ? 'success' : 'not_found',
-        });
-
-        processedProducts++;
-        await this.ingestionRunsService.updateProgress(runId, processedProducts);
+        await job.updateProgress(progressPercentage);
       }
 
-      await job.updateProgress(50);
-      this.logger.log(`Scraped prices from ${totalMarketplaces} marketplaces`);
+      this.logger.log(
+        `Completed ${processedLookups} lookups across ${totalMarketplaces} marketplaces`,
+      );
 
-      // Step 3: Simulate price analysis
-      this.logger.log('Step 3: Analyzing price differences...');
-      await this.delay(2000);
-      await job.updateProgress(75);
-      this.logger.log('Calculated price indexes and alerts');
-
-      // Step 4: Simulate updating database
-      this.logger.log('Step 4: Updating comparison data...');
-      await this.delay(2000);
+      // Mark the run as completed
       await job.updateProgress(100);
-      this.logger.log('Updated database with new comparison results');
-
       await this.ingestionRunsService.updateProgress(runId, totalProducts);
       await this.ingestionRunsService.markAsCompleted(runId);
 
