@@ -58,4 +58,20 @@ export class Product {
 export const ProductSchema = SchemaFactory.createForClass(Product);
 
 ProductSchema.set('autoIndex', true);
+ProductSchema.set('toJSON', {
+  transform: function(doc, ret) {
+    if (ret.ingredients && ret.ingredients instanceof Map) {
+      ret.ingredients = Object.fromEntries(ret.ingredients) as any;
+    }
+    return ret;
+  }
+});
+ProductSchema.set('toObject', {
+  transform: function(doc, ret) {
+    if (ret.ingredients && ret.ingredients instanceof Map) {
+      ret.ingredients = Object.fromEntries(ret.ingredients) as any;
+    }
+    return ret;
+  }
+});
 ProductSchema.index({ name: 1, brand: 1 }, { unique: true });

@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import { UsersService } from './users/users.service';
 import { IngredientsService } from './ingredients/ingredients.service';
 import { BrandsService } from './brands/brands.service';
+import { ProductsService } from './products/products.service';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -31,6 +32,9 @@ async function bootstrap() {
 
   const brandsService = app.get(BrandsService);
   await brandsService.seedBrands();
+
+  const productsService = app.get(ProductsService);
+  await productsService.seedProducts();
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);

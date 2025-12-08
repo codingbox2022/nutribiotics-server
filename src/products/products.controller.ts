@@ -12,6 +12,7 @@ import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateProductsBulkDto } from './dto/create-products-bulk.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { AddComparablesDto } from './dto/add-comparables.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -61,5 +62,13 @@ export class ProductsController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.productsService.remove(id);
+  }
+
+  @Post(':id/comparables')
+  addComparables(
+    @Param('id') id: string,
+    @Body() addComparablesDto: AddComparablesDto,
+  ) {
+    return this.productsService.addComparables(id, addComparablesDto.comparables);
   }
 }

@@ -6,10 +6,12 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery } from 'mongoose';
 import { Product, ProductDocument } from './schemas/product.schema';
+import { Ingredient, IngredientDocument } from '../ingredients/schemas/ingredient.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PaginatedResult } from '../common/interfaces/response.interface';
 import { PricesService } from '../prices/prices.service';
+import productsData from '../files/products.json';
 
 interface FindAllFilters {
   search?: string;
@@ -25,6 +27,7 @@ interface FindAllFilters {
 export class ProductsService {
   constructor(
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
+    @InjectModel(Ingredient.name) private ingredientModel: Model<IngredientDocument>,
     private pricesService: PricesService,
   ) {}
 
@@ -77,6 +80,25 @@ export class ProductsService {
     return { mainProduct, comparables };
   }
 
+  private async populateIngredientNames(ingredientsMap: Map<string, number>): Promise<Record<string, number>> {
+    if (!ingredientsMap || ingredientsMap.size === 0) {
+      return {};
+    }
+
+    const ingredientIds = Array.from(ingredientsMap.keys());
+    const ingredients = await this.ingredientModel.find({ _id: { $in: ingredientIds } }).exec();
+
+    const result: Record<string, number> = {};
+    for (const [id, amount] of ingredientsMap.entries()) {
+      const ingredient = ingredients.find(ing => ing._id.toString() === id);
+      if (ingredient) {
+        result[ingredient.name] = amount;
+      }
+    }
+
+    return result;
+  }
+
   async findAll(
     filters: FindAllFilters,
   ): Promise<PaginatedResult<any>> {
@@ -119,7 +141,7 @@ export class ProductsService {
     // For each original product, fetch its compared products and latest price
     const data = await Promise.all(
       originalProducts.map(async (product) => {
-        const [comparedProducts, prices] = await Promise.all([
+        const [comparedProducts, prices, populatedIngredients] = await Promise.all([
           this.productModel
             .find({ comparedTo: product._id.toString() })
             .exec(),
@@ -127,13 +149,29 @@ export class ProductsService {
             productId: product._id.toString(),
             limit: 1,
           }),
+          this.populateIngredientNames(product.ingredients),
         ]);
 
         const latestPrice = prices.data.length > 0 ? prices.data[0].value : null;
 
+        const productObj = product.toObject();
+
+        // Populate ingredients for compared products as well
+        const comparedProductsWithIngredients = await Promise.all(
+          comparedProducts.map(async (p) => {
+            const pObj = p.toObject();
+            const pIngredients = await this.populateIngredientNames(p.ingredients);
+            return {
+              ...pObj,
+              ingredients: pIngredients,
+            };
+          })
+        );
+
         return {
-          ...product.toObject(),
-          comparedProducts: comparedProducts.map((p) => p.toObject()),
+          ...productObj,
+          ingredients: populatedIngredients,
+          comparedProducts: comparedProductsWithIngredients,
           latestPrice,
         };
       }),
@@ -179,6 +217,94 @@ export class ProductsService {
     const result = await this.productModel.findByIdAndDelete(id).exec();
     if (!result) {
       throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+  }
+
+  async addComparables(
+    mainProductId: string,
+    comparables: CreateProductDto[],
+  ): Promise<ProductDocument[]> {
+    // Validate main product exists and is a main product (not a comparable)
+    const mainProduct = await this.productModel.findById(mainProductId).exec();
+    if (!mainProduct) {
+      throw new NotFoundException(
+        `Main product with ID ${mainProductId} not found`,
+      );
+    }
+
+    if (mainProduct.comparedTo) {
+      throw new ConflictException(
+        `Product with ID ${mainProductId} is not a main product. Cannot add comparables to a comparable product.`,
+      );
+    }
+
+    // Validate all comparables don't already exist before creating any
+    const duplicates: string[] = [];
+    for (const comparable of comparables) {
+      const existing = await this.productModel
+        .findOne({ name: comparable.name, brand: comparable.brand })
+        .exec();
+      if (existing) {
+        duplicates.push(`"${comparable.name}" (${comparable.brand})`);
+      }
+    }
+
+    if (duplicates.length > 0) {
+      throw new ConflictException(
+        `Ya existen productos con estos nombres y marcas: ${duplicates.join(', ')}`,
+      );
+    }
+
+    // Create all comparable products
+    const createdComparables = await Promise.all(
+      comparables.map((c) =>
+        this.create({
+          ...c,
+          comparedTo: mainProductId,
+        }),
+      ),
+    );
+
+    return createdComparables;
+  }
+
+  async seedProducts(): Promise<void> {
+    const count = await this.productModel.countDocuments().exec();
+    console.log(`Current product count: ${count}`);
+    if (count > 0) {
+      console.log('Products already seeded');
+      return;
+    }
+
+    console.log(`Products data length: ${productsData.length}`);
+    try {
+      let totalSeeded = 0;
+
+      for (const productData of productsData) {
+        const { comparables, ...mainProductData } = productData;
+
+        const mainProduct = await this.productModel.create({
+          ...mainProductData,
+          ingredients: new Map(Object.entries(mainProductData.ingredients)),
+          comparedTo: null,
+        });
+        totalSeeded++;
+
+        if (comparables && comparables.length > 0) {
+          for (const comparable of comparables) {
+            await this.productModel.create({
+              ...comparable,
+              ingredients: new Map(Object.entries(comparable.ingredients)),
+              comparedTo: mainProduct._id,
+            });
+            totalSeeded++;
+          }
+        }
+      }
+
+      console.log(`Seeded ${totalSeeded} products (${productsData.length} main + comparables)`);
+    } catch (error) {
+      console.error('Error seeding products:', error);
     }
   }
 }

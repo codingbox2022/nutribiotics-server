@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
 import { BullModule } from '@nestjs/bullmq';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
@@ -7,10 +8,19 @@ import { NotificationsService } from './notifications.service';
 import { PriceComparisonProcessor } from './price-comparison.processor';
 import { QueuesController } from './queues.controller';
 import { IngestionRunsModule } from '../ingestion-runs/ingestion-runs.module';
+import { Product, ProductSchema } from '../products/schemas/product.schema';
+import {
+  Marketplace,
+  MarketplaceSchema,
+} from '../marketplaces/schemas/marketplace.schema';
 
 @Module({
   imports: [
     IngestionRunsModule,
+    MongooseModule.forFeature([
+      { name: Product.name, schema: ProductSchema },
+      { name: Marketplace.name, schema: MarketplaceSchema },
+    ]),
     BullModule.registerQueue({
       name: 'notifications',
       defaultJobOptions: {
