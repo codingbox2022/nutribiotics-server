@@ -85,8 +85,24 @@ export class ProductsService {
       return {};
     }
 
-    const ingredientIds = Array.from(ingredientsMap.keys());
-    const ingredients = await this.ingredientModel.find({ _id: { $in: ingredientIds } }).exec();
+    const ingredientKeys = Array.from(ingredientsMap.keys());
+
+    // Check if keys are already names (not ObjectIds)
+    // ObjectIds are 24 character hex strings
+    const isObjectId = (str: string) => /^[0-9a-fA-F]{24}$/.test(str);
+    const areKeysObjectIds = ingredientKeys.every(key => isObjectId(key));
+
+    // If keys are already names, just return the map as an object
+    if (!areKeysObjectIds) {
+      const result: Record<string, number> = {};
+      for (const [name, amount] of ingredientsMap.entries()) {
+        result[name] = amount;
+      }
+      return result;
+    }
+
+    // Otherwise, populate names from IDs
+    const ingredients = await this.ingredientModel.find({ _id: { $in: ingredientKeys } }).exec();
 
     const result: Record<string, number> = {};
     for (const [id, amount] of ingredientsMap.entries()) {
