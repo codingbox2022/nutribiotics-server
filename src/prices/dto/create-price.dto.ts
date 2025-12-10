@@ -8,9 +8,13 @@ export class CreatePriceDto {
 
   @IsNotEmpty()
   @IsString()
-  marketplace: string;
+  marketplaceId: string;
 
   @IsNotEmpty()
   @IsString()
   productId: string;
+
+  @IsNotEmpty()
+  @IsString()
+  ingestionRunId: string;
 }

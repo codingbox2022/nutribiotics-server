@@ -26,13 +26,13 @@ export class IngestionRunsController {
       limitNum,
     );
 
+    // Return unwrapped - the TransformInterceptor will wrap it
     return {
       data: runs,
-      pagination: {
+      meta: {
         page: pageNum,
         limit: limitNum,
         total,
-        totalPages: Math.ceil(total / limitNum),
       },
     };
   }
@@ -41,7 +41,7 @@ export class IngestionRunsController {
   async findRecent(@Query('limit') limit?: string) {
     const limitNum = limit ? parseInt(limit, 10) : 10;
     const runs = await this.ingestionRunsService.findRecent(limitNum);
-    return { data: runs };
+    return runs;
   }
 
   @Get('status/:status')
@@ -58,7 +58,7 @@ export class IngestionRunsController {
     }
 
     const runs = await this.ingestionRunsService.findByStatus(status);
-    return { data: runs };
+    return runs;
   }
 
   @Get(':id')
@@ -67,7 +67,7 @@ export class IngestionRunsController {
     if (!run) {
       throw new HttpException('Run not found', HttpStatus.NOT_FOUND);
     }
-    return { data: run };
+    return run;
   }
 
   @Post(':id/cancel')

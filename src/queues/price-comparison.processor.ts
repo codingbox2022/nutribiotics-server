@@ -8,6 +8,7 @@ import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { IngestionRunsService } from '../ingestion-runs/ingestion-runs.service';
 import { ScrapingService } from '../scraping/scraping.service';
+import { PricesService } from '../prices/prices.service';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
 import {
   Marketplace,
@@ -27,6 +28,7 @@ export class PriceComparisonProcessor extends WorkerHost {
   constructor(
     private readonly ingestionRunsService: IngestionRunsService,
     private readonly scrapingService: ScrapingService,
+    private readonly pricesService: PricesService,
     @InjectModel(Product.name)
     private productModel: Model<ProductDocument>,
     @InjectModel(Marketplace.name)
@@ -93,6 +95,15 @@ export class PriceComparisonProcessor extends WorkerHost {
 
       // Iterate through products one at a time
       for (const product of products) {
+        // Skip Nutribiotic products
+        if (product.brand.toLowerCase() === 'nutribiotic') {
+          this.logger.log(
+            `Skipping ${product.name} by ${product.brand} (Nutribiotic products are excluded)`,
+          );
+          processedLookups += totalMarketplaces;
+          continue;
+        }
+
         this.logger.log(
           `Processing ${product.name} by ${product.brand} across ${totalMarketplaces} marketplaces in parallel...`,
         );
@@ -131,7 +142,7 @@ export class PriceComparisonProcessor extends WorkerHost {
                 lookupStatus = 'not_found';
               }
 
-              // Store result immediately in DB
+              // Store lookup result in ingestion run
               await this.ingestionRunsService.addLookupResult(validRunId, {
                 productId: product._id,
                 productName: product.name,
@@ -144,6 +155,16 @@ export class PriceComparisonProcessor extends WorkerHost {
                 scrapedAt: new Date(),
                 lookupStatus,
               });
+
+              // Create Price document if lookup was successful
+              if (lookupStatus === 'success' && parsed.price) {
+                await this.pricesService.create({
+                  value: parsed.price,
+                  marketplaceId: marketplace._id.toString(),
+                  productId: product._id.toString(),
+                  ingestionRunId: validRunId.toString(),
+                });
+              }
 
               this.logger.log(
                 `✓ ${product.name} on ${marketplace.name}: ${parsed.price ? `$${parsed.price}` : 'not found'}`,

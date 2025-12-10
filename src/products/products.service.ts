@@ -159,7 +159,7 @@ export class ProductsService {
       originalProducts.map(async (product) => {
         const [comparedProducts, prices, populatedIngredients] = await Promise.all([
           this.productModel
-            .find({ comparedTo: product._id.toString() })
+            .find({ comparedTo: product._id })
             .exec(),
           this.pricesService.findAll({
             productId: product._id.toString(),

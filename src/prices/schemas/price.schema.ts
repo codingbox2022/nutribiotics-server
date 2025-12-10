@@ -8,14 +8,17 @@ export class Price {
   @Prop({ required: true })
   value: number;
 
-  @Prop({ required: true })
-  marketplace: string;
+  @Prop({ type: Types.ObjectId, ref: 'Marketplace', required: true })
+  marketplaceId: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
   productId: Types.ObjectId;
+
+  @Prop({ type: Types.ObjectId, ref: 'IngestionRun', required: true })
+  ingestionRunId: Types.ObjectId;
 }
 
 export const PriceSchema = SchemaFactory.createForClass(Price);
 
 PriceSchema.set('autoIndex', true);
-PriceSchema.index({ productId: 1, marketplace: 1, createdAt: -1 });
+PriceSchema.index({ productId: 1, marketplaceId: 1, createdAt: -1 });

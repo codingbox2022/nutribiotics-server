@@ -1,42 +1,33 @@
 [
   {
-    "name": "Vitamina C 1000mg",
+    "name": "MULTIESSENS VITAMINAS",
     "brand": "NUTRIBIOTICS",
-    "ingredients": { "Vitamina C": 1000 },
+    "ingredients": {
+      "Vitamina A": 4500,
+      "Betacaroteno": 4.5,
+      "Vitamina B1": 30,
+      "Vitamina B2": 30,
+      "Niacina": 34.5,
+      "Vitamina B6": 15,
+      "Vitamina D3": 1500
+    },
     "totalContent": 60,
-    "presentation": "tableta",
-    "portion": 1,
+    "presentation": "cápsulas",
+    "portion": 3,
     "comparables": [
       {
-        "name": "Vitamin C 1000mg",
-        "brand": "NOW",
-        "ingredients": { "Vitamina C": 1000 },
-        "totalContent": 100,
-        "presentation": "tableta",
-        "portion": 1
-      },
-      {
-        "name": "Vitamina C 1000mg Premium",
-        "brand": "HEALTHY AMERICA",
-        "ingredients": { "Vitamina C": 1000 },
-        "totalContent": 60,
-        "presentation": "tableta",
-        "portion": 1
-      },
-      {
-        "name": "Magnesium Citrate 400mg",
-        "brand": "SOLGAR",
-        "ingredients": { "Magnesio": 400 },
-        "totalContent": 60,
-        "presentation": "tableta",
-        "portion": 1
-      },
-      {
-        "name": "Ultra Omega-3",
-        "brand": "NOW",
-        "ingredients": { "Omega-3": 1000, "EPA": 500, "DHA": 250 },
-        "totalContent": 90,
-        "presentation": "softGel",
+        "name": "MULTIVIT",
+        "brand": "PROCAPS",
+        "ingredients": {
+          "Vitamina B2": 5,
+          "Vitamina A": 1000,
+          "Betacaroteno": 0,
+          "Vitamina B1": 5,
+          "Niacina": 6,
+          "Vitamina D3": 1250
+        },
+        "totalContent": 30,
+        "presentation": "cápsulas",
         "portion": 1
       }
     ]
