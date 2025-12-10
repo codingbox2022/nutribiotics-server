@@ -5,6 +5,7 @@ import { Marketplace, MarketplaceDocument } from './schemas/marketplace.schema';
 import { CreateMarketplaceDto } from './dto/create-marketplace.dto';
 import { UpdateMarketplaceDto } from './dto/update-marketplace.dto';
 import { PaginatedResult } from '../common/interfaces/response.interface';
+import marketplacesData from '../files/marketplaces.json';
 
 interface FindAllFilters {
   search?: string;
@@ -84,6 +85,23 @@ export class MarketplacesService {
     const result = await this.marketplaceModel.findByIdAndDelete(id).exec();
     if (!result) {
       throw new NotFoundException(`Marketplace with ID ${id} not found`);
+    }
+  }
+
+  async seedMarketplaces(): Promise<void> {
+    const count = await this.marketplaceModel.countDocuments().exec();
+    console.log(`Current marketplace count: ${count}`);
+    if (count > 0) {
+      console.log('Marketplaces already seeded');
+      return;
+    }
+
+    console.log(`Marketplaces data length: ${marketplacesData.length}`);
+    try {
+      await this.marketplaceModel.insertMany(marketplacesData);
+      console.log(`Seeded ${marketplacesData.length} marketplaces`);
+    } catch (error) {
+      console.error('Error seeding marketplaces:', error);
     }
   }
 }

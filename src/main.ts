@@ -5,6 +5,7 @@ import { UsersService } from './users/users.service';
 import { IngredientsService } from './ingredients/ingredients.service';
 import { BrandsService } from './brands/brands.service';
 import { ProductsService } from './products/products.service';
+import { MarketplacesService } from './marketplaces/marketplaces.service';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
@@ -32,6 +33,9 @@ async function bootstrap() {
 
   const brandsService = app.get(BrandsService);
   await brandsService.seedBrands();
+
+  const marketplacesService = app.get(MarketplacesService);
+  await marketplacesService.seedMarketplaces();
 
   const productsService = app.get(ProductsService);
   await productsService.seedProducts();
