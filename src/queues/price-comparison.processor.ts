@@ -3,6 +3,9 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { z } from 'zod';
 import { IngestionRunsService } from '../ingestion-runs/ingestion-runs.service';
 import { ScrapingService } from '../scraping/scraping.service';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
@@ -80,84 +83,117 @@ export class PriceComparisonProcessor extends WorkerHost {
       }
       const validRunId = runId;
 
-      // Iterate through ALL product-marketplace combinations
+      // Schema for LLM web search response
+      const searchSchema = z.object({
+        price: z.number().optional(),
+        productUrl: z.string().optional(), // Don't validate URL format, LLM might return invalid URLs
+        productName: z.string().optional(),
+        inStock: z.boolean().default(false),
+      });
+
+      // Iterate through products one at a time
       for (const product of products) {
-        for (const marketplace of marketplaces) {
-          try {
-            // TODO: Get actual product URL from ProductMarketplace collection
-            // For now, skip products without proper URL mapping
-            const url = `${marketplace.baseUrl}/product/${product.name.toLowerCase().replace(/\s+/g, '-')}`;
-            this.logger.warn(
-              `No URL mapping found for ${product.name} on ${marketplace.name}. Using generated URL: ${url}`,
-            );
-            continue;
+        this.logger.log(
+          `Processing ${product.name} by ${product.brand} across ${totalMarketplaces} marketplaces in parallel...`,
+        );
 
-            // Scrape the product price using Stagehand
-            const scrapeResult = await this.scrapingService.scrapeProductPrice(
-              url,
-              marketplace.name,
-            );
+        // Launch all marketplace searches for this product in parallel
+        const marketplaceSearchPromises = marketplaces.map(
+          async (marketplace) => {
+            try {
+              const prompt = `Look for this product "${product.name}" of brand "${product.brand}" on the marketplace "${marketplace.name}" and get me the current price. If the product is not found, respond with inStock as false.
+      the format of the response should be a json object with the following fields: price (number), productUrl: (string), productName (string), inStock (boolean).
+    `;
 
-            // Determine lookup status based on scraping result
-            let lookupStatus: 'success' | 'not_found' | 'error' = 'success';
-            if (!scrapeResult.success) {
-              lookupStatus = 'error';
-            } else if (!scrapeResult.inStock || !scrapeResult.price) {
-              lookupStatus = 'not_found';
+              const result = await generateText({
+                model: openai('gpt-5'),
+                prompt,
+                tools: {
+                  web_search: openai.tools.webSearch({}),
+                },
+              });
+
+              // Try to parse JSON response, handle malformed JSON gracefully
+              let parsed: z.infer<typeof searchSchema>;
+              try {
+                const jsonResponse = JSON.parse(result.text);
+                parsed = searchSchema.parse(jsonResponse);
+              } catch (parseError) {
+                this.logger.warn(
+                  `Failed to parse LLM response for ${product.name} on ${marketplace.name}: ${parseError.message}. Response: ${result.text.substring(0, 100)}`,
+                );
+                throw new Error(`Invalid JSON response`);
+              }
+
+              // Determine lookup status
+              let lookupStatus: 'success' | 'not_found' | 'error' = 'success';
+              if (!parsed.inStock || !parsed.price) {
+                lookupStatus = 'not_found';
+              }
+
+              // Store result immediately in DB
+              await this.ingestionRunsService.addLookupResult(validRunId, {
+                productId: product._id,
+                productName: product.name,
+                marketplaceId: marketplace._id,
+                marketplaceName: marketplace.name,
+                url: parsed.productUrl || marketplace.baseUrl,
+                price: parsed.price,
+                currency: 'COP', // Default currency, can be enhanced
+                inStock: parsed.inStock,
+                scrapedAt: new Date(),
+                lookupStatus,
+              });
+
+              this.logger.log(
+                `✓ ${product.name} on ${marketplace.name}: ${parsed.price ? `$${parsed.price}` : 'not found'}`,
+              );
+
+              return { success: true, marketplace: marketplace.name };
+            } catch (error) {
+              this.logger.error(
+                `Failed to search ${product.name} on ${marketplace.name}: ${error.message}`,
+              );
+
+              // Store failed lookup immediately in DB
+              await this.ingestionRunsService.addLookupResult(validRunId, {
+                productId: product._id,
+                productName: product.name,
+                marketplaceId: marketplace._id,
+                marketplaceName: marketplace.name,
+                url: marketplace.baseUrl,
+                price: undefined,
+                currency: undefined,
+                inStock: false,
+                scrapedAt: new Date(),
+                lookupStatus: 'error',
+              });
+
+              return { success: false, marketplace: marketplace.name, error };
             }
+          },
+        );
 
-            // Record the lookup result
-            await this.ingestionRunsService.addLookupResult(validRunId, {
-              productId: product._id,
-              productName: product.name,
-              marketplaceId: marketplace._id,
-              marketplaceName: marketplace.name,
-              url,
-              price: scrapeResult.price,
-              currency: scrapeResult.currency,
-              inStock: scrapeResult.inStock,
-              scrapedAt: new Date(),
-              lookupStatus,
-            });
+        // Wait for all marketplace searches for this product to complete
+        const results = await Promise.allSettled(marketplaceSearchPromises);
 
-            processedLookups++;
-            await this.ingestionRunsService.updateProgress(
-              validRunId,
-              Math.floor((processedLookups / totalLookups) * totalProducts),
-            );
+        processedLookups += results.length;
 
-            // Add a small delay between requests to avoid rate limiting (1-2 seconds)
-            await this.delay(1000 + Math.random() * 1000);
-          } catch (error) {
-            // Log error but continue processing other product-marketplace combinations
-            this.logger.error(
-              `Failed to scrape ${product.name} from ${marketplace.name}: ${error.message}`,
-            );
+        // Update progress after completing all marketplaces for this product
+        await this.ingestionRunsService.updateProgress(
+          validRunId,
+          Math.floor((processedLookups / totalLookups) * totalProducts),
+        );
 
-            // Record the failed lookup
-            await this.ingestionRunsService.addLookupResult(validRunId, {
-              productId: product._id,
-              productName: product.name,
-              marketplaceId: marketplace._id,
-              marketplaceName: marketplace.name,
-              url: `${marketplace.baseUrl}/product/${product.name.toLowerCase().replace(/\s+/g, '-')}`,
-              price: undefined,
-              currency: undefined,
-              inStock: false,
-              scrapedAt: new Date(),
-              lookupStatus: 'error',
-            });
-
-            processedLookups++;
-          }
-        }
-
-        // Update job progress periodically
         const progressPercentage = Math.min(
           75,
           25 + Math.floor((processedLookups / totalLookups) * 50),
         );
         await job.updateProgress(progressPercentage);
+
+        this.logger.log(
+          `Completed ${product.name}: ${results.length} marketplace lookups`,
+        );
       }
 
       this.logger.log(
