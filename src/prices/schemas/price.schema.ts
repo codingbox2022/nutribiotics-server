@@ -6,7 +6,10 @@ export type PriceDocument = HydratedDocument<Price>;
 @Schema({ timestamps: true })
 export class Price {
   @Prop({ required: true })
-  value: number;
+  precioSinIva: number;
+
+  @Prop({ required: true })
+  precioConIva: number;
 
   @Prop({ type: Types.ObjectId, ref: 'Marketplace', required: true })
   marketplaceId: Types.ObjectId;

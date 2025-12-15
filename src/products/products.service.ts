@@ -168,7 +168,7 @@ export class ProductsService {
           this.populateIngredientNames(product.ingredients),
         ]);
 
-        const latestPrice = prices.data.length > 0 ? prices.data[0].value : null;
+        const latestPrice = prices.data.length > 0 ? prices.data[0].precioConIva : null;
 
         const productObj = product.toObject();
 

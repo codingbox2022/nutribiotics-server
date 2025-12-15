@@ -7,7 +7,6 @@ import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { IngestionRunsService } from '../ingestion-runs/ingestion-runs.service';
-import { ScrapingService } from '../scraping/scraping.service';
 import { PricesService } from '../prices/prices.service';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
 import {
@@ -27,7 +26,6 @@ export class PriceComparisonProcessor extends WorkerHost {
 
   constructor(
     private readonly ingestionRunsService: IngestionRunsService,
-    private readonly scrapingService: ScrapingService,
     private readonly pricesService: PricesService,
     @InjectModel(Product.name)
     private productModel: Model<ProductDocument>,
@@ -44,10 +42,10 @@ export class PriceComparisonProcessor extends WorkerHost {
     let runId: Types.ObjectId | string | undefined;
 
     try {
-      // Step 1: Fetch real products and marketplaces from database
+      // Step 1: Fetch real products and marketplaces from database (excluding Nutribiotics products)
       this.logger.log('Step 1: Fetching products from database...');
       const [products, marketplaces] = await Promise.all([
-        this.productModel.find().exec(),
+        this.productModel.find({ brand: { $not: { $regex: /^nutribiotics$/i } } }).exec(),
         this.marketplaceModel.find({ status: 'active' }).exec(),
       ]);
 
@@ -87,23 +85,15 @@ export class PriceComparisonProcessor extends WorkerHost {
 
       // Schema for LLM web search response
       const searchSchema = z.object({
-        price: z.number().optional(),
-        productUrl: z.string().optional(), // Don't validate URL format, LLM might return invalid URLs
+        precioSinIva: z.number().nullable().optional(),
+        precioConIva: z.number().nullable().optional(),
+        productUrl: z.string().optional(),
         productName: z.string().optional(),
         inStock: z.boolean().default(false),
       });
 
       // Iterate through products one at a time
       for (const product of products) {
-        // Skip Nutribiotic products
-        if (product.brand.toLowerCase() === 'nutribiotic') {
-          this.logger.log(
-            `Skipping ${product.name} by ${product.brand} (Nutribiotic products are excluded)`,
-          );
-          processedLookups += totalMarketplaces;
-          continue;
-        }
-
         this.logger.log(
           `Processing ${product.name} by ${product.brand} across ${totalMarketplaces} marketplaces in parallel...`,
         );
@@ -112,12 +102,20 @@ export class PriceComparisonProcessor extends WorkerHost {
         const marketplaceSearchPromises = marketplaces.map(
           async (marketplace) => {
             try {
-              const prompt = `Look for this product "${product.name}" of brand "${product.brand}" on the marketplace "${marketplace.name}" and get me the current price. If the product is not found, respond with inStock as false.
-      the format of the response should be a json object with the following fields: price (number), productUrl: (string), productName (string), inStock (boolean).
+              const prompt = `Look for this product "${product.name}" of brand "${product.brand}" on the marketplace "${marketplace.name}" and get me the current prices (both with and without tax/IVA/VAT if available). If the product is not found, respond with inStock as false.
+
+      Return ONLY a valid JSON object (no markdown, no extra text) with the following fields:
+      - precioSinIva (number or null): Price without tax/IVA/VAT if shown on the page
+      - precioConIva (number or null): Price with tax/IVA/VAT included (usually the main displayed price)
+      - productUrl (string): URL to the product page
+      - productName (string): The exact product name found
+      - inStock (boolean): Whether the product is available
+
+      If only one price is shown, put it in precioConIva and set precioSinIva to null.
     `;
 
               const result = await generateText({
-                model: openai('gpt-5'),
+                model: openai('gpt-4o'),
                 prompt,
                 tools: {
                   web_search: openai.tools.webSearch({}),
@@ -127,18 +125,24 @@ export class PriceComparisonProcessor extends WorkerHost {
               // Try to parse JSON response, handle malformed JSON gracefully
               let parsed: z.infer<typeof searchSchema>;
               try {
-                const jsonResponse = JSON.parse(result.text);
+                // Remove markdown code blocks if present
+                let jsonText = result.text.trim();
+                if (jsonText.startsWith('```')) {
+                  jsonText = jsonText.replace(/```json?\n?/g, '').replace(/```\n?$/g, '');
+                }
+
+                const jsonResponse = JSON.parse(jsonText);
                 parsed = searchSchema.parse(jsonResponse);
               } catch (parseError) {
-                this.logger.warn(
-                  `Failed to parse LLM response for ${product.name} on ${marketplace.name}: ${parseError.message}. Response: ${result.text.substring(0, 100)}`,
+                this.logger.error(
+                  `Failed to parse LLM response for ${product.name} on ${marketplace.name}: ${parseError.message}`,
                 );
-                throw new Error(`Invalid JSON response`);
+                throw new Error(`Invalid JSON response: ${parseError.message}`);
               }
 
               // Determine lookup status
               let lookupStatus: 'success' | 'not_found' | 'error' = 'success';
-              if (!parsed.inStock || !parsed.price) {
+              if (!parsed.inStock || (!parsed.precioSinIva && !parsed.precioConIva)) {
                 lookupStatus = 'not_found';
               }
 
@@ -149,7 +153,7 @@ export class PriceComparisonProcessor extends WorkerHost {
                 marketplaceId: marketplace._id,
                 marketplaceName: marketplace.name,
                 url: parsed.productUrl || marketplace.baseUrl,
-                price: parsed.price,
+                price: parsed.precioConIva ?? parsed.precioSinIva ?? undefined, // Use precioConIva for backward compatibility with lookup results
                 currency: 'COP', // Default currency, can be enhanced
                 inStock: parsed.inStock,
                 scrapedAt: new Date(),
@@ -157,9 +161,10 @@ export class PriceComparisonProcessor extends WorkerHost {
               });
 
               // Create Price document if lookup was successful
-              if (lookupStatus === 'success' && parsed.price) {
+              if (lookupStatus === 'success' && (parsed.precioConIva || parsed.precioSinIva)) {
                 await this.pricesService.create({
-                  value: parsed.price,
+                  precioSinIva: parsed.precioSinIva || 0,
+                  precioConIva: parsed.precioConIva || 0,
                   marketplaceId: marketplace._id.toString(),
                   productId: product._id.toString(),
                   ingestionRunId: validRunId.toString(),
@@ -167,7 +172,7 @@ export class PriceComparisonProcessor extends WorkerHost {
               }
 
               this.logger.log(
-                `✓ ${product.name} on ${marketplace.name}: ${parsed.price ? `$${parsed.price}` : 'not found'}`,
+                `✓ ${product.name} on ${marketplace.name}: ${parsed.precioConIva || parsed.precioSinIva ? `sinIVA: $${parsed.precioSinIva || 'N/A'}, conIVA: $${parsed.precioConIva || 'N/A'}` : 'not found'}`,
               );
 
               return { success: true, marketplace: marketplace.name };

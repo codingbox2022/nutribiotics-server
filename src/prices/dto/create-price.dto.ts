@@ -4,7 +4,12 @@ export class CreatePriceDto {
   @IsNotEmpty()
   @IsNumber()
   @Min(0)
-  value: number;
+  precioSinIva: number;
+
+  @IsNotEmpty()
+  @IsNumber()
+  @Min(0)
+  precioConIva: number;
 
   @IsNotEmpty()
   @IsString()
