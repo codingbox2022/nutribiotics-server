@@ -17,6 +17,11 @@ export class CreateMarketplaceDto {
   @IsNotEmpty()
   country: string;
 
+  @IsNumber()
+  @IsNotEmpty()
+  @Min(0)
+  ivaRate: number;
+
   @IsUrl()
   @IsNotEmpty()
   baseUrl: string;

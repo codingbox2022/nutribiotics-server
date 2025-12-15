@@ -11,6 +11,12 @@ export class Price {
   @Prop({ required: true })
   precioConIva: number;
 
+  @Prop({ type: Map, of: Number, required: true })
+  ingredientContent: Map<string, number>;
+
+  @Prop({ type: Map, of: Number, required: true })
+  pricePerIngredientContent: Map<string, number>;
+
   @Prop({ type: Types.ObjectId, ref: 'Marketplace', required: true })
   marketplaceId: Types.ObjectId;
 
@@ -24,4 +30,26 @@ export class Price {
 export const PriceSchema = SchemaFactory.createForClass(Price);
 
 PriceSchema.set('autoIndex', true);
+PriceSchema.set('toJSON', {
+  transform: function(doc, ret) {
+    if (ret.ingredientContent && ret.ingredientContent instanceof Map) {
+      ret.ingredientContent = Object.fromEntries(ret.ingredientContent) as any;
+    }
+    if (ret.pricePerIngredientContent && ret.pricePerIngredientContent instanceof Map) {
+      ret.pricePerIngredientContent = Object.fromEntries(ret.pricePerIngredientContent) as any;
+    }
+    return ret;
+  }
+});
+PriceSchema.set('toObject', {
+  transform: function(doc, ret) {
+    if (ret.ingredientContent && ret.ingredientContent instanceof Map) {
+      ret.ingredientContent = Object.fromEntries(ret.ingredientContent) as any;
+    }
+    if (ret.pricePerIngredientContent && ret.pricePerIngredientContent instanceof Map) {
+      ret.pricePerIngredientContent = Object.fromEntries(ret.pricePerIngredientContent) as any;
+    }
+    return ret;
+  }
+});
 PriceSchema.index({ productId: 1, marketplaceId: 1, createdAt: -1 });

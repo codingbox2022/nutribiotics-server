@@ -11,6 +11,9 @@ export class Marketplace {
   @Prop({ required: true })
   country: string;
 
+  @Prop({ required: true, type: Number, default: 0.19 })
+  ivaRate: number;
+
   @Prop({ required: true })
   baseUrl: string;
 

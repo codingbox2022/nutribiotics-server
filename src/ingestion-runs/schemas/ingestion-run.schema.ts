@@ -22,6 +22,27 @@ export class LookupResult {
   @Prop()
   price?: number;
 
+  @Prop({ type: Number })
+  precioSinIva?: number;
+
+  @Prop({ type: Boolean })
+  precioSinIvaCalculated?: boolean;
+
+  @Prop({ type: Number })
+  precioConIva?: number;
+
+  @Prop({ type: Number })
+  ivaRate?: number;
+
+  @Prop()
+  country?: string;
+
+  @Prop({ type: Object })
+  ingredientContent?: Record<string, number>;
+
+  @Prop({ type: Object })
+  pricePerIngredientContent?: Record<string, number>;
+
   @Prop()
   currency?: string;
 

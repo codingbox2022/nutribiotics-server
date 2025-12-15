@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString, Min } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, Min, IsObject } from 'class-validator';
 
 export class CreatePriceDto {
   @IsNotEmpty()
@@ -10,6 +10,14 @@ export class CreatePriceDto {
   @IsNumber()
   @Min(0)
   precioConIva: number;
+
+  @IsNotEmpty()
+  @IsObject()
+  ingredientContent: Record<string, number>;
+
+  @IsNotEmpty()
+  @IsObject()
+  pricePerIngredientContent: Record<string, number>;
 
   @IsNotEmpty()
   @IsString()

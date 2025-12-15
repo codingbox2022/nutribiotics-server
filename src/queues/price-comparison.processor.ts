@@ -140,31 +140,85 @@ export class PriceComparisonProcessor extends WorkerHost {
                 throw new Error(`Invalid JSON response: ${parseError.message}`);
               }
 
+              // Ensure precioConIva is always populated if we have any price
+              // The displayed price should always be treated as "with IVA"
+              if (!parsed.precioConIva && parsed.precioSinIva) {
+                // If we only have precioSinIva, treat it as precioConIva instead
+                parsed.precioConIva = parsed.precioSinIva;
+                parsed.precioSinIva = null;
+              }
+
+              // Track if precioSinIva was calculated vs. scraped
+              let precioSinIvaCalculated = false;
+
+              // Calculate precioSinIva if not provided by the scraper
+              // Use the marketplace's IVA rate to compute it from precioConIva
+              if (parsed.precioConIva && !parsed.precioSinIva && marketplace.ivaRate) {
+                parsed.precioSinIva = parsed.precioConIva / (1 + marketplace.ivaRate);
+                precioSinIvaCalculated = true;
+              }
+
               // Determine lookup status
               let lookupStatus: 'success' | 'not_found' | 'error' = 'success';
-              if (!parsed.inStock || (!parsed.precioSinIva && !parsed.precioConIva)) {
+              if (!parsed.inStock || !parsed.precioConIva) {
                 lookupStatus = 'not_found';
               }
 
-              // Store lookup result in ingestion run
+              // Calculate ingredient content and price per ingredient content
+              let ingredientContent: Record<string, number> | undefined;
+              let pricePerIngredientContent: Record<string, number> | undefined;
+
+              if (lookupStatus === 'success' && (parsed.precioConIva || parsed.precioSinIva)) {
+                ingredientContent = {};
+                pricePerIngredientContent = {};
+
+                // Convert Map to object for iteration
+                const ingredientsObj = product.ingredients instanceof Map
+                  ? Object.fromEntries(product.ingredients)
+                  : product.ingredients;
+
+                for (const [ingredientId, ingredientQty] of Object.entries(ingredientsObj)) {
+                  // Ingredient Content = (totalContent × ingredient_quantity) ÷ portion
+                  const content = (product.totalContent * (ingredientQty as number)) / product.portion;
+                  ingredientContent[ingredientId] = content;
+
+                  // Price per Ingredient = (precioSinIva or precioConIva) ÷ ingredientContent
+                  // Use precioSinIva if available, otherwise fall back to precioConIva
+                  const priceToUse = parsed.precioSinIva || parsed.precioConIva || 0;
+                  const pricePerContent = content > 0 ? priceToUse / content : 0;
+                  pricePerIngredientContent[ingredientId] = pricePerContent;
+                }
+              }
+
+              // Store lookup result in ingestion run (including calculated data)
+              // Use marketplace's IVA rate and country instead of asking LLM
               await this.ingestionRunsService.addLookupResult(validRunId, {
                 productId: product._id,
                 productName: product.name,
                 marketplaceId: marketplace._id,
                 marketplaceName: marketplace.name,
                 url: parsed.productUrl || marketplace.baseUrl,
-                price: parsed.precioConIva ?? parsed.precioSinIva ?? undefined, // Use precioConIva for backward compatibility with lookup results
-                currency: 'COP', // Default currency, can be enhanced
+                price: parsed.precioConIva ?? parsed.precioSinIva ?? undefined,
+                precioSinIva: parsed.precioSinIva ?? undefined,
+                precioSinIvaCalculated,
+                precioConIva: parsed.precioConIva ?? undefined,
+                ivaRate: marketplace.ivaRate,
+                country: marketplace.country,
+                ingredientContent,
+                pricePerIngredientContent,
+                currency: 'COP',
                 inStock: parsed.inStock,
                 scrapedAt: new Date(),
                 lookupStatus,
               });
 
               // Create Price document if lookup was successful
-              if (lookupStatus === 'success' && (parsed.precioConIva || parsed.precioSinIva)) {
+              if (lookupStatus === 'success' && ingredientContent && pricePerIngredientContent) {
                 await this.pricesService.create({
                   precioSinIva: parsed.precioSinIva || 0,
                   precioConIva: parsed.precioConIva || 0,
+                  ingredientContent,
+                  pricePerIngredientContent,
                   marketplaceId: marketplace._id.toString(),
                   productId: product._id.toString(),
                   ingestionRunId: validRunId.toString(),
