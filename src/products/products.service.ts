@@ -31,9 +31,35 @@ export class ProductsService {
     private pricesService: PricesService,
   ) {}
 
+  private calculateIngredientContent(
+    ingredients: Record<string, number>,
+    totalContent: number,
+    portion: number,
+  ): Map<string, number> {
+    const ingredientContent = new Map<string, number>();
+
+    for (const [ingredientId, ingredientQty] of Object.entries(ingredients)) {
+      // Ingredient Content = (totalContent × ingredient_quantity) ÷ portion
+      const content = (totalContent * ingredientQty) / portion;
+      ingredientContent.set(ingredientId, content);
+    }
+
+    return ingredientContent;
+  }
+
   async create(createProductDto: CreateProductDto): Promise<ProductDocument> {
     try {
-      const product = new this.productModel(createProductDto);
+      // Calculate ingredient content
+      const ingredientContent = this.calculateIngredientContent(
+        createProductDto.ingredients,
+        createProductDto.totalContent,
+        createProductDto.portion,
+      );
+
+      const product = new this.productModel({
+        ...createProductDto,
+        ingredientContent,
+      });
       return await product.save();
     } catch (error: any) {
       if (error.code === 11000) {
@@ -212,8 +238,40 @@ export class ProductsService {
     updateProductDto: UpdateProductDto,
   ): Promise<ProductDocument> {
     try {
+      // Get current product to check if we need to recalculate ingredientContent
+      const currentProduct = await this.productModel.findById(id).exec();
+      if (!currentProduct) {
+        throw new NotFoundException(`Product with ID ${id} not found`);
+      }
+
+      // Recalculate ingredient content if any related fields changed
+      const shouldRecalculate =
+        updateProductDto.ingredients ||
+        updateProductDto.totalContent !== undefined ||
+        updateProductDto.portion !== undefined;
+
+      let ingredientContent: Map<string, number> | undefined;
+      if (shouldRecalculate) {
+        const ingredients = updateProductDto.ingredients ||
+          (currentProduct.ingredients instanceof Map
+            ? Object.fromEntries(currentProduct.ingredients)
+            : currentProduct.ingredients);
+        const totalContent = updateProductDto.totalContent ?? currentProduct.totalContent;
+        const portion = updateProductDto.portion ?? currentProduct.portion;
+
+        ingredientContent = this.calculateIngredientContent(
+          ingredients,
+          totalContent,
+          portion,
+        );
+      }
+
+      const updateData = shouldRecalculate
+        ? { ...updateProductDto, ingredientContent }
+        : updateProductDto;
+
       const product = await this.productModel
-        .findByIdAndUpdate(id, updateProductDto, { new: true })
+        .findByIdAndUpdate(id, updateData, { new: true })
         .exec();
       if (!product) {
         throw new NotFoundException(`Product with ID ${id} not found`);
@@ -284,6 +342,42 @@ export class ProductsService {
     return createdComparables;
   }
 
+  async migrateIngredientContent(): Promise<void> {
+    console.log('Starting ingredient content migration...');
+
+    // Find all products without ingredientContent
+    const products = await this.productModel.find({
+      $or: [
+        { ingredientContent: { $exists: false } },
+        { ingredientContent: null },
+      ],
+    }).exec();
+
+    console.log(`Found ${products.length} products to migrate`);
+
+    let updated = 0;
+    for (const product of products) {
+      const ingredients = product.ingredients instanceof Map
+        ? Object.fromEntries(product.ingredients)
+        : product.ingredients;
+
+      const ingredientContent = this.calculateIngredientContent(
+        ingredients,
+        product.totalContent,
+        product.portion,
+      );
+
+      await this.productModel.findByIdAndUpdate(
+        product._id,
+        { ingredientContent },
+      ).exec();
+
+      updated++;
+    }
+
+    console.log(`Migration complete! Updated ${updated} products`);
+  }
+
   async seedProducts(): Promise<void> {
     const count = await this.productModel.countDocuments().exec();
     console.log(`Current product count: ${count}`);
@@ -299,18 +393,34 @@ export class ProductsService {
       for (const productData of productsData) {
         const { comparables, ...mainProductData } = productData;
 
+        // Calculate ingredient content for main product
+        const ingredientContent = this.calculateIngredientContent(
+          mainProductData.ingredients,
+          mainProductData.totalContent,
+          mainProductData.portion,
+        );
+
         const mainProduct = await this.productModel.create({
           ...mainProductData,
           ingredients: new Map(Object.entries(mainProductData.ingredients)),
+          ingredientContent,
           comparedTo: null,
         });
         totalSeeded++;
 
         if (comparables && comparables.length > 0) {
           for (const comparable of comparables) {
+            // Calculate ingredient content for comparable
+            const comparableIngredientContent = this.calculateIngredientContent(
+              comparable.ingredients,
+              comparable.totalContent,
+              comparable.portion,
+            );
+
             await this.productModel.create({
               ...comparable,
               ingredients: new Map(Object.entries(comparable.ingredients)),
+              ingredientContent: comparableIngredientContent,
               comparedTo: mainProduct._id,
             });
             totalSeeded++;

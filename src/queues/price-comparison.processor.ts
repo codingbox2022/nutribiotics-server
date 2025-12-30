@@ -98,6 +98,11 @@ export class PriceComparisonProcessor extends WorkerHost {
           `Processing ${product.name} by ${product.brand} across ${totalMarketplaces} marketplaces in parallel...`,
         );
 
+        // Use pre-calculated ingredient content from product
+        const productIngredientContent: Record<string, number> = product.ingredientContent instanceof Map
+          ? Object.fromEntries(product.ingredientContent)
+          : (product.ingredientContent || {});
+
         // Launch all marketplace searches for this product in parallel
         const marketplaceSearchPromises = marketplaces.map(
           async (marketplace) => {
@@ -164,27 +169,17 @@ export class PriceComparisonProcessor extends WorkerHost {
                 lookupStatus = 'not_found';
               }
 
-              // Calculate ingredient content and price per ingredient content
-              let ingredientContent: Record<string, number> | undefined;
+              // Calculate price per ingredient content (using pre-calculated ingredient content)
               let pricePerIngredientContent: Record<string, number> | undefined;
 
               if (lookupStatus === 'success' && (parsed.precioConIva || parsed.precioSinIva)) {
-                ingredientContent = {};
                 pricePerIngredientContent = {};
 
-                // Convert Map to object for iteration
-                const ingredientsObj = product.ingredients instanceof Map
-                  ? Object.fromEntries(product.ingredients)
-                  : product.ingredients;
+                // Price per Ingredient = (precioSinIva or precioConIva) ÷ ingredientContent
+                // Use precioSinIva if available, otherwise fall back to precioConIva
+                const priceToUse = parsed.precioSinIva || parsed.precioConIva || 0;
 
-                for (const [ingredientId, ingredientQty] of Object.entries(ingredientsObj)) {
-                  // Ingredient Content = (totalContent × ingredient_quantity) ÷ portion
-                  const content = (product.totalContent * (ingredientQty as number)) / product.portion;
-                  ingredientContent[ingredientId] = content;
-
-                  // Price per Ingredient = (precioSinIva or precioConIva) ÷ ingredientContent
-                  // Use precioSinIva if available, otherwise fall back to precioConIva
-                  const priceToUse = parsed.precioSinIva || parsed.precioConIva || 0;
+                for (const [ingredientId, content] of Object.entries(productIngredientContent)) {
                   const pricePerContent = content > 0 ? priceToUse / content : 0;
                   pricePerIngredientContent[ingredientId] = pricePerContent;
                 }
@@ -195,6 +190,7 @@ export class PriceComparisonProcessor extends WorkerHost {
               await this.ingestionRunsService.addLookupResult(validRunId, {
                 productId: product._id,
                 productName: product.name,
+                productBrand: product.brand,
                 marketplaceId: marketplace._id,
                 marketplaceName: marketplace.name,
                 url: parsed.productUrl || marketplace.baseUrl,
@@ -204,7 +200,7 @@ export class PriceComparisonProcessor extends WorkerHost {
                 precioConIva: parsed.precioConIva ?? undefined,
                 ivaRate: marketplace.ivaRate,
                 country: marketplace.country,
-                ingredientContent,
+                ingredientContent: productIngredientContent,
                 pricePerIngredientContent,
                 currency: 'COP',
                 inStock: parsed.inStock,
@@ -213,11 +209,11 @@ export class PriceComparisonProcessor extends WorkerHost {
               });
 
               // Create Price document if lookup was successful
-              if (lookupStatus === 'success' && ingredientContent && pricePerIngredientContent) {
+              if (lookupStatus === 'success' && pricePerIngredientContent) {
                 await this.pricesService.create({
                   precioSinIva: parsed.precioSinIva || 0,
                   precioConIva: parsed.precioConIva || 0,
-                  ingredientContent,
+                  ingredientContent: productIngredientContent,
                   pricePerIngredientContent,
                   marketplaceId: marketplace._id.toString(),
                   productId: product._id.toString(),
@@ -239,6 +235,7 @@ export class PriceComparisonProcessor extends WorkerHost {
               await this.ingestionRunsService.addLookupResult(validRunId, {
                 productId: product._id,
                 productName: product.name,
+                productBrand: product.brand,
                 marketplaceId: marketplace._id,
                 marketplaceName: marketplace.name,
                 url: marketplace.baseUrl,

@@ -39,6 +39,7 @@ async function bootstrap() {
 
   const productsService = app.get(ProductsService);
   await productsService.seedProducts();
+  await productsService.migrateIngredientContent();
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);

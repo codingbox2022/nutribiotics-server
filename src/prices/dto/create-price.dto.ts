@@ -1,33 +1,43 @@
-import { IsNotEmpty, IsNumber, IsString, Min, IsObject } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, Min, IsObject, IsOptional } from 'class-validator';
 
 export class CreatePriceDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  precioSinIva: number;
+  precioSinIva?: number;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  precioConIva: number;
+  precioConIva?: number;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsObject()
-  ingredientContent: Record<string, number>;
+  ingredientContent?: Record<string, number>;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsObject()
-  pricePerIngredientContent: Record<string, number>;
+  pricePerIngredientContent?: Record<string, number>;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  marketplaceId: string;
+  marketplaceId?: string;
 
   @IsNotEmpty()
   @IsString()
   productId: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  ingestionRunId: string;
+  ingestionRunId?: string;
+
+  // Simple price update fields (for Nutribiotics products)
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  value?: number;
+
+  @IsOptional()
+  @IsString()
+  marketplace?: string;
 }

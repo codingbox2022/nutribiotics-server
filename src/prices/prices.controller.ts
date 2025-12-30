@@ -21,6 +21,11 @@ export class PricesController {
     return this.pricesService.create(createPriceDto);
   }
 
+  @Get('nutribiotics-comparison')
+  getNutribioticsComparison(@Query('search') search?: string) {
+    return this.pricesService.getNutribioticsComparison({ search });
+  }
+
   @Get()
   findAll(
     @Query('productId') productId?: string,

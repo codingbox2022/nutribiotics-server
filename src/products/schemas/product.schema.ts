@@ -36,6 +36,9 @@ export class Product {
   @Prop({ required: true })
   portion: number;
 
+  @Prop({ type: Map, of: Number })
+  ingredientContent: Map<string, number>;
+
   @Prop()
   imageUrl: string;
 
@@ -63,6 +66,9 @@ ProductSchema.set('toJSON', {
     if (ret.ingredients && ret.ingredients instanceof Map) {
       ret.ingredients = Object.fromEntries(ret.ingredients) as any;
     }
+    if (ret.ingredientContent && ret.ingredientContent instanceof Map) {
+      ret.ingredientContent = Object.fromEntries(ret.ingredientContent) as any;
+    }
     return ret;
   }
 });
@@ -70,6 +76,9 @@ ProductSchema.set('toObject', {
   transform: function(doc, ret) {
     if (ret.ingredients && ret.ingredients instanceof Map) {
       ret.ingredients = Object.fromEntries(ret.ingredients) as any;
+    }
+    if (ret.ingredientContent && ret.ingredientContent instanceof Map) {
+      ret.ingredientContent = Object.fromEntries(ret.ingredientContent) as any;
     }
     return ret;
   }

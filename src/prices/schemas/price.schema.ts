@@ -23,8 +23,8 @@ export class Price {
   @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
   productId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'IngestionRun', required: true })
-  ingestionRunId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'IngestionRun', required: false })
+  ingestionRunId?: Types.ObjectId;
 }
 
 export const PriceSchema = SchemaFactory.createForClass(Price);

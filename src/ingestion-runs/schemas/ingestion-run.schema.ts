@@ -10,6 +10,9 @@ export class LookupResult {
   @Prop({ required: true })
   productName: string;
 
+  @Prop({ required: true })
+  productBrand: string;
+
   @Prop({ type: Types.ObjectId, required: true })
   marketplaceId: Types.ObjectId;
 
