@@ -7,6 +7,7 @@ import { UpdatePriceDto } from './dto/update-price.dto';
 import { PaginatedResult } from '../common/interfaces/response.interface';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { Marketplace, MarketplaceDocument } from '../marketplaces/schemas/marketplace.schema';
+import { Ingredient, IngredientDocument } from '../ingredients/schemas/ingredient.schema';
 
 interface FindAllFilters {
   productId?: string;
@@ -21,6 +22,7 @@ export class PricesService {
     @InjectModel(Price.name) private priceModel: Model<PriceDocument>,
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(Marketplace.name) private marketplaceModel: Model<MarketplaceDocument>,
+    @InjectModel(Ingredient.name) private ingredientModel: Model<IngredientDocument>,
   ) {}
 
   async create(createPriceDto: CreatePriceDto): Promise<PriceDocument> {
@@ -269,5 +271,124 @@ export class PricesService {
     );
 
     return comparisons;
+  }
+
+  async getProductPriceDetail(productId: string): Promise<any> {
+    // Fetch the main Nutribiotics product
+    const product = await this.productModel.findById(productId).exec();
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${productId} not found`);
+    }
+
+    // Get latest price for the main product
+    const mainPrice = await this.priceModel
+      .findOne({ productId: new Types.ObjectId(productId) })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    let mainMarketplaceName = 'Nutribiotics Store';
+    if (mainPrice) {
+      const marketplace = await this.marketplaceModel.findById(mainPrice.marketplaceId).exec();
+      mainMarketplaceName = marketplace?.name || 'Nutribiotics Store';
+    }
+
+    // Get all ingredients to fetch units
+    const allIngredients = await this.ingredientModel.find().exec();
+    const ingredientUnitsMap = new Map<string, string>();
+    allIngredients.forEach(ing => {
+      ingredientUnitsMap.set(ing.name, ing.measurementUnit);
+    });
+
+    const IVA_RATE = 0.19;
+    const productData = {
+      id: product._id.toString(),
+      name: product.name,
+      brand: product.brand,
+      ingredientContent: product.ingredientContent instanceof Map
+        ? Object.fromEntries(product.ingredientContent)
+        : (product.ingredientContent || {}),
+      currentPrice: mainPrice?.precioConIva || null,
+      currentPriceWithoutIva: mainPrice?.precioSinIva || null,
+      currentPricePerIngredient: mainPrice?.pricePerIngredientContent instanceof Map
+        ? Object.fromEntries(mainPrice.pricePerIngredientContent)
+        : (mainPrice?.pricePerIngredientContent || {}),
+      marketplace: mainMarketplaceName,
+    };
+
+    // Get all competitor products
+    const comparedProducts = await this.productModel
+      .find({
+        comparedTo: product._id,
+        brand: { $not: { $regex: /^NUTRIBIOTICS$/i } }
+      })
+      .exec();
+
+    // Build competitor data with marketplace breakdown
+    const competitors = await Promise.all(
+      comparedProducts.map(async (comp) => {
+        // Get all prices for this competitor product
+        const prices = await this.priceModel
+          .find({ productId: comp._id.toString() })
+          .sort({ createdAt: -1 })
+          .exec();
+
+        // Group by marketplace and take most recent per marketplace
+        const marketplacePricesMap = new Map<string, any>();
+        for (const price of prices) {
+          const mkId = price.marketplaceId.toString();
+          if (!marketplacePricesMap.has(mkId)) {
+            const marketplace = await this.marketplaceModel.findById(mkId).exec();
+            marketplacePricesMap.set(mkId, {
+              marketplaceName: marketplace?.name || 'Unknown',
+              priceWithIva: price.precioConIva,
+              priceWithoutIva: price.precioSinIva,
+              pricePerIngredient: price.pricePerIngredientContent instanceof Map
+                ? Object.fromEntries(price.pricePerIngredientContent)
+                : (price.pricePerIngredientContent || {}),
+              extractedDate: (price as any).createdAt || new Date(),
+            });
+          }
+        }
+
+        return {
+          id: comp._id.toString(),
+          name: comp.name,
+          brand: comp.brand,
+          ingredientContent: comp.ingredientContent instanceof Map
+            ? Object.fromEntries(comp.ingredientContent)
+            : (comp.ingredientContent || {}),
+          marketplacePrices: Array.from(marketplacePricesMap.values()),
+        };
+      })
+    );
+
+    // Get most recent ingestion date
+    let lastIngestionDate: Date | null = null;
+    for (const comp of competitors) {
+      for (const mp of comp.marketplacePrices) {
+        if (!lastIngestionDate || mp.extractedDate > lastIngestionDate) {
+          lastIngestionDate = mp.extractedDate;
+        }
+      }
+    }
+
+    // Build ingredient units map from all unique ingredients
+    const allIngredientNames = new Set<string>();
+    Object.keys(productData.ingredientContent).forEach(name => allIngredientNames.add(name));
+    competitors.forEach(comp => {
+      Object.keys(comp.ingredientContent).forEach(name => allIngredientNames.add(name));
+    });
+
+    const ingredientUnits: Record<string, string> = {};
+    allIngredientNames.forEach(name => {
+      ingredientUnits[name] = ingredientUnitsMap.get(name) || 'unidad';
+    });
+
+    return {
+      product: productData,
+      competitors,
+      ingredientUnits,
+      lastIngestionDate: lastIngestionDate ? lastIngestionDate.toISOString() : null,
+    };
   }
 }

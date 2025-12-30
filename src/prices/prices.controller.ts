@@ -41,6 +41,11 @@ export class PricesController {
     });
   }
 
+  @Get('product-detail/:productId')
+  getProductPriceDetail(@Param('productId') productId: string) {
+    return this.pricesService.getProductPriceDetail(productId);
+  }
+
   @Get('product/:productId')
   findByProduct(@Param('productId') productId: string) {
     return this.pricesService.findByProduct(productId);

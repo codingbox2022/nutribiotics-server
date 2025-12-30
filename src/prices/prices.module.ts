@@ -5,6 +5,7 @@ import { PricesController } from './prices.controller';
 import { Price, PriceSchema } from './schemas/price.schema';
 import { Product, ProductSchema } from '../products/schemas/product.schema';
 import { Marketplace, MarketplaceSchema } from '../marketplaces/schemas/marketplace.schema';
+import { Ingredient, IngredientSchema } from '../ingredients/schemas/ingredient.schema';
 
 @Module({
   imports: [
@@ -12,6 +13,7 @@ import { Marketplace, MarketplaceSchema } from '../marketplaces/schemas/marketpl
       { name: Price.name, schema: PriceSchema },
       { name: Product.name, schema: ProductSchema },
       { name: Marketplace.name, schema: MarketplaceSchema },
+      { name: Ingredient.name, schema: IngredientSchema },
     ]),
   ],
   controllers: [PricesController],
