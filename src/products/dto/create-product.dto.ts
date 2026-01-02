@@ -8,6 +8,7 @@ import {
   IsObject,
   Min,
 } from 'class-validator';
+import mongoose, { mongo } from 'mongoose';
 
 export class CreateProductDto {
   @IsString()
@@ -49,7 +50,7 @@ export class CreateProductDto {
 
   @IsMongoId()
   @IsOptional()
-  comparedTo?: string;
+  comparedTo?: mongoose.Types.ObjectId;
 
   @IsEnum(['ok', 'alert', 'opportunity'])
   @IsOptional()

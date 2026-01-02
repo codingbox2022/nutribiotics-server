@@ -3,6 +3,18 @@ import { HydratedDocument, Types } from 'mongoose';
 
 export type ProductDocument = HydratedDocument<Product>;
 
+export enum PresentationType {
+  cucharadas = 'cucharadas',
+  capsulas = 'capsulas',
+  tableta = 'tableta',
+  softGel = 'softGel',
+  gotas = 'gotas',
+  sobre  = 'sobre',
+  vial = 'vial',
+  mililitro = 'mililitro',
+  push = 'push',
+}
+
 @Schema({ timestamps: true })
 export class Product {
   @Prop({ required: true })
@@ -19,17 +31,7 @@ export class Product {
 
   @Prop({
     required: true,
-    enum: [
-      'cucharadas',
-      'cápsulas',
-      'tableta',
-      'softGel',
-      'gotas',
-      'sobre',
-      'vial',
-      'mililitro',
-      'push',
-    ],
+    enum: PresentationType,
   })
   presentation: string;
 
@@ -56,6 +58,12 @@ export class Product {
     default: 'not_started',
   })
   scanStatus: string;
+
+  @Prop({
+    enum: ['active', 'suspended', 'rejected', 'pending'],
+    default: 'pending',
+  })
+  status: string;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

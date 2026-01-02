@@ -28,6 +28,11 @@ export class ProductsController {
     return this.productsService.createBulk(createProductsBulkDto.products);
   }
 
+  @Get('pending')
+  findPending() {
+    return this.productsService.findPending();
+  }
+
   @Get()
   findAll(
     @Query('search') search?: string,
@@ -59,6 +64,14 @@ export class ProductsController {
     return this.productsService.update(id, updateProductDto);
   }
 
+  @Patch(':id/status')
+  updateStatus(
+    @Param('id') id: string,
+    @Body('status') status: 'active' | 'suspended' | 'rejected' | 'pending',
+  ) {
+    return this.productsService.update(id, { status });
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.productsService.remove(id);
@@ -70,5 +83,10 @@ export class ProductsController {
     @Body() addComparablesDto: AddComparablesDto,
   ) {
     return this.productsService.addComparables(id, addComparablesDto.comparables);
+  }
+
+  @Post('process-nutribiotics')
+  processNutribioticsProducts() {
+    return this.productsService.processNutribioticsProducts();
   }
 }

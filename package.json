@@ -20,7 +20,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^2.0.80",
+    "@ai-sdk/google": "^3.0.1",
+    "@ai-sdk/openai": "^3.0.1",
     "@browserbasehq/stagehand": "^3.0.5",
     "@bull-board/api": "^6.15.0",
     "@bull-board/express": "^6.15.0",
@@ -34,7 +35,7 @@
     "@nestjs/mongoose": "^11.0.3",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
-    "ai": "^5.0.108",
+    "ai": "^6.0.3",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.65.1",
     "class-transformer": "^0.5.1",

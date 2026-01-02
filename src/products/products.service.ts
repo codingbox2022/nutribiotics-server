@@ -2,16 +2,23 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery } from 'mongoose';
-import { Product, ProductDocument } from './schemas/product.schema';
-import { Ingredient, IngredientDocument } from '../ingredients/schemas/ingredient.schema';
+import { PresentationType, Product, ProductDocument } from './schemas/product.schema';
+import { Ingredient, IngredientDocument, MeasurementUnit } from '../ingredients/schemas/ingredient.schema';
+import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PaginatedResult } from '../common/interfaces/response.interface';
 import { PricesService } from '../prices/prices.service';
 import productsData from '../files/products.json';
+import { generateText, generateObject, Output } from 'ai';
+import { google } from 'src/providers/googleAiProvider';
+import { GoogleGenerativeAIProviderMetadata } from '@ai-sdk/google';
+import z from 'zod';
+import { openai } from '@ai-sdk/openai';
 
 interface FindAllFilters {
   search?: string;
@@ -23,11 +30,16 @@ interface FindAllFilters {
   limit?: number;
 }
 
+const COUNTRY = 'Colombia';
+
 @Injectable()
 export class ProductsService {
+  private readonly logger = new Logger(ProductsService.name);
+
   constructor(
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(Ingredient.name) private ingredientModel: Model<IngredientDocument>,
+    @InjectModel(Brand.name) private brandModel: Model<BrandDocument>,
     private pricesService: PricesService,
   ) {}
 
@@ -98,7 +110,7 @@ export class ProductsService {
       products.slice(1).map((p) =>
         this.create({
           ...p,
-          comparedTo: mainProduct._id.toString(),
+          comparedTo: mainProduct._id,
         }),
       ),
     );
@@ -139,6 +151,38 @@ export class ProductsService {
     }
 
     return result;
+  }
+
+  async findPending(): Promise<any[]> {
+    const pendingProducts = await this.productModel
+      .find({ status: 'pending' })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    const data = await Promise.all(
+      pendingProducts.map(async (product) => {
+        const [populatedIngredients, comparedToProduct] = await Promise.all([
+          this.populateIngredientNames(product.ingredients),
+          product.comparedTo
+            ? this.productModel.findById(product.comparedTo).exec()
+            : null,
+        ]);
+
+        const productObj = product.toObject();
+
+        return {
+          ...productObj,
+          ingredients: populatedIngredients,
+          comparedToProduct: comparedToProduct ? {
+            id: comparedToProduct._id.toString(),
+            name: comparedToProduct.name,
+            brand: comparedToProduct.brand,
+          } : null,
+        };
+      }),
+    );
+
+    return data;
   }
 
   async findAll(
@@ -334,7 +378,7 @@ export class ProductsService {
       comparables.map((c) =>
         this.create({
           ...c,
-          comparedTo: mainProductId,
+          comparedTo: mainProduct._id,
         }),
       ),
     );
@@ -431,6 +475,221 @@ export class ProductsService {
       console.log(`Seeded ${totalSeeded} products (${productsData.length} main + comparables)`);
     } catch (error) {
       console.error('Error seeding products:', error);
+    }
+  }
+
+  async processNutribioticsProducts(): Promise<void> {
+    try {
+      const products = await this.productModel.find({
+        brand: { $regex: /^nutribiotics$/i },
+        comparedTo: null,
+      }).exec();
+
+      this.logger.debug(`Found ${products.length} Nutribiotics base products to process`);
+
+      for (const product of products) {
+        try {
+          this.logger.debug(`Processing product: ${product.name} (${product._id})`);
+
+        await this.productModel.findByIdAndUpdate(product._id, {
+          scanStatus: 'running',
+          lastScanDate: new Date(),
+        });
+
+        const existingComparables = await this.productModel.find({
+          comparedTo: product._id,
+        });
+
+        this.logger.debug(`Found ${existingComparables.length} existing comparables for ${product.name}`);
+
+       /* ─────────────────────────────────────────────
+        * STEP 1 — SEARCH (FORCED GOOGLE SEARCH, URLs ONLY)
+        * ───────────────────────────────────────────── */
+
+        this.logger.debug(`Step 1: Searching for comparable products for ${product.name}`);
+
+        // Get ingredient and brand details for the prompt
+        const allIngredients = await this.ingredientModel.find().exec();
+        const ingredientMap = new Map(allIngredients.map(i => [i.name, {name: i.name, measurementUnit: i.measurementUnit}]));
+
+        const allBrands = await this.brandModel.find().exec();
+        const brandNames = allBrands.map(b => b.name);
+
+        const productIngredients = product.ingredients instanceof Map
+          ? Object.fromEntries(product.ingredients)
+          : product.ingredients;
+
+        const ingredientsXml = Object.entries(productIngredients)
+          .map(([ingredientId, qty]) => {
+            const ingredient = ingredientMap.get(ingredientId);
+            const ingredientName = ingredient?.name || ingredientId;
+            const measurementUnit = ingredient?.measurementUnit || 'MG';
+
+            return `   <ingredient>
+      <ingredientName>
+        ${ingredientName}
+      </ingredientName>
+      <qty>${qty}</qty>
+      <measurementUnit>${measurementUnit}</measurementUnit>
+   </ingredient>`;
+          })
+          .join('\n');
+
+        const prompt = `<instructions>
+Given this product and its ingredients, I need you to look for comparable products in online stores available in the provided country. Use your own criteria to determine if a product is comparable based on the ingredients and their quantities.
+</instructions>
+<outputFormat>
+You should retrieve a markdown table with the following fields for each comparable product you find:
+- Product Name
+- Brand
+- Presentation (must be one of: cucharadas, cápsulas, tableta, softGel, gotas, sobre, vial, mililitro, push)
+- totalContent (numeric value representing the total content in the package)
+- totalContentUnit (the unit of measurement for totalContent, e.g., "ml", "g", "tablets", etc.)
+- portion (numeric value representing the portion size)
+
+- A list of ingredients with the following details for each ingredient:
+- Ingredient Name
+- Quantity
+- Unit
+</outputFormat>
+
+<productName>
+   ${product.name}
+</productName>
+<brand>
+   ${product.brand}
+</brand>
+<ingredients>
+${ingredientsXml}
+</ingredients>
+<country>
+   ${COUNTRY}
+</country>
+
+${existingComparables.length > 0 ? `<excludeProducts>
+Neither the provided product or these products should be included in the list as they are already known:
+${existingComparables.map(p => `- ${p.name} (${p.brand})`).join('\n')}
+</excludeProducts>` : ''}`;
+
+        const { text, sources } = await generateText({
+          model: openai('gpt-5.2'),
+          tools: {
+            web_search: openai.tools.webSearch({}),
+          },
+          prompt,
+        });
+
+        console.log({ text, sources });
+
+        const { output } = await generateText({
+          model: openai('gpt-4o'),
+          output: Output.object({
+            schema: z.object({
+              newProducts: z.array(z.object({
+                name: z.string().min(1),
+                brand: z.string().min(1),
+                ingredients: z.array(
+                  z.object({
+                    name: z.string().min(1),
+                    qty: z.number().positive(),
+                    measurementUnit: z.enum(['MG', 'MCG', 'KCAL', 'UI', 'G', 'ML'] as const)
+                  })
+                ),
+                totalContent: z.number().positive(),
+                totalContentUnit: z.string().min(1).describe('Unit of measurement for totalContent (e.g., "ml", "g", "tablets")'),
+                presentation: z.enum(Object.values(PresentationType) as [string, ...string[]]),
+                portion: z.number().positive(),
+              })),
+              newIngredients: z.array(z.object({
+                ingredientName: z.string(),
+                measurementUnit: z.enum(['MG', 'MCG', 'KCAL', 'UI', 'G', 'ML'] as const),
+              })),
+              newBrands: z.array(z.object({
+                brandName: z.string(),
+              }))
+            })
+          }),
+          prompt: `Here is the text containing the markdown table of comparable products you found for the product "${product.name}" by "${product.brand}":
+${text}
+
+Extract the comparable products from the text.
+
+For newIngredients: Compare the ingredients found in the products against this list of existing ingredients in the database:
+${Array.from(ingredientMap.keys()).join(', ')}
+
+If you find an ingredient that is NOT in the existing list, add it to newIngredients with its name and measurement unit. Only include ingredients that don't already exist in the database.
+
+For newBrands: Compare the brand names found in the products against this list of existing brands in the database:
+${brandNames.join(', ')}
+
+Use your judgment to determine if a brand is the same as an existing brand (considering variations in capitalization, spacing, or minor spelling differences). If you find a brand that is truly NEW and different from all existing brands, add it to newBrands. Only include brands that don't already exist in the database.`,
+        })
+
+        const { newProducts, newIngredients, newBrands } = output;
+
+        console.dir({ newProducts, newIngredients, newBrands }, { depth: null });
+
+        // create new brands from newBrands
+        for (const brand of newBrands) {
+          const existing = await this.brandModel.findOne({ name: brand.brandName }).exec();
+          if (!existing) {
+            this.logger.debug(`Creating new brand: ${brand.brandName}`);
+            const newBrand = new this.brandModel({
+              name: brand.brandName.toUpperCase(),
+            });
+            await newBrand.save();
+          }
+        }
+
+        // create new ingredients from newIngredients
+        for (const ing of newIngredients) {
+          const existing = await this.ingredientModel.findOne({ name: ing.ingredientName }).exec();
+          if (!existing) {
+            this.logger.debug(`Creating new ingredient: ${ing.ingredientName}`);
+            const newIng = new this.ingredientModel({
+              name: ing.ingredientName,
+              measurementUnit: ing.measurementUnit,
+            });
+            await newIng.save();
+          }
+        }
+
+        // create new comparable products
+        for (const p of newProducts) {
+          this.logger.debug(`Creating new comparable product: ${p.name} (${p.brand})`);
+
+          // Map ingredient names back to IDs
+          const ingredientEntries: [string, number][] = [];
+          for (const ing of p.ingredients) {
+            const ingDoc = await this.ingredientModel.findOne({ name: ing.name }).exec();
+            if (ingDoc) {
+              ingredientEntries.push([ingDoc._id.toString(), ing.qty]);
+            } else {
+              this.logger.warn(`Ingredient not found for name: ${ing.name}. Skipping this ingredient.`);
+            }
+          }
+
+          await this.create({
+            name: p.name,
+            brand: p.brand,
+            ingredients: Object.fromEntries(ingredientEntries),
+            totalContent: p.totalContent,
+            presentation: p.presentation,
+            portion: p.portion,
+            comparedTo: product._id
+          });
+        }
+        this.logger.debug(`Completed processing for product: ${product.name}`);
+        } catch (error) {
+          this.logger.error(`Error processing product ${product.name}:`, error);
+          await this.productModel.findByIdAndUpdate(product._id, {
+            scanStatus: 'failed',
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.error('Error in processNutribioticsProducts:', error);
+      throw error;
     }
   }
 }
