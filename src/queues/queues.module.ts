@@ -14,6 +14,7 @@ import {
   Marketplace,
   MarketplaceSchema,
 } from '../marketplaces/schemas/marketplace.schema';
+import { Brand, BrandSchema } from '../brands/schemas/brand.schema';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import {
     MongooseModule.forFeature([
       { name: Product.name, schema: ProductSchema },
       { name: Marketplace.name, schema: MarketplaceSchema },
+      { name: Brand.name, schema: BrandSchema },
     ]),
     BullModule.registerQueue({
       name: 'notifications',

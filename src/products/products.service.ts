@@ -5,9 +5,9 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, FilterQuery } from 'mongoose';
-import { PresentationType, Product, ProductDocument } from './schemas/product.schema';
-import { Ingredient, IngredientDocument, MeasurementUnit } from '../ingredients/schemas/ingredient.schema';
+import { Model, FilterQuery, Types } from 'mongoose';
+import { PresentationType, Product, ProductDocument, ProductIngredient } from './schemas/product.schema';
+import { Ingredient, IngredientDocument } from '../ingredients/schemas/ingredient.schema';
 import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -31,6 +31,30 @@ interface FindAllFilters {
 
 const COUNTRY = 'Colombia';
 
+type IngredientInput = {
+  ingredientId: string;
+  quantity: number;
+};
+
+type IngredientDisplay = {
+  id: string;
+  name: string | null;
+  quantity: number;
+};
+
+type BrandDisplay = {
+  id: string;
+  name: string | null;
+};
+
+type ProductResponse = {
+  [key: string]: any;
+  id: string;
+  brand: BrandDisplay | null;
+  ingredients: IngredientDisplay[];
+  ingredientQuantities: Record<string, number>;
+};
+
 @Injectable()
 export class ProductsService {
   private readonly logger = new Logger(ProductsService.name);
@@ -42,36 +66,292 @@ export class ProductsService {
     private pricesService: PricesService,
   ) {}
 
+  private normalizeIngredients(
+    ingredients: IngredientInput[] = [],
+  ): { ingredient: Types.ObjectId; quantity: number }[] {
+    return ingredients.map(({ ingredientId, quantity }) => ({
+      ingredient: new Types.ObjectId(ingredientId),
+      quantity,
+    }));
+  }
+
+  private documentIngredientsToInputs(
+    ingredients: ProductIngredient[] | undefined,
+  ): IngredientInput[] {
+    if (!ingredients) {
+      return [];
+    }
+
+    return ingredients
+      .map((entry) => {
+        const ref: any = entry.ingredient;
+        if (!ref) {
+          return null;
+        }
+
+        if (ref instanceof Types.ObjectId) {
+          return { ingredientId: ref.toString(), quantity: entry.quantity };
+        }
+
+        if (typeof ref === 'string') {
+          return { ingredientId: ref, quantity: entry.quantity };
+        }
+
+        if (ref._id) {
+          return { ingredientId: ref._id.toString(), quantity: entry.quantity };
+        }
+
+        return null;
+      })
+      .filter((entry): entry is IngredientInput => entry !== null);
+  }
+
+  private formatBrand(brand: Types.ObjectId | BrandDocument | null | undefined): BrandDisplay | null {
+    if (!brand) {
+      return null;
+    }
+
+    if (brand instanceof Types.ObjectId) {
+      return { id: brand.toString(), name: null };
+    }
+
+    if (typeof brand === 'string') {
+      return { id: brand, name: null };
+    }
+
+    return {
+      id: brand._id.toString(),
+      name: brand.name,
+    };
+  }
+
+  private formatIngredients(ingredients: ProductIngredient[] | undefined): IngredientDisplay[] {
+    if (!ingredients || ingredients.length === 0) {
+      return [];
+    }
+
+    return ingredients
+      .map((entry) => {
+        const ref: any = entry.ingredient;
+        if (!ref) {
+          return null;
+        }
+
+        if (ref instanceof Types.ObjectId || typeof ref === 'string') {
+          return {
+            id: ref.toString(),
+            name: null,
+            quantity: entry.quantity,
+          };
+        }
+
+        return {
+          id: ref._id?.toString() ?? '',
+          name: ref.name ?? null,
+          quantity: entry.quantity,
+        };
+      })
+      .filter((entry): entry is IngredientDisplay => Boolean(entry && entry.id));
+  }
+
+  private async hydrateBrand(
+    brand: Types.ObjectId | BrandDocument | null | undefined,
+  ): Promise<BrandDisplay | null> {
+    const formatted = this.formatBrand(brand);
+    if (!formatted || formatted.name) {
+      return formatted;
+    }
+
+    const brandDoc = await this.brandModel
+      .findById(formatted.id)
+      .select('name')
+      .exec();
+
+    if (!brandDoc) {
+      return formatted;
+    }
+
+    return { id: brandDoc._id.toString(), name: brandDoc.name };
+  }
+
+  private async hydrateIngredients(
+    ingredients: ProductIngredient[] | undefined,
+  ): Promise<IngredientDisplay[]> {
+    const formatted = this.formatIngredients(ingredients);
+
+    const missingIds = formatted
+      .filter((item) => !item.name)
+      .map((item) => item.id);
+
+    if (missingIds.length === 0) {
+      return formatted;
+    }
+
+    const docs = await this.ingredientModel
+      .find({ _id: { $in: missingIds } })
+      .select('name')
+      .exec();
+
+    const names = new Map(docs.map((doc) => [doc._id.toString(), doc.name]));
+
+    return formatted.map((item) => ({
+      ...item,
+      name: item.name ?? names.get(item.id) ?? null,
+    }));
+  }
+
+  private async normalizeIngredientContentMap(
+    ingredientContent: Map<string, number> | Record<string, number> | undefined,
+  ): Promise<Record<string, number>> {
+    const entries = ingredientContent instanceof Map
+      ? Array.from(ingredientContent.entries())
+      : Object.entries(ingredientContent || {});
+
+    if (entries.length === 0) {
+      return {};
+    }
+
+    const objectIdEntries = entries.filter(([ingredientId]) => Types.ObjectId.isValid(ingredientId));
+    const ids = objectIdEntries.map(([ingredientId]) => ingredientId);
+
+    const docs = ids.length > 0
+      ? await this.ingredientModel
+          .find({ _id: { $in: ids } })
+          .select('name')
+          .exec()
+      : [];
+
+    const nameMap = new Map(docs.map((doc) => [doc._id.toString(), doc.name]));
+
+    return entries.reduce<Record<string, number>>((acc, [ingredientId, value]) => {
+      const key = nameMap.get(ingredientId) || ingredientId;
+      acc[key] = Number(value);
+      return acc;
+    }, {});
+  }
+
+  private buildIngredientQuantities(
+    ingredients: IngredientDisplay[],
+  ): Record<string, number> {
+    return ingredients.reduce<Record<string, number>>((acc, ingredient) => {
+      if (ingredient.id) {
+        acc[ingredient.id] = ingredient.quantity;
+      }
+      return acc;
+    }, {});
+  }
+
+  private async buildProductResponse(product: ProductDocument): Promise<ProductResponse> {
+    const [brand, ingredients, ingredientContent] = await Promise.all([
+      this.hydrateBrand(product.brand as any),
+      this.hydrateIngredients(product.ingredients as any),
+      this.normalizeIngredientContentMap(product.ingredientContent as any),
+    ]);
+
+    const ingredientQuantities = this.buildIngredientQuantities(ingredients);
+
+    const productObj = product.toObject({ virtuals: true });
+    const {
+      _id,
+      id,
+      brand: _brand,
+      ingredients: _ingredients,
+      ingredientContent: _ingredientContent,
+      ...rest
+    } = productObj as any;
+
+    return {
+      id: (id ?? _id ?? product._id).toString(),
+      ...rest,
+      brand,
+      ingredients,
+      ingredientQuantities,
+      ingredientContent,
+    };
+  }
+
+  private async resolveBrandIdByName(brandName: string): Promise<Types.ObjectId> {
+    const normalized = brandName.trim();
+    const existing = await this.brandModel
+      .findOne({ name: { $regex: `^${normalized}$`, $options: 'i' } })
+      .exec();
+
+    if (existing) {
+      return existing._id;
+    }
+
+    const newBrand = new this.brandModel({ name: normalized.toUpperCase() });
+    await newBrand.save();
+    return newBrand._id;
+  }
+
+  private async mapSeedIngredients(
+    seedIngredients: { name: string; quantity: number }[],
+  ): Promise<IngredientInput[]> {
+    if (!seedIngredients || seedIngredients.length === 0) {
+      return [];
+    }
+
+    const names = seedIngredients.map((ing) => ing.name.trim().toUpperCase());
+    const docs = await this.ingredientModel
+      .find({ name: { $in: names } })
+      .select('name')
+      .exec();
+
+    const map = new Map(docs.map((doc) => [doc.name.toUpperCase(), doc._id.toString()]));
+
+    return seedIngredients.reduce<IngredientInput[]>((acc, ing) => {
+      const id = map.get(ing.name.trim().toUpperCase());
+      if (!id) {
+        this.logger.warn(`Ingredient "${ing.name}" not found while seeding products. Skipping.`);
+        return acc;
+      }
+
+      acc.push({ ingredientId: id, quantity: ing.quantity });
+      return acc;
+    }, []);
+  }
+
   private calculateIngredientContent(
-    ingredients: Record<string, number>,
+    ingredients: IngredientInput[],
     totalContent: number,
     portion: number,
   ): Map<string, number> {
     const ingredientContent = new Map<string, number>();
 
-    for (const [ingredientId, ingredientQty] of Object.entries(ingredients)) {
+    for (const { ingredientId, quantity } of ingredients) {
       // Ingredient Content = (totalContent × ingredient_quantity) ÷ portion
-      const content = (totalContent * ingredientQty) / portion;
+      const content = (totalContent * quantity) / portion;
       ingredientContent.set(ingredientId, content);
     }
 
     return ingredientContent;
   }
 
-  async create(createProductDto: CreateProductDto): Promise<ProductDocument> {
+  async create(createProductDto: CreateProductDto): Promise<ProductResponse> {
     try {
-      // Calculate ingredient content
+      const { ingredients, ...rest } = createProductDto;
+
       const ingredientContent = this.calculateIngredientContent(
-        createProductDto.ingredients,
+        ingredients,
         createProductDto.totalContent,
         createProductDto.portion,
       );
 
+      const normalizedIngredients = this.normalizeIngredients(ingredients);
+
       const product = new this.productModel({
-        ...createProductDto,
+        ...rest,
+        ingredients: normalizedIngredients,
         ingredientContent,
       });
-      return await product.save();
+
+      await product.save();
+      await product.populate([
+        { path: 'brand', select: 'name status' },
+        { path: 'ingredients.ingredient', select: 'name status' },
+      ]);
+      return this.buildProductResponse(product);
     } catch (error: any) {
       if (error.code === 11000) {
         throw new ConflictException(
@@ -84,7 +364,7 @@ export class ProductsService {
 
   async createBulk(
     products: CreateProductDto[],
-  ): Promise<{ mainProduct: ProductDocument; comparables: ProductDocument[] }> {
+  ): Promise<{ mainProduct: ProductResponse; comparables: ProductResponse[] }> {
     // Validate all products don't already exist before creating any
     const duplicates: string[] = [];
     for (const product of products) {
@@ -117,84 +397,71 @@ export class ProductsService {
     return { mainProduct, comparables };
   }
 
-  private async populateIngredientNames(ingredientsMap: Map<string, number>): Promise<Record<string, number>> {
-    if (!ingredientsMap || ingredientsMap.size === 0) {
-      return {};
-    }
-
-    const ingredientKeys = Array.from(ingredientsMap.keys());
-
-    // Check if keys are already names (not ObjectIds)
-    // ObjectIds are 24 character hex strings
-    const isObjectId = (str: string) => /^[0-9a-fA-F]{24}$/.test(str);
-    const areKeysObjectIds = ingredientKeys.every(key => isObjectId(key));
-
-    // If keys are already names, just return the map as an object
-    if (!areKeysObjectIds) {
-      const result: Record<string, number> = {};
-      for (const [name, amount] of ingredientsMap.entries()) {
-        result[name] = amount;
-      }
-      return result;
-    }
-
-    // Otherwise, populate names from IDs
-    const ingredients = await this.ingredientModel.find({ _id: { $in: ingredientKeys } }).exec();
-
-    const result: Record<string, number> = {};
-    for (const [id, amount] of ingredientsMap.entries()) {
-      const ingredient = ingredients.find(ing => ing._id.toString() === id);
-      if (ingredient) {
-        result[ingredient.name] = amount;
-      }
-    }
-
-    return result;
-  }
-
-  async findPending(): Promise<any[]> {
+  async findPending(): Promise<ProductResponse[]> {
     const pendingProducts = await this.productModel
       .find({ status: 'pending' })
       .sort({ createdAt: -1 })
+      .populate([
+        { path: 'brand', select: 'name status' },
+        { path: 'ingredients.ingredient', select: 'name status' },
+      ])
       .exec();
 
     const data = await Promise.all(
       pendingProducts.map(async (product) => {
-        const [populatedIngredients, comparedToProduct, brand] = await Promise.all([
-          this.populateIngredientNames(product.ingredients),
+        const [productPayload, comparedToProduct] = await Promise.all([
+          this.buildProductResponse(product),
           product.comparedTo
-            ? this.productModel.findById(product.comparedTo).exec()
-            : null,
-          this.brandModel.findOne({ name: product.brand }).exec(),
+            ? this.productModel
+                .findById(product.comparedTo)
+                .populate({ path: 'brand', select: 'name status' })
+                .exec()
+            : Promise.resolve(null),
         ]);
 
-        // Check for pending dependencies
-        const ingredientIds = Array.from(product.ingredients.keys());
-        const ingredients = await this.ingredientModel.find({
-          _id: { $in: ingredientIds }
-        }).exec();
+        const pendingIngredientIds = (product.ingredients || [])
+          .map((entry) => {
+            const ref: any = entry.ingredient;
+            const status = ref?.status;
+            if (status === 'not_approved') {
+              if (ref?._id) {
+                return ref._id.toString();
+              }
+              if (ref instanceof Types.ObjectId || typeof ref === 'string') {
+                return ref.toString();
+              }
+            }
+            return null;
+          })
+          .filter((value): value is string => Boolean(value));
 
-        const pendingIngredientIds = ingredients
-          .filter(ing => ing.status === 'not_approved')
-          .map(ing => ing._id.toString());
-
-        const pendingBrandIds = brand && brand.status === 'not_approved'
-          ? [brand._id.toString()]
-          : [];
-
-        const productObj = product.toObject();
+        const pendingBrandIds = (() => {
+          const brandRef: any = product.brand;
+          const status = brandRef?.status;
+          if (status === 'not_approved') {
+            if (brandRef?._id) {
+              return [brandRef._id.toString()];
+            }
+            if (brandRef instanceof Types.ObjectId || typeof brandRef === 'string') {
+              return [brandRef.toString()];
+            }
+          }
+          return [];
+        })();
 
         return {
-          ...productObj,
-          ingredients: populatedIngredients,
-          comparedToProduct: comparedToProduct ? {
-            id: comparedToProduct._id.toString(),
-            name: comparedToProduct.name,
-            brand: comparedToProduct.brand,
-          } : null,
+          ...productPayload,
+          comparesTo: comparedToProduct
+            ? {
+                id: comparedToProduct._id.toString(),
+                name: comparedToProduct.name,
+                brand: await this.hydrateBrand(comparedToProduct.brand as any),
+              }
+            : null,
           pendingIngredientIds,
           pendingBrandIds,
-          hasPendingDependencies: pendingIngredientIds.length > 0 || pendingBrandIds.length > 0,
+          hasPendingDependencies:
+            pendingIngredientIds.length > 0 || pendingBrandIds.length > 0,
         };
       }),
     );
@@ -237,43 +504,44 @@ export class ProductsService {
     const skip = (page - 1) * limit;
 
     const [originalProducts, total] = await Promise.all([
-      this.productModel.find(query).skip(skip).limit(limit).exec(),
+      this.productModel
+        .find(query)
+        .skip(skip)
+        .limit(limit)
+        .populate([
+          { path: 'brand', select: 'name status' },
+          { path: 'ingredients.ingredient', select: 'name status' },
+        ])
+        .exec(),
       this.productModel.countDocuments(query).exec(),
     ]);
 
     // For each original product, fetch its compared products and latest price
     const data = await Promise.all(
       originalProducts.map(async (product) => {
-        const [comparedProducts, prices, populatedIngredients] = await Promise.all([
+        const [comparedProducts, prices, baseProduct] = await Promise.all([
           this.productModel
             .find({ comparedTo: product._id })
+            .populate([
+              { path: 'brand', select: 'name status' },
+              { path: 'ingredients.ingredient', select: 'name status' },
+            ])
             .exec(),
           this.pricesService.findAll({
             productId: product._id.toString(),
             limit: 1,
           }),
-          this.populateIngredientNames(product.ingredients),
+          this.buildProductResponse(product),
         ]);
 
         const latestPrice = prices.data.length > 0 ? prices.data[0].precioConIva : null;
 
-        const productObj = product.toObject();
-
-        // Populate ingredients for compared products as well
         const comparedProductsWithIngredients = await Promise.all(
-          comparedProducts.map(async (p) => {
-            const pObj = p.toObject();
-            const pIngredients = await this.populateIngredientNames(p.ingredients);
-            return {
-              ...pObj,
-              ingredients: pIngredients,
-            };
-          })
+          comparedProducts.map((p) => this.buildProductResponse(p)),
         );
 
         return {
-          ...productObj,
-          ingredients: populatedIngredients,
+          ...baseProduct,
           comparedProducts: comparedProductsWithIngredients,
           latestPrice,
         };
@@ -286,18 +554,24 @@ export class ProductsService {
     };
   }
 
-  async findOne(id: string): Promise<ProductDocument> {
-    const product = await this.productModel.findById(id).exec();
+  async findOne(id: string): Promise<ProductResponse> {
+    const product = await this.productModel
+      .findById(id)
+      .populate([
+        { path: 'brand', select: 'name status' },
+        { path: 'ingredients.ingredient', select: 'name status' },
+      ])
+      .exec();
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
-    return product;
+    return this.buildProductResponse(product);
   }
 
   async update(
     id: string,
     updateProductDto: UpdateProductDto,
-  ): Promise<ProductDocument> {
+  ): Promise<ProductResponse> {
     try {
       // Get current product to check if we need to recalculate ingredientContent
       const currentProduct = await this.productModel.findById(id).exec();
@@ -306,38 +580,52 @@ export class ProductsService {
       }
 
       // Recalculate ingredient content if any related fields changed
+      const hasIngredientUpdates = Array.isArray(updateProductDto.ingredients);
       const shouldRecalculate =
-        updateProductDto.ingredients ||
+        hasIngredientUpdates ||
         updateProductDto.totalContent !== undefined ||
         updateProductDto.portion !== undefined;
 
       let ingredientContent: Map<string, number> | undefined;
       if (shouldRecalculate) {
-        const ingredients = updateProductDto.ingredients ||
-          (currentProduct.ingredients instanceof Map
-            ? Object.fromEntries(currentProduct.ingredients)
-            : currentProduct.ingredients);
+        const ingredientInputs = hasIngredientUpdates
+          ? (updateProductDto.ingredients as IngredientInput[])
+          : this.documentIngredientsToInputs(currentProduct.ingredients as any);
+
         const totalContent = updateProductDto.totalContent ?? currentProduct.totalContent;
         const portion = updateProductDto.portion ?? currentProduct.portion;
 
         ingredientContent = this.calculateIngredientContent(
-          ingredients,
+          ingredientInputs,
           totalContent,
           portion,
         );
       }
 
-      const updateData = shouldRecalculate
-        ? { ...updateProductDto, ingredientContent }
-        : updateProductDto;
+      const { ingredients, ...rest } = updateProductDto;
+      const updateData: Record<string, unknown> = {
+        ...rest,
+      };
+
+      if (ingredientContent) {
+        updateData.ingredientContent = ingredientContent;
+      }
+
+      if (hasIngredientUpdates && ingredients) {
+        updateData.ingredients = this.normalizeIngredients(ingredients as IngredientInput[]);
+      }
 
       const product = await this.productModel
         .findByIdAndUpdate(id, updateData, { new: true })
+        .populate([
+          { path: 'brand', select: 'name status' },
+          { path: 'ingredients.ingredient', select: 'name status' },
+        ])
         .exec();
       if (!product) {
         throw new NotFoundException(`Product with ID ${id} not found`);
       }
-      return product;
+      return this.buildProductResponse(product);
     } catch (error: any) {
       if (error.code === 11000) {
         throw new ConflictException(
@@ -358,7 +646,7 @@ export class ProductsService {
   async addComparables(
     mainProductId: string,
     comparables: CreateProductDto[],
-  ): Promise<ProductDocument[]> {
+  ): Promise<ProductResponse[]> {
     // Validate main product exists and is a main product (not a comparable)
     const mainProduct = await this.productModel.findById(mainProductId).exec();
     if (!mainProduct) {
@@ -404,7 +692,7 @@ export class ProductsService {
   }
 
   async migrateIngredientContent(): Promise<void> {
-    console.log('Starting ingredient content migration...');
+    this.logger.log('Starting ingredient content migration...');
 
     // Find all products without ingredientContent
     const products = await this.productModel.find({
@@ -414,13 +702,11 @@ export class ProductsService {
       ],
     }).exec();
 
-    console.log(`Found ${products.length} products to migrate`);
+    this.logger.log(`Found ${products.length} products to migrate`);
 
     let updated = 0;
     for (const product of products) {
-      const ingredients = product.ingredients instanceof Map
-        ? Object.fromEntries(product.ingredients)
-        : product.ingredients;
+      const ingredients = this.documentIngredientsToInputs(product.ingredients as any);
 
       const ingredientContent = this.calculateIngredientContent(
         ingredients,
@@ -436,34 +722,47 @@ export class ProductsService {
       updated++;
     }
 
-    console.log(`Migration complete! Updated ${updated} products`);
+    this.logger.log(`Migration complete! Updated ${updated} products`);
   }
 
   async seedProducts(): Promise<void> {
     const count = await this.productModel.countDocuments().exec();
-    console.log(`Current product count: ${count}`);
+    this.logger.log(`Current product count: ${count}`);
     if (count > 0) {
-      console.log('Products already seeded');
+      this.logger.log('Products already seeded');
       return;
     }
 
-    console.log(`Products data length: ${productsData.length}`);
+    this.logger.log(`Products data length: ${productsData.length}`);
     try {
       let totalSeeded = 0;
 
-      for (const productData of productsData) {
-        const { comparables, ...mainProductData } = productData;
+      for (const productData of productsData as any[]) {
+        const {
+          comparables = [],
+          brandName,
+          ingredients: seedIngredients,
+          ...mainProductData
+        } = productData;
 
-        // Calculate ingredient content for main product
+        const brandId = await this.resolveBrandIdByName(brandName);
+        const ingredientInputs = await this.mapSeedIngredients(seedIngredients);
+
+        if (ingredientInputs.length === 0) {
+          this.logger.warn(`Skipping product "${mainProductData.name}" because it has no valid ingredients.`);
+          continue;
+        }
+
         const ingredientContent = this.calculateIngredientContent(
-          mainProductData.ingredients,
+          ingredientInputs,
           mainProductData.totalContent,
           mainProductData.portion,
         );
 
         const mainProduct = await this.productModel.create({
           ...mainProductData,
-          ingredients: new Map(Object.entries(mainProductData.ingredients)),
+          brand: brandId,
+          ingredients: this.normalizeIngredients(ingredientInputs),
           ingredientContent,
           comparedTo: null,
         });
@@ -471,16 +770,30 @@ export class ProductsService {
 
         if (comparables && comparables.length > 0) {
           for (const comparable of comparables) {
-            // Calculate ingredient content for comparable
+            const {
+              brandName: comparableBrandName,
+              ingredients: comparableSeedIngredients,
+              ...comparableData
+            } = comparable;
+
+            const comparableBrandId = await this.resolveBrandIdByName(comparableBrandName);
+            const comparableIngredientInputs = await this.mapSeedIngredients(comparableSeedIngredients);
+
+            if (comparableIngredientInputs.length === 0) {
+              this.logger.warn(`Skipping comparable "${comparable.name}" because it has no valid ingredients.`);
+              continue;
+            }
+
             const comparableIngredientContent = this.calculateIngredientContent(
-              comparable.ingredients,
+              comparableIngredientInputs,
               comparable.totalContent,
               comparable.portion,
             );
 
             await this.productModel.create({
-              ...comparable,
-              ingredients: new Map(Object.entries(comparable.ingredients)),
+              ...comparableData,
+              brand: comparableBrandId,
+              ingredients: this.normalizeIngredients(comparableIngredientInputs),
               ingredientContent: comparableIngredientContent,
               comparedTo: mainProduct._id,
             });
@@ -489,18 +802,34 @@ export class ProductsService {
         }
       }
 
-      console.log(`Seeded ${totalSeeded} products (${productsData.length} main + comparables)`);
+      this.logger.log(`Seeded ${totalSeeded} products (${productsData.length} main + comparables)`);
     } catch (error) {
-      console.error('Error seeding products:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error seeding products: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
     }
   }
 
   async processNutribioticsProducts(): Promise<void> {
     try {
-      const products = await this.productModel.find({
-        brand: { $regex: /^nutribiotics$/i },
-        comparedTo: null,
-      }).exec();
+      const nutribioticsBrand = await this.brandModel
+        .findOne({ name: { $regex: /^nutribiotics$/i } })
+        .exec();
+
+      if (!nutribioticsBrand) {
+        this.logger.warn('Nutribiotics brand not found. Skipping processing.');
+        return;
+      }
+
+      const products = await this.productModel
+        .find({
+          brand: nutribioticsBrand._id,
+          comparedTo: null,
+        })
+        .populate([
+          { path: 'brand', select: 'name status' },
+          { path: 'ingredients.ingredient', select: 'name measurementUnit status' },
+        ])
+        .exec();
 
       this.logger.debug(`Found ${products.length} Nutribiotics base products to process`);
 
@@ -513,9 +842,14 @@ export class ProductsService {
           lastScanDate: new Date(),
         });
 
-        const existingComparables = await this.productModel.find({
-          comparedTo: product._id,
-        });
+        const [existingComparables, brandInfo, hydratedIngredients] = await Promise.all([
+          this.productModel
+            .find({ comparedTo: product._id })
+            .populate({ path: 'brand', select: 'name status' })
+            .exec(),
+          this.hydrateBrand(product.brand as any),
+          this.hydrateIngredients(product.ingredients as any),
+        ]);
 
         this.logger.debug(`Found ${existingComparables.length} existing comparables for ${product.name}`);
 
@@ -532,25 +866,38 @@ export class ProductsService {
         const allBrands = await this.brandModel.find().exec();
         const brandNames = allBrands.map(b => b.name);
 
-        const productIngredients = product.ingredients instanceof Map
-          ? Object.fromEntries(product.ingredients)
-          : product.ingredients;
+        const brandName = brandInfo?.name || nutribioticsBrand.name;
 
-        const ingredientsXml = Object.entries(productIngredients)
-          .map(([ingredientId, qty]) => {
-            const ingredient = ingredientMap.get(ingredientId);
-            const ingredientName = ingredient?.name || ingredientId;
-            const measurementUnit = ingredient?.measurementUnit || 'MG';
+        const ingredientsXml = hydratedIngredients
+          .map((ingredientEntry) => {
+            if (!ingredientEntry.name) {
+              return null;
+            }
+
+            const ingredientDetails = ingredientMap.get(ingredientEntry.name) || {
+              name: ingredientEntry.name,
+              measurementUnit: 'MG',
+            };
+
+            const measurementUnit = ingredientDetails?.measurementUnit || 'MG';
 
             return `   <ingredient>
       <ingredientName>
-        ${ingredientName}
+        ${ingredientEntry.name}
       </ingredientName>
-      <qty>${qty}</qty>
+      <qty>${ingredientEntry.quantity}</qty>
       <measurementUnit>${measurementUnit}</measurementUnit>
    </ingredient>`;
           })
+          .filter((value): value is string => Boolean(value))
           .join('\n');
+
+        const existingComparableSummaries = await Promise.all(
+          existingComparables.map(async (p) => {
+            const comparableBrand = await this.hydrateBrand(p.brand as any);
+            return `- ${p.name} (${comparableBrand?.name || 'Unknown'})`;
+          })
+        );
 
         const prompt = `<instructions>
 Given this product and its ingredients, I need you to look for comparable products in online stores available in the provided country. Use your own criteria to determine if a product is comparable based on the ingredients and their quantities.
@@ -574,7 +921,7 @@ You should retrieve a markdown table with the following fields for each comparab
    ${product.name}
 </productName>
 <brand>
-   ${product.brand}
+  ${brandName}
 </brand>
 <ingredients>
 ${ingredientsXml}
@@ -583,9 +930,9 @@ ${ingredientsXml}
    ${COUNTRY}
 </country>
 
-${existingComparables.length > 0 ? `<excludeProducts>
+${existingComparableSummaries.length > 0 ? `<excludeProducts>
 Neither the provided product or these products should be included in the list as they are already known:
-${existingComparables.map(p => `- ${p.name} (${p.brand})`).join('\n')}
+${existingComparableSummaries.join('\n')}
 </excludeProducts>` : ''}`;
 
         const { text, sources } = await generateText({
@@ -624,7 +971,7 @@ ${existingComparables.map(p => `- ${p.name} (${p.brand})`).join('\n')}
               }))
             })
           }),
-          prompt: `Here is the text containing the markdown table of comparable products you found for the product "${product.name}" by "${product.brand}":
+          prompt: `Here is the text containing the markdown table of comparable products you found for the product "${product.name}" by "${brandName}":
 ${text}
 
 Extract the comparable products from the text.
@@ -642,7 +989,7 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
 
         const { newProducts, newIngredients, newBrands } = output;
 
-        console.dir({ newProducts, newIngredients, newBrands }, { depth: null });
+        this.logger.debug({ newProducts, newIngredients, newBrands });
 
         await fs.promises.writeFile(
           `temp/product_${product._id}_comparables.json`,
@@ -651,7 +998,9 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
 
         // create new brands from newBrands
         for (const brand of newBrands) {
-          const existing = await this.brandModel.findOne({ name: brand.brandName }).exec();
+          const existing = await this.brandModel
+            .findOne({ name: { $regex: `^${brand.brandName}$`, $options: 'i' } })
+            .exec();
           if (!existing) {
             this.logger.debug(`Creating new brand: ${brand.brandName}`);
             const newBrand = new this.brandModel({
@@ -679,24 +1028,40 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
           this.logger.debug(`Creating new comparable product: ${p.name} (${p.brand})`);
 
           // Map ingredient names back to IDs
-          const ingredientEntries: [string, number][] = [];
+          const ingredientInputs: IngredientInput[] = [];
           for (const ing of p.ingredients) {
             const ingDoc = await this.ingredientModel.findOne({ name: ing.name }).exec();
             if (ingDoc) {
-              ingredientEntries.push([ingDoc._id.toString(), ing.qty]);
+              ingredientInputs.push({ ingredientId: ingDoc._id.toString(), quantity: ing.qty });
             } else {
               this.logger.warn(`Ingredient not found for name: ${ing.name}. Skipping this ingredient.`);
             }
           }
 
+          if (ingredientInputs.length === 0) {
+            this.logger.warn(`Skipping comparable product "${p.name}" due to missing ingredient references.`);
+            continue;
+          }
+
+          let comparableBrand = await this.brandModel
+            .findOne({ name: { $regex: `^${p.brand}$`, $options: 'i' } })
+            .exec();
+
+          if (!comparableBrand) {
+            this.logger.debug(`Creating new brand on the fly: ${p.brand}`);
+            comparableBrand = await this.brandModel.create({
+              name: p.brand.toUpperCase(),
+            });
+          }
+
           await this.create({
             name: p.name,
-            brand: p.brand,
-            ingredients: Object.fromEntries(ingredientEntries),
+            brand: comparableBrand._id.toString(),
+            ingredients: ingredientInputs,
             totalContent: p.totalContent,
             presentation: p.presentation,
             portion: p.portion,
-            comparedTo: product._id
+            comparedTo: product._id,
           });
         }
         this.logger.debug(`Completed processing for product: ${product.name}`);

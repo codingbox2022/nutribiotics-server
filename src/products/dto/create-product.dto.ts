@@ -5,23 +5,36 @@ import {
   IsEnum,
   IsOptional,
   IsMongoId,
-  IsObject,
   Min,
+  IsArray,
+  ValidateNested,
+  ArrayMinSize,
 } from 'class-validator';
-import mongoose, { mongo } from 'mongoose';
+import { Type } from 'class-transformer';
+import { Types } from 'mongoose';
+
+export class ProductIngredientInputDto {
+  @IsMongoId()
+  ingredientId: string;
+
+  @IsNumber()
+  @Min(0.0001)
+  quantity: number;
+}
 
 export class CreateProductDto {
   @IsString()
   @IsNotEmpty()
   name: string;
 
-  @IsString()
-  @IsNotEmpty()
+  @IsMongoId()
   brand: string;
 
-  @IsObject()
-  @IsNotEmpty()
-  ingredients: Record<string, number>;
+  @IsArray()
+  @ValidateNested({ each: true })
+  @ArrayMinSize(1)
+  @Type(() => ProductIngredientInputDto)
+  ingredients: ProductIngredientInputDto[];
 
   @IsNumber()
   @Min(1)
@@ -50,7 +63,7 @@ export class CreateProductDto {
 
   @IsMongoId()
   @IsOptional()
-  comparedTo?: mongoose.Types.ObjectId;
+  comparedTo?: Types.ObjectId;
 
   @IsEnum(['ok', 'alert', 'opportunity'])
   @IsOptional()

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery } from 'mongoose';
 import { Brand, BrandDocument, ApprovalStatus } from './schemas/brand.schema';
@@ -15,6 +15,8 @@ interface FindAllFilters {
 
 @Injectable()
 export class BrandsService {
+  private readonly logger = new Logger(BrandsService.name);
+
   constructor(
     @InjectModel(Brand.name)
     private brandModel: Model<BrandDocument>,
@@ -73,18 +75,19 @@ export class BrandsService {
 
   async seedBrands(): Promise<void> {
     const count = await this.brandModel.countDocuments().exec();
-    console.log(`Current brand count: ${count}`);
+    this.logger.log(`Current brand count: ${count}`);
     if (count > 0) {
-      console.log('Brands already seeded');
+      this.logger.log('Brands already seeded');
       return;
     }
 
-    console.log(`Brands data length: ${brandsData.length}`);
+    this.logger.log(`Brands data length: ${brandsData.length}`);
     try {
       await this.brandModel.insertMany(brandsData);
-      console.log(`Seeded ${brandsData.length} brands`);
+      this.logger.log(`Seeded ${brandsData.length} brands`);
     } catch (error) {
-      console.error('Error seeding brands:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error seeding brands: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
     }
   }
 

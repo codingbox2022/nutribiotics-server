@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery } from 'mongoose';
 import { Marketplace, MarketplaceDocument } from './schemas/marketplace.schema';
@@ -17,6 +17,8 @@ interface FindAllFilters {
 
 @Injectable()
 export class MarketplacesService {
+  private readonly logger = new Logger(MarketplacesService.name);
+
   constructor(
     @InjectModel(Marketplace.name)
     private marketplaceModel: Model<MarketplaceDocument>,
@@ -90,18 +92,19 @@ export class MarketplacesService {
 
   async seedMarketplaces(): Promise<void> {
     const count = await this.marketplaceModel.countDocuments().exec();
-    console.log(`Current marketplace count: ${count}`);
+    this.logger.log(`Current marketplace count: ${count}`);
     if (count > 0) {
-      console.log('Marketplaces already seeded');
+      this.logger.log('Marketplaces already seeded');
       return;
     }
 
-    console.log(`Marketplaces data length: ${marketplacesData.length}`);
+    this.logger.log(`Marketplaces data length: ${marketplacesData.length}`);
     try {
       await this.marketplaceModel.insertMany(marketplacesData);
-      console.log(`Seeded ${marketplacesData.length} marketplaces`);
+      this.logger.log(`Seeded ${marketplacesData.length} marketplaces`);
     } catch (error) {
-      console.error('Error seeding marketplaces:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error seeding marketplaces: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
     }
   }
 }

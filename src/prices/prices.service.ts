@@ -8,6 +8,7 @@ import { PaginatedResult } from '../common/interfaces/response.interface';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { Marketplace, MarketplaceDocument } from '../marketplaces/schemas/marketplace.schema';
 import { Ingredient, IngredientDocument } from '../ingredients/schemas/ingredient.schema';
+import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
 
 interface FindAllFilters {
   productId?: string;
@@ -16,6 +17,11 @@ interface FindAllFilters {
   limit?: number;
 }
 
+type BrandDisplay = {
+  id: string;
+  name: string | null;
+};
+
 @Injectable()
 export class PricesService {
   constructor(
@@ -23,7 +29,76 @@ export class PricesService {
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(Marketplace.name) private marketplaceModel: Model<MarketplaceDocument>,
     @InjectModel(Ingredient.name) private ingredientModel: Model<IngredientDocument>,
+    @InjectModel(Brand.name) private brandModel: Model<BrandDocument>,
   ) {}
+
+  private formatBrand(
+    brand: Types.ObjectId | BrandDocument | string | null,
+  ): BrandDisplay | null {
+    if (!brand) {
+      return null;
+    }
+
+    if (brand instanceof Types.ObjectId) {
+      return { id: brand.toString(), name: null };
+    }
+
+    if (typeof brand === 'string') {
+      return { id: brand, name: null };
+    }
+
+    return { id: brand._id.toString(), name: brand.name };
+  }
+
+  private async hydrateBrand(
+    brand: Types.ObjectId | BrandDocument | string | null,
+  ): Promise<BrandDisplay | null> {
+    const formatted = this.formatBrand(brand);
+    if (!formatted || formatted.name) {
+      return formatted;
+    }
+
+    const brandDoc = await this.brandModel
+      .findById(formatted.id)
+      .select('name')
+      .exec();
+
+    if (!brandDoc) {
+      return formatted;
+    }
+
+    return { id: brandDoc._id.toString(), name: brandDoc.name };
+  }
+
+  private async normalizeIngredientMap(
+    ingredientContent: Map<string, number> | Record<string, number> | undefined,
+  ): Promise<Record<string, number>> {
+    const entries = ingredientContent instanceof Map
+      ? Array.from(ingredientContent.entries())
+      : Object.entries(ingredientContent || {});
+
+    if (entries.length === 0) {
+      return {};
+    }
+
+    const objectIdEntries = entries.filter(([ingredientId]) => Types.ObjectId.isValid(ingredientId));
+    const ids = objectIdEntries.map(([ingredientId]) => ingredientId);
+
+    const docs = ids.length > 0
+      ? await this.ingredientModel
+          .find({ _id: { $in: ids } })
+          .select('name')
+          .exec()
+      : [];
+
+    const nameMap = new Map(docs.map((doc) => [doc._id.toString(), doc.name]));
+
+    return entries.reduce<Record<string, number>>((acc, [ingredientId, value]) => {
+      const key = nameMap.get(ingredientId) || ingredientId;
+      acc[key] = Number(value);
+      return acc;
+    }, {});
+  }
 
   async create(createPriceDto: CreatePriceDto): Promise<PriceDocument> {
     // Handle simple price update (from UI for Nutribiotics products)
@@ -150,8 +225,16 @@ export class PricesService {
   }
 
   async getNutribioticsComparison(filters?: { search?: string }): Promise<any[]> {
+    const nutribioticsBrand = await this.brandModel
+      .findOne({ name: { $regex: /^nutribiotics$/i } })
+      .exec();
+
+    if (!nutribioticsBrand) {
+      return [];
+    }
+
     // Fetch all Nutribiotics products
-    const query: any = { brand: /^NUTRIBIOTICS$/i };
+    const query: any = { brand: nutribioticsBrand._id };
 
     if (filters?.search) {
       query.name = { $regex: filters.search, $options: 'i' };
@@ -159,6 +242,7 @@ export class PricesService {
 
     const nutribioticsProducts = await this.productModel
       .find(query)
+      .populate({ path: 'brand', select: 'name status' })
       .exec();
 
     // Build comparison data for each product
@@ -176,8 +260,9 @@ export class PricesService {
         const comparedProducts = await this.productModel
           .find({
             comparedTo: product._id,
-            brand: { $not: { $regex: /^NUTRIBIOTICS$/i } }
+            brand: { $ne: nutribioticsBrand._id }
           })
+          .populate({ path: 'brand', select: 'name status' })
           .exec();
 
         // Collect all competitor prices from all marketplaces
@@ -256,7 +341,7 @@ export class PricesService {
         return {
           id: product._id.toString(),
           productName: product.name,
-          brand: product.brand,
+          brand: await this.hydrateBrand(product.brand as any),
           currentPrice,
           minCompetitorPrice,
           maxCompetitorPrice,
@@ -275,7 +360,10 @@ export class PricesService {
 
   async getProductPriceDetail(productId: string): Promise<any> {
     // Fetch the main Nutribiotics product
-    const product = await this.productModel.findById(productId).exec();
+    const product = await this.productModel
+      .findById(productId)
+      .populate({ path: 'brand', select: 'name status' })
+      .exec();
     if (!product) {
       throw new NotFoundException(`Product with ID ${productId} not found`);
     }
@@ -300,32 +388,47 @@ export class PricesService {
     });
 
     const IVA_RATE = 0.19;
+    const normalizedIngredientContent = await this.normalizeIngredientMap(
+      product.ingredientContent as any,
+    );
+
+    const normalizedPricePerIngredient = mainPrice
+      ? await this.normalizeIngredientMap(mainPrice.pricePerIngredientContent as any)
+      : {};
+
     const productData = {
       id: product._id.toString(),
       name: product.name,
-      brand: product.brand,
-      ingredientContent: product.ingredientContent instanceof Map
-        ? Object.fromEntries(product.ingredientContent)
-        : (product.ingredientContent || {}),
+      brand: await this.hydrateBrand(product.brand as any),
+      ingredientContent: normalizedIngredientContent,
       currentPrice: mainPrice?.precioConIva || null,
       currentPriceWithoutIva: mainPrice?.precioSinIva || null,
-      currentPricePerIngredient: mainPrice?.pricePerIngredientContent instanceof Map
-        ? Object.fromEntries(mainPrice.pricePerIngredientContent)
-        : (mainPrice?.pricePerIngredientContent || {}),
+      currentPricePerIngredient: normalizedPricePerIngredient,
       marketplace: mainMarketplaceName,
     };
 
     // Get all competitor products
+    const productBrandId = product.brand instanceof Types.ObjectId
+      ? product.brand
+      : (product.brand as BrandDocument | undefined)?._id;
+
+    const competitorFilter: any = { comparedTo: product._id };
+    if (productBrandId) {
+      competitorFilter.brand = { $ne: productBrandId };
+    }
+
     const comparedProducts = await this.productModel
-      .find({
-        comparedTo: product._id,
-        brand: { $not: { $regex: /^NUTRIBIOTICS$/i } }
-      })
+      .find(competitorFilter)
+      .populate({ path: 'brand', select: 'name status' })
       .exec();
 
     // Build competitor data with marketplace breakdown
     const competitors = await Promise.all(
       comparedProducts.map(async (comp) => {
+        const normalizedCompetitorIngredients = await this.normalizeIngredientMap(
+          comp.ingredientContent as any,
+        );
+
         // Get all prices for this competitor product
         const prices = await this.priceModel
           .find({ productId: comp._id.toString() })
@@ -338,13 +441,14 @@ export class PricesService {
           const mkId = price.marketplaceId.toString();
           if (!marketplacePricesMap.has(mkId)) {
             const marketplace = await this.marketplaceModel.findById(mkId).exec();
+              const normalizedPricePerIngredient = await this.normalizeIngredientMap(
+                price.pricePerIngredientContent as any,
+              );
             marketplacePricesMap.set(mkId, {
               marketplaceName: marketplace?.name || 'Unknown',
               priceWithIva: price.precioConIva,
               priceWithoutIva: price.precioSinIva,
-              pricePerIngredient: price.pricePerIngredientContent instanceof Map
-                ? Object.fromEntries(price.pricePerIngredientContent)
-                : (price.pricePerIngredientContent || {}),
+                pricePerIngredient: normalizedPricePerIngredient,
               extractedDate: (price as any).createdAt || new Date(),
             });
           }
@@ -353,10 +457,8 @@ export class PricesService {
         return {
           id: comp._id.toString(),
           name: comp.name,
-          brand: comp.brand,
-          ingredientContent: comp.ingredientContent instanceof Map
-            ? Object.fromEntries(comp.ingredientContent)
-            : (comp.ingredientContent || {}),
+          brand: await this.hydrateBrand(comp.brand as any),
+          ingredientContent: normalizedCompetitorIngredients,
           marketplacePrices: Array.from(marketplacePricesMap.values()),
         };
       })

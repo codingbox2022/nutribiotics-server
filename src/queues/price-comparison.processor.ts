@@ -13,6 +13,7 @@ import {
   Marketplace,
   MarketplaceDocument,
 } from '../marketplaces/schemas/marketplace.schema';
+import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
 
 export interface PriceComparisonJobData {
   triggeredBy?: string;
@@ -31,6 +32,8 @@ export class PriceComparisonProcessor extends WorkerHost {
     private productModel: Model<ProductDocument>,
     @InjectModel(Marketplace.name)
     private marketplaceModel: Model<MarketplaceDocument>,
+    @InjectModel(Brand.name)
+    private brandModel: Model<BrandDocument>,
   ) {
     super();
   }
@@ -44,8 +47,20 @@ export class PriceComparisonProcessor extends WorkerHost {
     try {
       // Step 1: Fetch real products and marketplaces from database (excluding Nutribiotics products)
       this.logger.log('Step 1: Fetching products from database...');
+      const nutribioticsBrand = await this.brandModel
+        .findOne({ name: { $regex: /^nutribiotics$/i } })
+        .exec();
+
+      const productQuery: any = {};
+      if (nutribioticsBrand) {
+        productQuery.brand = { $ne: nutribioticsBrand._id };
+      }
+
       const [products, marketplaces] = await Promise.all([
-        this.productModel.find({ brand: { $not: { $regex: /^nutribiotics$/i } } }).exec(),
+        this.productModel
+          .find(productQuery)
+          .populate({ path: 'brand', select: 'name status' })
+          .exec(),
         this.marketplaceModel.find({ status: 'active' }).exec(),
       ]);
 
@@ -94,8 +109,9 @@ export class PriceComparisonProcessor extends WorkerHost {
 
       // Iterate through products one at a time
       for (const product of products) {
+        const brandName = this.getBrandName(product.brand as any);
         this.logger.log(
-          `Processing ${product.name} by ${product.brand} across ${totalMarketplaces} marketplaces in parallel...`,
+          `Processing ${product.name} by ${brandName} across ${totalMarketplaces} marketplaces in parallel...`,
         );
 
         // Use pre-calculated ingredient content from product
@@ -107,7 +123,7 @@ export class PriceComparisonProcessor extends WorkerHost {
         const marketplaceSearchPromises = marketplaces.map(
           async (marketplace) => {
             try {
-              const prompt = `Look for this product "${product.name}" of brand "${product.brand}" on the marketplace "${marketplace.name}" and get me the current prices (both with and without tax/IVA/VAT if available). If the product is not found, respond with inStock as false.
+              const prompt = `Look for this product "${product.name}" of brand "${brandName}" on the marketplace "${marketplace.name}" and get me the current prices (both with and without tax/IVA/VAT if available). If the product is not found, respond with inStock as false.
 
       Return ONLY a valid JSON object (no markdown, no extra text) with the following fields:
       - precioSinIva (number or null): Price without tax/IVA/VAT if shown on the page
@@ -190,7 +206,7 @@ export class PriceComparisonProcessor extends WorkerHost {
               await this.ingestionRunsService.addLookupResult(validRunId, {
                 productId: product._id,
                 productName: product.name,
-                productBrand: product.brand,
+                productBrand: brandName,
                 marketplaceId: marketplace._id,
                 marketplaceName: marketplace.name,
                 url: parsed.productUrl || marketplace.baseUrl,
@@ -235,7 +251,7 @@ export class PriceComparisonProcessor extends WorkerHost {
               await this.ingestionRunsService.addLookupResult(validRunId, {
                 productId: product._id,
                 productName: product.name,
-                productBrand: product.brand,
+                productBrand: brandName,
                 marketplaceId: marketplace._id,
                 marketplaceName: marketplace.name,
                 url: marketplace.baseUrl,
@@ -302,6 +318,22 @@ export class PriceComparisonProcessor extends WorkerHost {
 
       throw error;
     }
+  }
+
+  private getBrandName(brand: Types.ObjectId | BrandDocument | string | undefined): string {
+    if (!brand) {
+      return '';
+    }
+
+    if (typeof brand === 'string') {
+      return brand;
+    }
+
+    if (brand instanceof Types.ObjectId) {
+      return brand.toString();
+    }
+
+    return brand.name;
   }
 
   private delay(ms: number): Promise<void> {

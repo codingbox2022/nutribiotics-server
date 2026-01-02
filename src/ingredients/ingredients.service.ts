@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery } from 'mongoose';
 import { Ingredient, IngredientDocument, ApprovalStatus } from './schemas/ingredient.schema';
@@ -15,6 +15,8 @@ interface FindAllFilters {
 
 @Injectable()
 export class IngredientsService {
+  private readonly logger = new Logger(IngredientsService.name);
+
   constructor(
     @InjectModel(Ingredient.name)
     private ingredientModel: Model<IngredientDocument>,
@@ -23,7 +25,10 @@ export class IngredientsService {
   async create(
     createIngredientDto: CreateIngredientDto,
   ): Promise<IngredientDocument> {
-    const ingredient = new this.ingredientModel(createIngredientDto);
+    const ingredient = new this.ingredientModel({
+      ...createIngredientDto,
+      name: createIngredientDto.name.toUpperCase(),
+    });
     return ingredient.save();
   }
 
@@ -62,8 +67,12 @@ export class IngredientsService {
     id: string,
     updateIngredientDto: UpdateIngredientDto,
   ): Promise<IngredientDocument> {
+    const normalizedDto = updateIngredientDto.name
+      ? { ...updateIngredientDto, name: updateIngredientDto.name.toUpperCase() }
+      : updateIngredientDto;
+
     const ingredient = await this.ingredientModel
-      .findByIdAndUpdate(id, updateIngredientDto, { new: true })
+      .findByIdAndUpdate(id, normalizedDto, { new: true })
       .exec();
     if (!ingredient) {
       throw new NotFoundException(`Ingredient with ID ${id} not found`);
@@ -80,18 +89,24 @@ export class IngredientsService {
 
   async seedIngredients(): Promise<void> {
     const count = await this.ingredientModel.countDocuments().exec();
-    console.log(`Current ingredient count: ${count}`);
+    this.logger.log(`Current ingredient count: ${count}`);
     if (count > 0) {
-      console.log('Ingredients already seeded');
+      this.logger.log('Ingredients already seeded');
       return;
     }
 
-    console.log(`Ingredients data length: ${ingredientsData.length}`);
+    this.logger.log(`Ingredients data length: ${ingredientsData.length}`);
     try {
-      await this.ingredientModel.insertMany(ingredientsData);
-      console.log(`Seeded ${ingredientsData.length} ingredients`);
+      const normalizedData = ingredientsData.map((ingredient) => ({
+        ...ingredient,
+        name: ingredient.name.toUpperCase(),
+      }));
+
+      await this.ingredientModel.insertMany(normalizedData);
+      this.logger.log(`Seeded ${ingredientsData.length} ingredients`);
     } catch (error) {
-      console.error('Error seeding ingredients:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Error seeding ingredients: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
     }
   }
 
@@ -105,7 +120,7 @@ export class IngredientsService {
     const ingredient = await this.ingredientModel
       .findByIdAndUpdate(
         id,
-        { name, status: ApprovalStatus.APPROVED },
+        { name: name.toUpperCase(), status: ApprovalStatus.APPROVED },
         { new: true },
       )
       .exec();

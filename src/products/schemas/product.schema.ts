@@ -15,16 +15,27 @@ export enum PresentationType {
   push = 'push',
 }
 
+@Schema({ _id: false })
+export class ProductIngredient {
+  @Prop({ type: Types.ObjectId, ref: 'Ingredient', required: true })
+  ingredient: Types.ObjectId;
+
+  @Prop({ type: Number, required: true })
+  quantity: number;
+}
+
+export const ProductIngredientSchema = SchemaFactory.createForClass(ProductIngredient);
+
 @Schema({ timestamps: true })
 export class Product {
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true })
-  brand: string;
+  @Prop({ type: Types.ObjectId, ref: 'Brand', required: true })
+  brand: Types.ObjectId;
 
-  @Prop({ type: Map, of: Number, required: true })
-  ingredients: Map<string, number>;
+  @Prop({ type: [ProductIngredientSchema], required: true })
+  ingredients: ProductIngredient[];
 
   @Prop({ required: true })
   totalContent: number;
@@ -71,9 +82,6 @@ export const ProductSchema = SchemaFactory.createForClass(Product);
 ProductSchema.set('autoIndex', true);
 ProductSchema.set('toJSON', {
   transform: function(doc, ret) {
-    if (ret.ingredients && ret.ingredients instanceof Map) {
-      ret.ingredients = Object.fromEntries(ret.ingredients) as any;
-    }
     if (ret.ingredientContent && ret.ingredientContent instanceof Map) {
       ret.ingredientContent = Object.fromEntries(ret.ingredientContent) as any;
     }
@@ -82,9 +90,6 @@ ProductSchema.set('toJSON', {
 });
 ProductSchema.set('toObject', {
   transform: function(doc, ret) {
-    if (ret.ingredients && ret.ingredients instanceof Map) {
-      ret.ingredients = Object.fromEntries(ret.ingredients) as any;
-    }
     if (ret.ingredientContent && ret.ingredientContent instanceof Map) {
       ret.ingredientContent = Object.fromEntries(ret.ingredientContent) as any;
     }

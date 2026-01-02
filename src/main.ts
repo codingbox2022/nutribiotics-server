@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { UsersService } from './users/users.service';
 import { IngredientsService } from './ingredients/ingredients.service';
@@ -11,6 +11,7 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const logger = new Logger('Bootstrap');
 
   app.enableCors();
 
@@ -44,7 +45,7 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
 
-  console.log(`\n🚀 Server running on: http://localhost:${port}`);
-  console.log(`📊 Queue Dashboard: http://localhost:${port}/queues\n`);
+  logger.log(`🚀 Server running on: http://localhost:${port}`);
+  logger.log(`📊 Queue Dashboard: http://localhost:${port}/queues`);
 }
 void bootstrap();

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { ConfigService } from '@nestjs/config';
@@ -7,6 +7,8 @@ import { User, UserDocument } from './schemas/user.schema';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private configService: ConfigService,
@@ -73,14 +75,14 @@ export class UsersService {
     const password = this.configService.get<string>('SEED_USER_PASSWORD');
 
     if (!email || !password) {
-      console.log('Seed user credentials not provided in .env');
+      this.logger.warn('Seed user credentials not provided in .env');
       return;
     }
 
     const existingUser = await this.findByEmail(email);
     if (!existingUser) {
       await this.create(email, password);
-      console.log(`Default user seeded: ${email}`);
+      this.logger.log(`Default user seeded: ${email}`);
     }
   }
 }

@@ -8,6 +8,7 @@ export enum MeasurementUnit {
   UI = 'UI',
   G = 'G',
   ML = 'ML',
+  UFC = 'UFC',
 }
 
 export enum ApprovalStatus {
