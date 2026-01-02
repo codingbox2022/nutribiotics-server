@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { ApprovalStatus } from '../../common/enums/approval-status.enum';
 
 export enum MeasurementUnit {
   MG = 'MG',
@@ -9,12 +10,6 @@ export enum MeasurementUnit {
   G = 'G',
   ML = 'ML',
   UFC = 'UFC',
-}
-
-export enum ApprovalStatus {
-  NOT_APPROVED = 'not_approved',
-  REJECTED = 'rejected',
-  APPROVED = 'approved',
 }
 
 export type IngredientDocument = HydratedDocument<Ingredient>;

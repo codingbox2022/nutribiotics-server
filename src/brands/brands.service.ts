@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery } from 'mongoose';
-import { Brand, BrandDocument, ApprovalStatus } from './schemas/brand.schema';
+import { Brand, BrandDocument } from './schemas/brand.schema';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { PaginatedResult } from '../common/interfaces/response.interface';
 import brandsData from '../files/brands.json';
+import { ApprovalStatus } from '../common/enums/approval-status.enum';
 
 interface FindAllFilters {
   search?: string;
@@ -83,7 +84,12 @@ export class BrandsService {
 
     this.logger.log(`Brands data length: ${brandsData.length}`);
     try {
-      await this.brandModel.insertMany(brandsData);
+      const normalizedData = brandsData.map((brand) => ({
+        ...brand,
+        status: ApprovalStatus.APPROVED,
+      }));
+
+      await this.brandModel.insertMany(normalizedData);
       this.logger.log(`Seeded ${brandsData.length} brands`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);

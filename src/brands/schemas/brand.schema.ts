@@ -1,13 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { ApprovalStatus } from '../../common/enums/approval-status.enum';
 
 export type BrandDocument = HydratedDocument<Brand>;
-
-export enum ApprovalStatus {
-  NOT_APPROVED = 'not_approved',
-  REJECTED = 'rejected',
-  APPROVED = 'approved',
-}
 
 @Schema({ timestamps: true })
 export class Brand {

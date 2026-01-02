@@ -7,7 +7,7 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery, Types } from 'mongoose';
 import { PresentationType, Product, ProductDocument, ProductIngredient } from './schemas/product.schema';
-import { Ingredient, IngredientDocument } from '../ingredients/schemas/ingredient.schema';
+import { Ingredient, IngredientDocument, MeasurementUnit } from '../ingredients/schemas/ingredient.schema';
 import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -328,9 +328,13 @@ export class ProductsService {
     return ingredientContent;
   }
 
-  async create(createProductDto: CreateProductDto): Promise<ProductResponse> {
+  async create(
+    createProductDto: CreateProductDto,
+    options?: { status?: 'active' | 'suspended' | 'rejected' | 'pending' },
+  ): Promise<ProductResponse> {
     try {
       const { ingredients, ...rest } = createProductDto;
+      const status = options?.status ?? 'active';
 
       const ingredientContent = this.calculateIngredientContent(
         ingredients,
@@ -344,6 +348,7 @@ export class ProductsService {
         ...rest,
         ingredients: normalizedIngredients,
         ingredientContent,
+        status,
       });
 
       await product.save();
@@ -765,6 +770,7 @@ export class ProductsService {
           ingredients: this.normalizeIngredients(ingredientInputs),
           ingredientContent,
           comparedTo: null,
+          status: 'active',
         });
         totalSeeded++;
 
@@ -796,6 +802,7 @@ export class ProductsService {
               ingredients: this.normalizeIngredients(comparableIngredientInputs),
               ingredientContent: comparableIngredientContent,
               comparedTo: mainProduct._id,
+              status: 'active',
             });
             totalSeeded++;
           }
@@ -862,9 +869,13 @@ export class ProductsService {
         // Get ingredient and brand details for the prompt
         const allIngredients = await this.ingredientModel.find().exec();
         const ingredientMap = new Map(allIngredients.map(i => [i.name, {name: i.name, measurementUnit: i.measurementUnit}]));
+        const knownIngredientNames = new Set(
+          allIngredients.map((ingredient) => ingredient.name.trim().toUpperCase()),
+        );
 
         const allBrands = await this.brandModel.find().exec();
         const brandNames = allBrands.map(b => b.name);
+        const knownBrandNames = new Set(allBrands.map((brand) => brand.name.trim().toUpperCase()));
 
         const brandName = brandInfo?.name || nutribioticsBrand.name;
 
@@ -904,8 +915,8 @@ Given this product and its ingredients, I need you to look for comparable produc
 </instructions>
 <outputFormat>
 You should retrieve a markdown table with the following fields for each comparable product you find:
-- Product Name
-- Brand
+- Product Name (The product name should not include presentation details like quantities or "cápsulas", "tabletas", etc.)
+- Brand 
 - Presentation (must be one of: cucharadas, cápsulas, tableta, softGel, gotas, sobre, vial, mililitro, push)
 - totalContent (numeric value representing the total content in the package)
 - totalContentUnit (the unit of measurement for totalContent, e.g., "ml", "g", "tablets", etc.)
@@ -981,6 +992,8 @@ ${Array.from(ingredientMap.keys()).join(', ')}
 
 If you find an ingredient that is NOT in the existing list, add it to newIngredients with its name and measurement unit. Only include ingredients that don't already exist in the database.
 
+When filling the ingredients array for each newProducts entry, always try to reuse ingredient names from the existing list above (case-insensitive). If an ingredient already exists, use the exact existing name in newProducts so we avoid duplicates. Only invent a brand-new ingredient name when it genuinely is missing from the list, and whenever that happens you must also include it in newIngredients so both lists stay aligned.
+
 For newBrands: Compare the brand names found in the products against this list of existing brands in the database:
 ${brandNames.join(', ')}
 
@@ -989,15 +1002,66 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
 
         const { newProducts, newIngredients, newBrands } = output;
 
-        this.logger.debug({ newProducts, newIngredients, newBrands });
+        const normalizeKey = (value: string) => value.trim().toUpperCase();
+        const normalizeMeasurementUnit = (unit?: string): MeasurementUnit => {
+          if (!unit) {
+            return MeasurementUnit.MG;
+          }
+          const normalizedUnit = normalizeKey(unit) as MeasurementUnit;
+          return (Object.values(MeasurementUnit) as string[]).includes(normalizedUnit)
+            ? normalizedUnit
+            : MeasurementUnit.MG;
+        };
+
+        const pendingIngredientsMap = new Map<string, { ingredientName: string; measurementUnit: MeasurementUnit }>();
+        const pendingBrandsMap = new Map<string, { brandName: string }>();
+
+        const registerIngredient = (name?: string, unit?: string) => {
+          if (!name) {
+            return;
+          }
+          const key = normalizeKey(name);
+          if (knownIngredientNames.has(key) || pendingIngredientsMap.has(key)) {
+            return;
+          }
+          pendingIngredientsMap.set(key, {
+            ingredientName: key,
+            measurementUnit: normalizeMeasurementUnit(unit),
+          });
+        };
+
+        const registerBrand = (name?: string) => {
+          if (!name) {
+            return;
+          }
+          const key = normalizeKey(name);
+          if (knownBrandNames.has(key) || pendingBrandsMap.has(key)) {
+            return;
+          }
+          pendingBrandsMap.set(key, { brandName: key });
+        };
+
+        newIngredients.forEach((ingredient) =>
+          registerIngredient(ingredient.ingredientName, ingredient.measurementUnit),
+        );
+        newBrands.forEach((brand) => registerBrand(brand.brandName));
+        newProducts.forEach((candidate) => {
+          registerBrand(candidate.brand);
+          candidate.ingredients.forEach((ingredient) =>
+            registerIngredient(ingredient.name, ingredient.measurementUnit),
+          );
+        });
+
+        const dedupedNewIngredients = Array.from(pendingIngredientsMap.values());
+        const dedupedNewBrands = Array.from(pendingBrandsMap.values());
 
         await fs.promises.writeFile(
           `temp/product_${product._id}_comparables.json`,
-          JSON.stringify({text, sources, newProducts, newIngredients, newBrands }, null, 2),
+          JSON.stringify({text, sources, newProducts, newIngredients: dedupedNewIngredients, newBrands: dedupedNewBrands }, null, 2),
         );
 
         // create new brands from newBrands
-        for (const brand of newBrands) {
+        for (const brand of dedupedNewBrands) {
           const existing = await this.brandModel
             .findOne({ name: { $regex: `^${brand.brandName}$`, $options: 'i' } })
             .exec();
@@ -1011,7 +1075,7 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
         }
 
         // create new ingredients from newIngredients
-        for (const ing of newIngredients) {
+        for (const ing of dedupedNewIngredients) {
           const existing = await this.ingredientModel.findOne({ name: ing.ingredientName }).exec();
           if (!existing) {
             this.logger.debug(`Creating new ingredient: ${ing.ingredientName}`);
@@ -1023,6 +1087,8 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
           }
         }
 
+        const pendingCreatedProductIds: string[] = [];
+
         // create new comparable products
         for (const p of newProducts) {
           this.logger.debug(`Creating new comparable product: ${p.name} (${p.brand})`);
@@ -1030,7 +1096,10 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
           // Map ingredient names back to IDs
           const ingredientInputs: IngredientInput[] = [];
           for (const ing of p.ingredients) {
-            const ingDoc = await this.ingredientModel.findOne({ name: ing.name }).exec();
+            const normalizedIngredientName = ing.name.trim();
+            const ingDoc = await this.ingredientModel
+              .findOne({ name: { $regex: `^${normalizedIngredientName}$`, $options: 'i' } })
+              .exec();
             if (ingDoc) {
               ingredientInputs.push({ ingredientId: ingDoc._id.toString(), quantity: ing.qty });
             } else {
@@ -1054,15 +1123,32 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
             });
           }
 
-          await this.create({
-            name: p.name,
-            brand: comparableBrand._id.toString(),
-            ingredients: ingredientInputs,
-            totalContent: p.totalContent,
-            presentation: p.presentation,
-            portion: p.portion,
-            comparedTo: product._id,
-          });
+          const createdComparable = await this.create(
+            {
+              name: p.name,
+              brand: comparableBrand._id.toString(),
+              ingredients: ingredientInputs,
+              totalContent: p.totalContent,
+              presentation: p.presentation,
+              portion: p.portion,
+              comparedTo: product._id,
+            },
+            { status: 'pending' },
+          );
+
+          if (createdComparable?.id) {
+            pendingCreatedProductIds.push(createdComparable.id);
+          }
+        }
+
+        if (pendingCreatedProductIds.length > 0) {
+          await this.productModel.updateMany(
+            { _id: { $in: pendingCreatedProductIds } },
+            { status: 'pending' },
+          ).exec();
+          this.logger.debug(
+            `Marked ${pendingCreatedProductIds.length} auto-created comparables as pending`,
+          );
         }
         this.logger.debug(`Completed processing for product: ${product.name}`);
         } catch (error) {

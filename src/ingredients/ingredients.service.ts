@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery } from 'mongoose';
-import { Ingredient, IngredientDocument, ApprovalStatus } from './schemas/ingredient.schema';
+import { Ingredient, IngredientDocument } from './schemas/ingredient.schema';
 import { CreateIngredientDto } from './dto/create-ingredient.dto';
 import { UpdateIngredientDto } from './dto/update-ingredient.dto';
 import { PaginatedResult } from '../common/interfaces/response.interface';
 import ingredientsData from '../files/ingredients.json';
+import { ApprovalStatus } from '../common/enums/approval-status.enum';
 
 interface FindAllFilters {
   search?: string;
@@ -100,6 +101,7 @@ export class IngredientsService {
       const normalizedData = ingredientsData.map((ingredient) => ({
         ...ingredient,
         name: ingredient.name.toUpperCase(),
+        status: ApprovalStatus.APPROVED,
       }));
 
       await this.ingredientModel.insertMany(normalizedData);
