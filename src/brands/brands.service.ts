@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery } from 'mongoose';
-import { Brand, BrandDocument } from './schemas/brand.schema';
+import { Brand, BrandDocument, ApprovalStatus } from './schemas/brand.schema';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { UpdateBrandDto } from './dto/update-brand.dto';
 import { PaginatedResult } from '../common/interfaces/response.interface';
@@ -85,6 +85,35 @@ export class BrandsService {
       console.log(`Seeded ${brandsData.length} brands`);
     } catch (error) {
       console.error('Error seeding brands:', error);
+    }
+  }
+
+  async findPending(): Promise<BrandDocument[]> {
+    return this.brandModel
+      .find({ status: ApprovalStatus.NOT_APPROVED })
+      .exec();
+  }
+
+  async acceptPending(id: string, name: string): Promise<BrandDocument> {
+    const brand = await this.brandModel
+      .findByIdAndUpdate(
+        id,
+        { name, status: ApprovalStatus.APPROVED },
+        { new: true },
+      )
+      .exec();
+    if (!brand) {
+      throw new NotFoundException(`Brand with ID ${id} not found`);
+    }
+    return brand;
+  }
+
+  async rejectPending(id: string): Promise<void> {
+    const result = await this.brandModel
+      .findByIdAndUpdate(id, { status: ApprovalStatus.REJECTED }, { new: true })
+      .exec();
+    if (!result) {
+      throw new NotFoundException(`Brand with ID ${id} not found`);
     }
   }
 }

@@ -34,6 +34,21 @@ export class IngredientsController {
     });
   }
 
+  @Get('pending')
+  findPending() {
+    return this.ingredientsService.findPending();
+  }
+
+  @Post('pending/:id/accept')
+  acceptPending(@Param('id') id: string, @Body('name') name: string) {
+    return this.ingredientsService.acceptPending(id, name);
+  }
+
+  @Post('pending/:id/reject')
+  rejectPending(@Param('id') id: string) {
+    return this.ingredientsService.rejectPending(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.ingredientsService.findOne(id);

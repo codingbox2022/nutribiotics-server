@@ -34,6 +34,21 @@ export class BrandsController {
     });
   }
 
+  @Get('pending')
+  findPending() {
+    return this.brandsService.findPending();
+  }
+
+  @Post('pending/:id/accept')
+  acceptPending(@Param('id') id: string, @Body('name') name: string) {
+    return this.brandsService.acceptPending(id, name);
+  }
+
+  @Post('pending/:id/reject')
+  rejectPending(@Param('id') id: string) {
+    return this.brandsService.rejectPending(id);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.brandsService.findOne(id);

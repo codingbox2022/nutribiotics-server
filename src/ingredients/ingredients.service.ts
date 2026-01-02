@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, FilterQuery } from 'mongoose';
-import { Ingredient, IngredientDocument } from './schemas/ingredient.schema';
+import { Ingredient, IngredientDocument, ApprovalStatus } from './schemas/ingredient.schema';
 import { CreateIngredientDto } from './dto/create-ingredient.dto';
 import { UpdateIngredientDto } from './dto/update-ingredient.dto';
 import { PaginatedResult } from '../common/interfaces/response.interface';
@@ -92,6 +92,35 @@ export class IngredientsService {
       console.log(`Seeded ${ingredientsData.length} ingredients`);
     } catch (error) {
       console.error('Error seeding ingredients:', error);
+    }
+  }
+
+  async findPending(): Promise<IngredientDocument[]> {
+    return this.ingredientModel
+      .find({ status: ApprovalStatus.NOT_APPROVED })
+      .exec();
+  }
+
+  async acceptPending(id: string, name: string): Promise<IngredientDocument> {
+    const ingredient = await this.ingredientModel
+      .findByIdAndUpdate(
+        id,
+        { name, status: ApprovalStatus.APPROVED },
+        { new: true },
+      )
+      .exec();
+    if (!ingredient) {
+      throw new NotFoundException(`Ingredient with ID ${id} not found`);
+    }
+    return ingredient;
+  }
+
+  async rejectPending(id: string): Promise<void> {
+    const result = await this.ingredientModel
+      .findByIdAndUpdate(id, { status: ApprovalStatus.REJECTED }, { new: true })
+      .exec();
+    if (!result) {
+      throw new NotFoundException(`Ingredient with ID ${id} not found`);
     }
   }
 }

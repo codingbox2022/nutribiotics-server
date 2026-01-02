@@ -15,10 +15,9 @@ import { PaginatedResult } from '../common/interfaces/response.interface';
 import { PricesService } from '../prices/prices.service';
 import productsData from '../files/products.json';
 import { generateText, generateObject, Output } from 'ai';
-import { google } from 'src/providers/googleAiProvider';
-import { GoogleGenerativeAIProviderMetadata } from '@ai-sdk/google';
 import z from 'zod';
 import { openai } from '@ai-sdk/openai';
+import fs from 'fs';
 
 interface FindAllFilters {
   search?: string;
@@ -161,12 +160,27 @@ export class ProductsService {
 
     const data = await Promise.all(
       pendingProducts.map(async (product) => {
-        const [populatedIngredients, comparedToProduct] = await Promise.all([
+        const [populatedIngredients, comparedToProduct, brand] = await Promise.all([
           this.populateIngredientNames(product.ingredients),
           product.comparedTo
             ? this.productModel.findById(product.comparedTo).exec()
             : null,
+          this.brandModel.findOne({ name: product.brand }).exec(),
         ]);
+
+        // Check for pending dependencies
+        const ingredientIds = Array.from(product.ingredients.keys());
+        const ingredients = await this.ingredientModel.find({
+          _id: { $in: ingredientIds }
+        }).exec();
+
+        const pendingIngredientIds = ingredients
+          .filter(ing => ing.status === 'not_approved')
+          .map(ing => ing._id.toString());
+
+        const pendingBrandIds = brand && brand.status === 'not_approved'
+          ? [brand._id.toString()]
+          : [];
 
         const productObj = product.toObject();
 
@@ -178,6 +192,9 @@ export class ProductsService {
             name: comparedToProduct.name,
             brand: comparedToProduct.brand,
           } : null,
+          pendingIngredientIds,
+          pendingBrandIds,
+          hasPendingDependencies: pendingIngredientIds.length > 0 || pendingBrandIds.length > 0,
         };
       }),
     );
@@ -579,8 +596,6 @@ ${existingComparables.map(p => `- ${p.name} (${p.brand})`).join('\n')}
           prompt,
         });
 
-        console.log({ text, sources });
-
         const { output } = await generateText({
           model: openai('gpt-4o'),
           output: Output.object({
@@ -622,12 +637,17 @@ If you find an ingredient that is NOT in the existing list, add it to newIngredi
 For newBrands: Compare the brand names found in the products against this list of existing brands in the database:
 ${brandNames.join(', ')}
 
-Use your judgment to determine if a brand is the same as an existing brand (considering variations in capitalization, spacing, or minor spelling differences). If you find a brand that is truly NEW and different from all existing brands, add it to newBrands. Only include brands that don't already exist in the database.`,
+Use your judgment to determine if a brand is the same as an existing brand (considering variations in capitalization, spacing, or minor spelling differences). If you find a brand that is truly NEW and different from all existing brands, add it to newBrands. Only include brands that don't already exist in the database and that are actually the brand of any of the newProducts.`,
         })
 
         const { newProducts, newIngredients, newBrands } = output;
 
         console.dir({ newProducts, newIngredients, newBrands }, { depth: null });
+
+        await fs.promises.writeFile(
+          `temp/product_${product._id}_comparables.json`,
+          JSON.stringify({text, sources, newProducts, newIngredients, newBrands }, null, 2),
+        );
 
         // create new brands from newBrands
         for (const brand of newBrands) {
