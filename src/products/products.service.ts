@@ -816,15 +816,34 @@ export class ProductsService {
     }
   }
 
-  async processNutribioticsProducts(): Promise<void> {
+  async processNutribioticsProducts(
+    progressCallback?: (progress: number) => Promise<void>
+  ): Promise<{
+    processed: number;
+    newProducts: number;
+    newIngredients: number;
+    newBrands: number;
+  }> {
+    let processedCount = 0;
+    let totalNewProducts = 0;
+    let totalNewIngredients = 0;
+    let totalNewBrands = 0;
+
     try {
+      if (progressCallback) await progressCallback(10);
+
       const nutribioticsBrand = await this.brandModel
         .findOne({ name: { $regex: /^nutribiotics$/i } })
         .exec();
 
       if (!nutribioticsBrand) {
         this.logger.warn('Nutribiotics brand not found. Skipping processing.');
-        return;
+        return {
+          processed: 0,
+          newProducts: 0,
+          newIngredients: 0,
+          newBrands: 0,
+        };
       }
 
       const products = await this.productModel
@@ -841,7 +860,23 @@ export class ProductsService {
 
       this.logger.debug(`Found ${products.length} Nutribiotics base products to process`);
 
-      for (const product of products) {
+      if (products.length === 0) {
+        if (progressCallback) await progressCallback(100);
+        return {
+          processed: 0,
+          newProducts: 0,
+          newIngredients: 0,
+          newBrands: 0,
+        };
+      }
+
+      if (progressCallback) await progressCallback(15);
+
+      for (let i = 0; i < products.length; i++) {
+        const product = products[i];
+        const baseProgress = 15;
+        const progressPerProduct = 75 / products.length;
+        const productStartProgress = baseProgress + (i * progressPerProduct);
         try {
           this.logger.debug(`Processing product: ${product.name} (${product._id})`);
 
@@ -911,13 +946,18 @@ export class ProductsService {
           })
         );
 
+        // Update progress: starting search for this product
+        if (progressCallback) {
+          await progressCallback(Math.round(productStartProgress + (progressPerProduct * 0.2)));
+        }
+
         const prompt = `<instructions>
 Given this product and its ingredients, I need you to look for comparable products in online stores available in the provided country. Use your own criteria to determine if a product is comparable based on the ingredients and their quantities.
 </instructions>
 <outputFormat>
 You should retrieve a markdown table with the following fields for each comparable product you find:
 - Product Name (The product name should not include presentation details like quantities or "cápsulas", "tabletas", etc.)
-- Brand 
+- Brand
 - Presentation (must be one of: cucharadas, cápsulas, tableta, softGel, gotas, sobre, vial, mililitro, push)
 - totalContent (numeric value representing the total content in the package)
 - totalContentUnit (the unit of measurement for totalContent, e.g., "ml", "g", "tablets", etc.)
@@ -1001,6 +1041,11 @@ ${brandNames.join(', ')}
 Use your judgment to determine if a brand is the same as an existing brand (considering variations in capitalization, spacing, or minor spelling differences). If you find a brand that is truly NEW and different from all existing brands, add it to newBrands. Only include brands that don't already exist in the database and that are actually the brand of any of the newProducts.`,
         })
 
+        // Update progress: parsing results
+        if (progressCallback) {
+          await progressCallback(Math.round(productStartProgress + (progressPerProduct * 0.5)));
+        }
+
         const { newProducts, newIngredients, newBrands } = output;
 
         const normalizeKey = (value: string) => value.trim().toUpperCase();
@@ -1056,10 +1101,19 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
         const dedupedNewIngredients = Array.from(pendingIngredientsMap.values());
         const dedupedNewBrands = Array.from(pendingBrandsMap.values());
 
+        // Track counts for this product
+        totalNewIngredients += dedupedNewIngredients.length;
+        totalNewBrands += dedupedNewBrands.length;
+
         await fs.promises.writeFile(
           `temp/product_${product._id}_comparables.json`,
           JSON.stringify({text, sources, newProducts, newIngredients: dedupedNewIngredients, newBrands: dedupedNewBrands }, null, 2),
         );
+
+        // Update progress: creating brands and ingredients
+        if (progressCallback) {
+          await progressCallback(Math.round(productStartProgress + (progressPerProduct * 0.7)));
+        }
 
         // create new brands from newBrands
         for (const brand of dedupedNewBrands) {
@@ -1142,6 +1196,9 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
           }
         }
 
+        // Track new products created
+        totalNewProducts += pendingCreatedProductIds.length;
+
         if (pendingCreatedProductIds.length > 0) {
           await this.productModel.updateMany(
             { _id: { $in: pendingCreatedProductIds } },
@@ -1151,6 +1208,13 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
             `Marked ${pendingCreatedProductIds.length} auto-created comparables as pending`,
           );
         }
+
+        // Update progress: completed processing for this product
+        if (progressCallback) {
+          await progressCallback(Math.round(productStartProgress + progressPerProduct));
+        }
+
+        processedCount++;
         this.logger.debug(`Completed processing for product: ${product.name}`);
         } catch (error) {
           this.logger.error(`Error processing product ${product.name}:`, error);
@@ -1159,6 +1223,22 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
           });
         }
       }
+
+      // Final progress update
+      if (progressCallback) await progressCallback(95);
+
+      this.logger.log(
+        `Product discovery completed. Processed: ${processedCount}, ` +
+        `New Products: ${totalNewProducts}, New Ingredients: ${totalNewIngredients}, ` +
+        `New Brands: ${totalNewBrands}`,
+      );
+
+      return {
+        processed: processedCount,
+        newProducts: totalNewProducts,
+        newIngredients: totalNewIngredients,
+        newBrands: totalNewBrands,
+      };
     } catch (error) {
       this.logger.error('Error in processNutribioticsProducts:', error);
       throw error;

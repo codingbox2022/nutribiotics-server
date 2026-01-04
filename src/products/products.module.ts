@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { BullModule } from '@nestjs/bullmq';
 import { ProductsService } from './products.service';
 import { ProductsController } from './products.controller';
 import { Product, ProductSchema } from './schemas/product.schema';
@@ -15,6 +16,9 @@ import { PricesModule } from '../prices/prices.module';
       { name: Brand.name, schema: BrandSchema },
     ]),
     PricesModule,
+    BullModule.registerQueue({
+      name: 'product-discovery',
+    }),
   ],
   controllers: [ProductsController],
   providers: [ProductsService],

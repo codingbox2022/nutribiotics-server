@@ -7,10 +7,12 @@ import { NotificationsProcessor } from './notifications.processor';
 import { NotificationsService } from './notifications.service';
 import { PriceComparisonProcessor } from './price-comparison.processor';
 import { MarketplaceDiscoveryProcessor } from './marketplace-discovery.processor';
+import { ProductDiscoveryProcessor } from './product-discovery.processor';
 import { QueuesController } from './queues.controller';
 import { IngestionRunsModule } from '../ingestion-runs/ingestion-runs.module';
 import { PricesModule } from '../prices/prices.module';
 import { MarketplacesModule } from '../marketplaces/marketplaces.module';
+import { ProductsModule } from '../products/products.module';
 import { Product, ProductSchema } from '../products/schemas/product.schema';
 import {
   Marketplace,
@@ -23,6 +25,7 @@ import { Brand, BrandSchema } from '../brands/schemas/brand.schema';
     IngestionRunsModule,
     PricesModule,
     MarketplacesModule,
+    ProductsModule,
     MongooseModule.forFeature([
       { name: Product.name, schema: ProductSchema },
       { name: Marketplace.name, schema: MarketplaceSchema },
@@ -64,6 +67,18 @@ import { Brand, BrandSchema } from '../brands/schemas/brand.schema';
         removeOnFail: 100,
       },
     }),
+    BullModule.registerQueue({
+      name: 'product-discovery',
+      defaultJobOptions: {
+        attempts: 2,
+        backoff: {
+          type: 'exponential',
+          delay: 5000,
+        },
+        removeOnComplete: 50,
+        removeOnFail: 100,
+      },
+    }),
     BullBoardModule.forFeature({
       name: 'notifications',
       adapter: BullMQAdapter,
@@ -76,9 +91,13 @@ import { Brand, BrandSchema } from '../brands/schemas/brand.schema';
       name: 'marketplace-discovery',
       adapter: BullMQAdapter,
     }),
+    BullBoardModule.forFeature({
+      name: 'product-discovery',
+      adapter: BullMQAdapter,
+    }),
   ],
   controllers: [QueuesController],
-  providers: [NotificationsProcessor, NotificationsService, PriceComparisonProcessor, MarketplaceDiscoveryProcessor],
+  providers: [NotificationsProcessor, NotificationsService, PriceComparisonProcessor, MarketplaceDiscoveryProcessor, ProductDiscoveryProcessor],
   exports: [BullModule, NotificationsService],
 })
 export class QueuesModule {}

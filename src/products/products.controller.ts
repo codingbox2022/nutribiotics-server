@@ -8,15 +8,22 @@ import {
   Delete,
   Query,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { CreateProductsBulkDto } from './dto/create-products-bulk.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AddComparablesDto } from './dto/add-comparables.dto';
+import type { ProductDiscoveryJobData } from '../queues/product-discovery.processor';
 
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly productsService: ProductsService) {}
+  constructor(
+    private readonly productsService: ProductsService,
+    @InjectQueue('product-discovery')
+    private readonly productDiscoveryQueue: Queue<ProductDiscoveryJobData>,
+  ) {}
 
   @Post()
   create(@Body() createProductDto: CreateProductDto) {
@@ -86,7 +93,41 @@ export class ProductsController {
   }
 
   @Post('process-nutribiotics')
-  processNutribioticsProducts() {
-    return this.productsService.processNutribioticsProducts();
+  async processNutribioticsProducts() {
+    const job = await this.productDiscoveryQueue.add('discover-products', {
+      timestamp: new Date(),
+      triggeredBy: 'user',
+    });
+
+    return {
+      jobId: job.id,
+      message: 'Product discovery job started',
+      timestamp: new Date(),
+    };
+  }
+
+  @Get('process-nutribiotics/:jobId')
+  async getProcessingStatus(@Param('jobId') jobId: string) {
+    const job = await this.productDiscoveryQueue.getJob(jobId);
+
+    if (!job) {
+      return {
+        status: 'not_found',
+        message: 'Job not found',
+      };
+    }
+
+    const state = await job.getState();
+    const progress = job.progress;
+    const result = job.returnvalue;
+    const failedReason = job.failedReason;
+
+    return {
+      jobId: job.id,
+      status: state,
+      progress,
+      result,
+      failedReason,
+    };
   }
 }
