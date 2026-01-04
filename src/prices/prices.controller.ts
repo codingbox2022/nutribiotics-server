@@ -11,6 +11,7 @@ import {
 import { PricesService } from './prices.service';
 import { CreatePriceDto } from './dto/create-price.dto';
 import { UpdatePriceDto } from './dto/update-price.dto';
+import { FindAllPricesDto } from './dto/find-all-prices.dto';
 
 @Controller('prices')
 export class PricesController {
@@ -27,18 +28,8 @@ export class PricesController {
   }
 
   @Get()
-  findAll(
-    @Query('productId') productId?: string,
-    @Query('marketplace') marketplace?: string,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-  ) {
-    return this.pricesService.findAll({
-      productId,
-      marketplace,
-      page: page ? Number(page) : undefined,
-      limit: limit ? Number(limit) : undefined,
-    });
+  findAll(@Query() query: FindAllPricesDto) {
+    return this.pricesService.findAll(query);
   }
 
   @Get('product-detail/:productId')

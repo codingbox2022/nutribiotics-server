@@ -831,6 +831,7 @@ export class ProductsService {
         .find({
           brand: nutribioticsBrand._id,
           comparedTo: null,
+          status: 'active',
         })
         .populate([
           { path: 'brand', select: 'name status' },

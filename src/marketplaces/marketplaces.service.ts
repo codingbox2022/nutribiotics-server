@@ -6,6 +6,10 @@ import { CreateMarketplaceDto } from './dto/create-marketplace.dto';
 import { UpdateMarketplaceDto } from './dto/update-marketplace.dto';
 import { PaginatedResult } from '../common/interfaces/response.interface';
 import marketplacesData from '../files/marketplaces.json';
+import { Product, ProductDocument } from '../products/schemas/product.schema';
+import { ProductsService } from '../products/products.service';
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
 
 interface FindAllFilters {
   search?: string;
@@ -22,6 +26,9 @@ export class MarketplacesService {
   constructor(
     @InjectModel(Marketplace.name)
     private marketplaceModel: Model<MarketplaceDocument>,
+    @InjectModel(Product.name)
+    private productModel: Model<ProductDocument>,
+    private productsService: ProductsService,
   ) {}
 
   async create(
@@ -105,6 +112,157 @@ export class MarketplacesService {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`Error seeding marketplaces: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
+    }
+  }
+
+  async discoverMarketplacesFromProducts(): Promise<MarketplaceDocument[]> {
+    const COUNTRY = 'Colombia';
+    const IVA_RATE = 0.19;
+
+    try {
+      this.logger.log('Starting marketplace discovery from products...');
+
+      // Get all active products with brand information
+      const products = await this.productModel
+        .find({ status: 'active', comparedTo: null })
+        .populate({ path: 'brand', select: 'name' })
+        .exec();
+
+      this.logger.log(`Found ${products.length} active products`);
+
+      if (products.length === 0) {
+        this.logger.warn('No active products found. Skipping marketplace discovery.');
+        return [];
+      }
+
+      // Build product list in "Brand → Name" format
+      const productList = products
+        .map((product) => {
+          const brandName = (product.brand as any)?.name || 'Unknown';
+          return `${brandName} → ${product.name}`;
+        })
+        .join('\n');
+
+      // Get existing marketplace names to exclude
+      const existingMarketplaces = await this.marketplaceModel
+        .find({ country: COUNTRY })
+        .select('name')
+        .exec();
+
+      const existingMarketplaceNames = existingMarketplaces
+        .map((m) => m.name)
+        .join(', ');
+
+      // Build prompt for LLM
+      const prompt = `<instructions>
+Given this list of products (in format "Brand → Product Name"), find online stores/marketplaces in ${COUNTRY} where these products are sold.
+
+Return each marketplace in the following format, one per line:
+MarketplaceName | BaseURL
+
+Important requirements:
+- BaseURL must be the store's homepage (e.g., https://example.com), NOT product pages
+- Only include marketplaces that are NOT already in the existing list
+- Focus on legitimate online stores that sell nutritional supplements in ${COUNTRY}
+- Each line must follow exactly this format: Name | URL
+</instructions>
+
+<productList>
+${productList}
+</productList>
+
+${existingMarketplaceNames ? `<excludeMarketplaces>
+DO NOT include these marketplaces as they are already in the database:
+${existingMarketplaceNames}
+</excludeMarketplaces>` : ''}
+
+<country>${COUNTRY}</country>`;
+
+      // Call LLM with web search
+      this.logger.log('Calling LLM to discover marketplaces...');
+      const { text } = await generateText({
+        model: openai('gpt-4o'),
+        tools: {
+          web_search: openai.tools.webSearch({}),
+        },
+        prompt,
+      });
+
+      this.logger.log('LLM response received. Parsing results...');
+
+      // Parse response - extract lines in format "Name | URL"
+      const lines = text.split('\n').filter((line) => line.trim());
+      const marketplacesToCreate: CreateMarketplaceDto[] = [];
+
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        // Look for lines with the pattern "Name | URL"
+        if (trimmedLine.includes('|')) {
+          const parts = trimmedLine.split('|').map((p) => p.trim());
+          if (parts.length >= 2) {
+            const [name, rawUrl] = parts;
+            // Basic validation and URL cleanup
+            if (name && rawUrl && rawUrl.startsWith('http')) {
+              // Clean URL: remove UTM parameters and other query strings
+              let cleanUrl = rawUrl;
+              try {
+                const url = new URL(rawUrl);
+                // Keep only protocol, hostname, and port (if any)
+                cleanUrl = `${url.protocol}//${url.host}`;
+              } catch (error) {
+                this.logger.warn(`Failed to parse URL: ${rawUrl}. Using as-is.`);
+              }
+
+              marketplacesToCreate.push({
+                name,
+                baseUrl: cleanUrl,
+                country: COUNTRY,
+                ivaRate: IVA_RATE,
+                status: 'inactive',
+              });
+            }
+          }
+        }
+      }
+
+      this.logger.log(`Parsed ${marketplacesToCreate.length} marketplaces from LLM response`);
+
+      // Create marketplaces in database
+      const createdMarketplaces: MarketplaceDocument[] = [];
+      for (const marketplaceDto of marketplacesToCreate) {
+        try {
+          // Check if marketplace already exists (by name or baseUrl)
+          const existing = await this.marketplaceModel
+            .findOne({
+              $or: [
+                { name: { $regex: `^${marketplaceDto.name}$`, $options: 'i' } },
+                { baseUrl: marketplaceDto.baseUrl },
+              ],
+            })
+            .exec();
+
+          if (!existing) {
+            const marketplace = await this.create(marketplaceDto);
+            createdMarketplaces.push(marketplace);
+            this.logger.log(`Created marketplace: ${marketplaceDto.name}`);
+          } else {
+            this.logger.log(`Skipping duplicate marketplace: ${marketplaceDto.name}`);
+          }
+        } catch (error) {
+          this.logger.error(
+            `Error creating marketplace ${marketplaceDto.name}:`,
+            error,
+          );
+        }
+      }
+
+      this.logger.log(
+        `Marketplace discovery complete. Created ${createdMarketplaces.length} new marketplaces.`,
+      );
+      return createdMarketplaces;
+    } catch (error) {
+      this.logger.error('Error in discoverMarketplacesFromProducts:', error);
+      throw error;
     }
   }
 }

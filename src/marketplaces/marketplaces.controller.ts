@@ -55,4 +55,9 @@ export class MarketplacesController {
   remove(@Param('id') id: string) {
     return this.marketplacesService.remove(id);
   }
+
+  @Post('discover')
+  discoverMarketplaces() {
+    return this.marketplacesService.discoverMarketplacesFromProducts();
+  }
 }
