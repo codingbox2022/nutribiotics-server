@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { BullModule } from '@nestjs/bullmq';
 import { MarketplacesService } from './marketplaces.service';
 import { MarketplacesController } from './marketplaces.controller';
 import { Marketplace, MarketplaceSchema } from './schemas/marketplace.schema';
@@ -13,9 +14,12 @@ import { Product, ProductSchema } from '../products/schemas/product.schema';
       { name: Product.name, schema: ProductSchema },
     ]),
     ProductsModule,
+    BullModule.registerQueue({
+      name: 'marketplace-discovery',
+    }),
   ],
   controllers: [MarketplacesController],
   providers: [MarketplacesService],
-  exports: [MarketplacesService],
+  exports: [MarketplacesService, MongooseModule],
 })
 export class MarketplacesModule {}
