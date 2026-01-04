@@ -17,8 +17,8 @@ export class Price {
   @Prop({ type: Map, of: Number, required: true })
   pricePerIngredientContent: Map<string, number>;
 
-  @Prop({ type: Types.ObjectId, ref: 'Marketplace', required: true })
-  marketplaceId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Marketplace', required: false })
+  marketplaceId?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
   productId: Types.ObjectId;

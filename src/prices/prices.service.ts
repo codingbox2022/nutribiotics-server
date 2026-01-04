@@ -118,22 +118,10 @@ export class PricesService {
       throw new NotFoundException(`Product with ID ${dto.productId} not found`);
     }
 
-    // Find or create a marketplace for Nutribiotics
-    let marketplace = await this.marketplaceModel.findOne({ name: dto.marketplace || 'Nutribiotics Store' }).exec();
-    if (!marketplace) {
-      // Create a default marketplace for Nutribiotics if it doesn't exist
-      marketplace = await this.marketplaceModel.create({
-        name: dto.marketplace || 'Nutribiotics Store',
-        country: 'Colombia',
-        ivaRate: 0.19,
-        baseUrl: 'https://nutribiotics.com',
-        status: 'active',
-      });
-    }
-
-    // Calculate prices with IVA
+    // Calculate prices with IVA using default rate
+    const IVA_RATE = 0.19;
     const precioConIva = dto.value!;
-    const precioSinIva = precioConIva / (1 + (marketplace.ivaRate || 0.19));
+    const precioSinIva = precioConIva / (1 + IVA_RATE);
 
     // Get ingredient content from product
     const ingredientContent = product.ingredientContent instanceof Map
@@ -153,7 +141,7 @@ export class PricesService {
       precioConIva,
       ingredientContent,
       pricePerIngredientContent,
-      marketplaceId: marketplace._id,
+      marketplaceId: null,
       productId: new Types.ObjectId(dto.productId),
       ingestionRunId: null, // Manual price updates don't have ingestion runs
     });
@@ -283,6 +271,8 @@ export class PricesService {
           const datesByMarketplace = new Map<string, Date>();
 
           for (const price of prices) {
+            if (!price.marketplaceId) continue;
+
             const mkId = price.marketplaceId.toString();
             if (!pricesByMarketplace.has(mkId)) {
               pricesByMarketplace.set(mkId, price.precioConIva);
@@ -438,6 +428,8 @@ export class PricesService {
         // Group by marketplace and take most recent per marketplace
         const marketplacePricesMap = new Map<string, any>();
         for (const price of prices) {
+          if (!price.marketplaceId) continue;
+
           const mkId = price.marketplaceId.toString();
           if (!marketplacePricesMap.has(mkId)) {
             const marketplace = await this.marketplaceModel.findById(mkId).exec();
