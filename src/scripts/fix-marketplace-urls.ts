@@ -7,15 +7,19 @@ async function cleanUrl(rawUrl: string): Promise<string> {
   // - Plain URL: https://example.com
   // - With parentheses: https://example.com (example.com)
   // - Markdown link: [text](https://example.com)
+  // - Complex: https://example.com ([example.com](https://example.com/?utm_source=openai))
   let extractedUrl = rawUrl;
 
-  // Remove markdown link format [text](url)
+  // First, try to extract from markdown link format [text](url)
   const markdownMatch = rawUrl.match(/\[.*?\]\((https?:\/\/[^\)]+)\)/);
   if (markdownMatch) {
     extractedUrl = markdownMatch[1];
   } else {
-    // Remove parentheses content: "https://example.com (example.com)" -> "https://example.com"
-    extractedUrl = rawUrl.split('(')[0].trim();
+    // Extract the first valid URL from the string
+    const urlMatch = rawUrl.match(/(https?:\/\/[^\s\(\)]+)/);
+    if (urlMatch) {
+      extractedUrl = urlMatch[1];
+    }
   }
 
   // Clean URL: remove UTM parameters and other query strings

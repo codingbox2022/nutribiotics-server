@@ -7,6 +7,7 @@ import { UpdateMarketplaceDto } from './dto/update-marketplace.dto';
 import { PaginatedResult } from '../common/interfaces/response.interface';
 import marketplacesData from '../files/marketplaces.json';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
+import { Price, PriceDocument } from '../prices/schemas/price.schema';
 import { ProductsService } from '../products/products.service';
 import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
@@ -28,6 +29,8 @@ export class MarketplacesService {
     private marketplaceModel: Model<MarketplaceDocument>,
     @InjectModel(Product.name)
     private productModel: Model<ProductDocument>,
+    @InjectModel(Price.name)
+    private priceModel: Model<PriceDocument>,
     private productsService: ProductsService,
   ) {}
 
@@ -91,10 +94,18 @@ export class MarketplacesService {
   }
 
   async remove(id: string): Promise<void> {
-    const result = await this.marketplaceModel.findByIdAndDelete(id).exec();
-    if (!result) {
+    const marketplace = await this.marketplaceModel.findById(id).exec();
+    if (!marketplace) {
       throw new NotFoundException(`Marketplace with ID ${id} not found`);
     }
+
+    // Delete all prices associated with this marketplace
+    const deleteResult = await this.priceModel.deleteMany({ marketplaceId: id }).exec();
+    this.logger.log(`Deleted ${deleteResult.deletedCount} prices for marketplace ${marketplace.name}`);
+
+    // Delete the marketplace
+    await this.marketplaceModel.findByIdAndDelete(id).exec();
+    this.logger.log(`Deleted marketplace ${marketplace.name} (${id})`);
   }
 
   async seedMarketplaces(): Promise<void> {

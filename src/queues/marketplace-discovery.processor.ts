@@ -89,11 +89,19 @@ Given this list of products (in format "Brand → Product Name"), find online st
 Return each marketplace in the following format, one per line:
 MarketplaceName | BaseURL
 
-Important requirements:
-- BaseURL must be the store's homepage (e.g., https://example.com), NOT product pages
+CRITICAL formatting requirements:
+- BaseURL must be ONLY the clean homepage URL (e.g., https://example.com)
+- DO NOT include any markdown formatting, links, or parentheses in the URL
+- DO NOT include query parameters like ?utm_source=openai
+- DO NOT wrap URLs in [text](url) format
+- Each line must follow EXACTLY this format: Name | https://example.com
+- Example of CORRECT format: "Amazon Colombia | https://www.amazon.com.co"
+- Example of WRONG format: "Amazon Colombia | https://www.amazon.com.co ([amazon.com.co](https://www.amazon.com.co))"
+
+Additional requirements:
+- BaseURL must be the store's homepage, NOT product pages
 - Only include marketplaces that are NOT already in the existing list
 - Focus on legitimate online stores that sell nutritional supplements in ${COUNTRY}
-- Each line must follow exactly this format: Name | URL
 </instructions>
 
 <productList>
@@ -144,15 +152,19 @@ ${existingMarketplaceNames}
             // - Plain URL: https://example.com
             // - With parentheses: https://example.com (example.com)
             // - Markdown link: [text](https://example.com)
+            // - Complex: https://example.com ([example.com](https://example.com/?utm_source=openai))
             let extractedUrl = rawUrl;
 
-            // Remove markdown link format [text](url)
+            // First, try to extract from markdown link format [text](url)
             const markdownMatch = rawUrl.match(/\[.*?\]\((https?:\/\/[^\)]+)\)/);
             if (markdownMatch) {
               extractedUrl = markdownMatch[1];
             } else {
-              // Remove parentheses content: "https://example.com (example.com)" -> "https://example.com"
-              extractedUrl = rawUrl.split('(')[0].trim();
+              // Extract the first valid URL from the string
+              const urlMatch = rawUrl.match(/(https?:\/\/[^\s\(\)]+)/);
+              if (urlMatch) {
+                extractedUrl = urlMatch[1];
+              }
             }
 
             // Basic validation and URL cleanup
