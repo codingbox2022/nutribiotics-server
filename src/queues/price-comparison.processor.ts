@@ -4,7 +4,6 @@ import { Job } from 'bullmq';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { IngestionRunsService } from '../ingestion-runs/ingestion-runs.service';
 import { PricesService } from '../prices/prices.service';
@@ -14,6 +13,7 @@ import {
   MarketplaceDocument,
 } from '../marketplaces/schemas/marketplace.schema';
 import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
+import { perplexity } from '@ai-sdk/perplexity';
 
 export interface PriceComparisonJobData {
   triggeredBy?: string;
@@ -102,8 +102,8 @@ export class PriceComparisonProcessor extends WorkerHost {
       const searchSchema = z.object({
         precioSinIva: z.number().nullable().optional(),
         precioConIva: z.number().nullable().optional(),
-        productUrl: z.string().optional(),
-        productName: z.string().optional(),
+        productUrl: z.string().nullable().optional(),
+        productName: z.string().nullable().optional(),
         inStock: z.boolean().default(false),
       });
 
@@ -136,11 +136,8 @@ export class PriceComparisonProcessor extends WorkerHost {
     `;
 
               const result = await generateText({
-                model: openai('gpt-4o'),
+                model: perplexity('sonar-pro'),
                 prompt,
-                tools: {
-                  web_search: openai.tools.webSearch({}),
-                },
               });
 
               // Try to parse JSON response, handle malformed JSON gracefully
@@ -152,12 +149,20 @@ export class PriceComparisonProcessor extends WorkerHost {
                   jsonText = jsonText.replace(/```json?\n?/g, '').replace(/```\n?$/g, '');
                 }
 
+                // Extract only the JSON object (everything between first { and last })
+                const firstBrace = jsonText.indexOf('{');
+                const lastBrace = jsonText.lastIndexOf('}');
+                if (firstBrace !== -1 && lastBrace !== -1) {
+                  jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+                }
+
                 const jsonResponse = JSON.parse(jsonText);
                 parsed = searchSchema.parse(jsonResponse);
               } catch (parseError) {
                 this.logger.error(
                   `Failed to parse LLM response for ${product.name} on ${marketplace.name}: ${parseError.message}`,
                 );
+                this.logger.debug(`Raw response: ${result.text}`);
                 throw new Error(`Invalid JSON response: ${parseError.message}`);
               }
 

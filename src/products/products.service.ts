@@ -14,10 +14,11 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { PaginatedResult } from '../common/interfaces/response.interface';
 import { PricesService } from '../prices/prices.service';
 import productsData from '../files/products.json';
-import { generateText, generateObject, Output } from 'ai';
+import { generateText, Output } from 'ai';
 import z from 'zod';
 import { openai } from '@ai-sdk/openai';
 import fs from 'fs';
+import { perplexity } from '@ai-sdk/perplexity';
 
 interface FindAllFilters {
   search?: string;
@@ -988,10 +989,7 @@ ${existingComparableSummaries.join('\n')}
 </excludeProducts>` : ''}`;
 
         const { text, sources } = await generateText({
-          model: openai('gpt-5.2'),
-          tools: {
-            web_search: openai.tools.webSearch({}),
-          },
+          model: perplexity('sonar-pro'),
           prompt,
         });
 

@@ -4,10 +4,10 @@ import { Job } from 'bullmq';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
 import { Marketplace, MarketplaceDocument } from '../marketplaces/schemas/marketplace.schema';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { MarketplacesService } from '../marketplaces/marketplaces.service';
+import { perplexity } from '@ai-sdk/perplexity';
 
 export interface MarketplaceDiscoveryJobData {
   triggeredBy?: string;
@@ -120,10 +120,7 @@ ${existingMarketplaceNames}
       await job.updateProgress(50);
 
       const { text } = await generateText({
-        model: openai('gpt-4o'),
-        tools: {
-          web_search: openai.tools.webSearch({}),
-        },
+        model: perplexity('sonar-pro'),
         prompt,
       });
 

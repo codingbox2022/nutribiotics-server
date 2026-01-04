@@ -10,7 +10,7 @@ import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { Price, PriceDocument } from '../prices/schemas/price.schema';
 import { ProductsService } from '../products/products.service';
 import { generateText } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { perplexity } from '@ai-sdk/perplexity';
 
 interface FindAllFilters {
   search?: string;
@@ -192,10 +192,7 @@ ${existingMarketplaceNames}
       // Call LLM with web search
       this.logger.log('Calling LLM to discover marketplaces...');
       const { text } = await generateText({
-        model: openai('gpt-4o'),
-        tools: {
-          web_search: openai.tools.webSearch({}),
-        },
+        model: perplexity('sonar-pro'),
         prompt,
       });
 

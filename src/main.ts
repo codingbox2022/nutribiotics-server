@@ -10,7 +10,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { logger: ['log', 'error', 'warn', 'debug', 'verbose'] });
   const logger = new Logger('Bootstrap');
 
   app.enableCors();
@@ -48,4 +48,8 @@ async function bootstrap() {
   logger.log(`🚀 Server running on: http://localhost:${port}`);
   logger.log(`📊 Queue Dashboard: http://localhost:${port}/queues`);
 }
-void bootstrap();
+
+bootstrap().catch((err) => {
+  console.error('Failed to start application:', err);
+  process.exit(1);
+});

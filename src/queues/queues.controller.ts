@@ -4,9 +4,6 @@ import { Queue } from 'bullmq';
 import { NotificationsService } from './notifications.service';
 import type { NotificationJobData } from './notifications.processor';
 import type { PriceComparisonJobData } from './price-comparison.processor';
-import { generateText, streamText } from 'ai';
-import { openai } from '@ai-sdk/openai';
-import z from 'zod';
 
 @Controller('queues')
 export class QueuesController {
