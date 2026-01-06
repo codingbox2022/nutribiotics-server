@@ -9,6 +9,7 @@ import { PriceComparisonProcessor } from './price-comparison.processor';
 import { MarketplaceDiscoveryProcessor } from './marketplace-discovery.processor';
 import { ProductDiscoveryProcessor } from './product-discovery.processor';
 import { QueuesController } from './queues.controller';
+import { RecommendationService } from './recommendation.service';
 import { IngestionRunsModule } from '../ingestion-runs/ingestion-runs.module';
 import { PricesModule } from '../prices/prices.module';
 import { MarketplacesModule } from '../marketplaces/marketplaces.module';
@@ -19,6 +20,7 @@ import {
   MarketplaceSchema,
 } from '../marketplaces/schemas/marketplace.schema';
 import { Brand, BrandSchema } from '../brands/schemas/brand.schema';
+import { Price, PriceSchema } from '../prices/schemas/price.schema';
 
 @Module({
   imports: [
@@ -30,6 +32,7 @@ import { Brand, BrandSchema } from '../brands/schemas/brand.schema';
       { name: Product.name, schema: ProductSchema },
       { name: Marketplace.name, schema: MarketplaceSchema },
       { name: Brand.name, schema: BrandSchema },
+      { name: Price.name, schema: PriceSchema },
     ]),
     BullModule.registerQueue({
       name: 'notifications',
@@ -97,7 +100,7 @@ import { Brand, BrandSchema } from '../brands/schemas/brand.schema';
     }),
   ],
   controllers: [QueuesController],
-  providers: [NotificationsProcessor, NotificationsService, PriceComparisonProcessor, MarketplaceDiscoveryProcessor, ProductDiscoveryProcessor],
+  providers: [NotificationsProcessor, NotificationsService, PriceComparisonProcessor, MarketplaceDiscoveryProcessor, ProductDiscoveryProcessor, RecommendationService],
   exports: [BullModule, NotificationsService],
 })
 export class QueuesModule {}

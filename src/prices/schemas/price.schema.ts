@@ -25,6 +25,15 @@ export class Price {
 
   @Prop({ type: Types.ObjectId, ref: 'IngestionRun', required: false })
   ingestionRunId?: Types.ObjectId;
+
+  @Prop({ enum: ['raise', 'lower', 'keep'], required: false })
+  recommendation?: string;
+
+  @Prop({ required: false })
+  recommendationReasoning?: string;
+
+  @Prop({ required: false })
+  recommendedPrice?: number;
 }
 
 export const PriceSchema = SchemaFactory.createForClass(Price);

@@ -107,7 +107,15 @@ export class PricesService {
     }
 
     // Handle complex price creation (from scraper)
-    const price = new this.priceModel(createPriceDto);
+    // Ensure proper ObjectId conversion
+    const priceData = {
+      ...createPriceDto,
+      productId: new Types.ObjectId(createPriceDto.productId),
+      marketplaceId: createPriceDto.marketplaceId ? new Types.ObjectId(createPriceDto.marketplaceId) : null,
+      ingestionRunId: createPriceDto.ingestionRunId ? new Types.ObjectId(createPriceDto.ingestionRunId) : null,
+    };
+
+    const price = new this.priceModel(priceData);
     return await price.save();
   }
 
@@ -341,6 +349,9 @@ export class PricesService {
           difference,
           differencePercent,
           lastIngestionDate: lastIngestionDate ? lastIngestionDate.toISOString() : null,
+          recommendation: nutribioticsPrice?.recommendation,
+          recommendationReasoning: nutribioticsPrice?.recommendationReasoning,
+          recommendedPrice: nutribioticsPrice?.recommendedPrice,
         };
       })
     );
@@ -395,6 +406,9 @@ export class PricesService {
       currentPriceWithoutIva: mainPrice?.precioSinIva || null,
       currentPricePerIngredient: normalizedPricePerIngredient,
       marketplace: mainMarketplaceName,
+      recommendation: mainPrice?.recommendation,
+      recommendationReasoning: mainPrice?.recommendationReasoning,
+      recommendedPrice: mainPrice?.recommendedPrice,
     };
 
     // Get all competitor products

@@ -14,6 +14,8 @@ import {
 } from '../marketplaces/schemas/marketplace.schema';
 import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
 import { perplexity } from '@ai-sdk/perplexity';
+import { RecommendationService, CompetitorPriceData } from './recommendation.service';
+import { Price, PriceDocument } from '../prices/schemas/price.schema';
 
 export interface PriceComparisonJobData {
   triggeredBy?: string;
@@ -28,12 +30,15 @@ export class PriceComparisonProcessor extends WorkerHost {
   constructor(
     private readonly ingestionRunsService: IngestionRunsService,
     private readonly pricesService: PricesService,
+    private readonly recommendationService: RecommendationService,
     @InjectModel(Product.name)
     private productModel: Model<ProductDocument>,
     @InjectModel(Marketplace.name)
     private marketplaceModel: Model<MarketplaceDocument>,
     @InjectModel(Brand.name)
     private brandModel: Model<BrandDocument>,
+    @InjectModel(Price.name)
+    private priceModel: Model<PriceDocument>,
   ) {
     super();
   }
@@ -231,7 +236,7 @@ export class PriceComparisonProcessor extends WorkerHost {
 
               // Create Price document if lookup was successful
               if (lookupStatus === 'success' && pricePerIngredientContent) {
-                await this.pricesService.create({
+                const createdPrice = await this.pricesService.create({
                   precioSinIva: parsed.precioSinIva || 0,
                   precioConIva: parsed.precioConIva || 0,
                   ingredientContent: productIngredientContent,
@@ -240,6 +245,7 @@ export class PriceComparisonProcessor extends WorkerHost {
                   productId: product._id.toString(),
                   ingestionRunId: validRunId.toString(),
                 });
+                this.logger.debug(`Created price ${createdPrice._id} for product ${product._id} (${product.name})`);
               }
 
               this.logger.log(
@@ -297,6 +303,159 @@ export class PriceComparisonProcessor extends WorkerHost {
       this.logger.log(
         `Completed ${processedLookups} lookups across ${totalMarketplaces} marketplaces`,
       );
+
+      await job.updateProgress(75);
+
+      // Step 4: Generate price recommendations for Nutribiotics products
+      this.logger.log('Step 4: Generating price recommendations for Nutribiotics products...');
+
+      if (!nutribioticsBrand) {
+        this.logger.warn('Nutribiotics brand not found, skipping recommendations');
+      } else {
+        const nutribioticsProducts = await this.productModel
+          .find({ brand: nutribioticsBrand._id })
+          .populate({ path: 'brand', select: 'name status' })
+          .exec();
+
+        this.logger.log(`Found ${nutribioticsProducts.length} Nutribiotics products to analyze`);
+
+        for (const nutriProduct of nutribioticsProducts) {
+          try {
+            // Get current price for this Nutribiotics product
+            const currentPrice = await this.priceModel
+              .findOne({ productId: nutriProduct._id })
+              .sort({ createdAt: -1 })
+              .exec();
+
+            // Find all competitor products (products that compare to this one)
+            this.logger.debug(`Looking for competitors with comparedTo: ${nutriProduct._id}`);
+            const competitorProducts = await this.productModel
+              .find({
+                comparedTo: nutriProduct._id,
+                brand: { $ne: nutribioticsBrand._id }
+              })
+              .populate({ path: 'brand', select: 'name status' })
+              .exec();
+
+            this.logger.debug(`Found ${competitorProducts.length} competitor products`);
+
+            if (competitorProducts.length === 0) {
+              this.logger.log(`No competitor products found for ${nutriProduct.name}, skipping recommendation`);
+              continue;
+            }
+
+            // Gather all competitor prices
+            const competitorPriceData: CompetitorPriceData[] = [];
+            const allPrices: number[] = [];
+
+            for (const comp of competitorProducts) {
+              this.logger.debug(`Checking prices for competitor: ${comp.name} (${comp._id})`);
+              const compPrices = await this.priceModel
+                .find({ productId: new Types.ObjectId(comp._id) })
+                .sort({ createdAt: -1 })
+                .populate('marketplaceId')
+                .exec();
+
+              this.logger.debug(`Found ${compPrices.length} prices for ${comp.name}`);
+
+              // Group by marketplace and take most recent
+              const pricesByMarketplace = new Map();
+              for (const price of compPrices) {
+                if (!price.marketplaceId) continue;
+                const mkId = price.marketplaceId.toString();
+                if (!pricesByMarketplace.has(mkId)) {
+                  pricesByMarketplace.set(mkId, price);
+                }
+              }
+
+              for (const price of pricesByMarketplace.values()) {
+                const marketplace = await this.marketplaceModel.findById(price.marketplaceId).exec();
+                const compIngredientContent = comp.ingredientContent instanceof Map
+                  ? Object.fromEntries(comp.ingredientContent)
+                  : (comp.ingredientContent || {});
+                const compPricePerIngredient = price.pricePerIngredientContent instanceof Map
+                  ? Object.fromEntries(price.pricePerIngredientContent)
+                  : (price.pricePerIngredientContent || {});
+
+                competitorPriceData.push({
+                  marketplaceName: marketplace?.name || 'Unknown',
+                  productName: comp.name,
+                  brandName: this.getBrandName(comp.brand as any),
+                  precioConIva: price.precioConIva,
+                  precioSinIva: price.precioSinIva,
+                  pricePerIngredientContent: compPricePerIngredient,
+                  ingredientContent: compIngredientContent,
+                });
+
+                allPrices.push(price.precioConIva);
+              }
+            }
+
+            if (allPrices.length === 0) {
+              this.logger.warn(`No competitor prices found for ${nutriProduct.name} (found ${competitorProducts.length} competitor products but no prices), skipping recommendation`);
+              continue;
+            }
+
+            this.logger.log(`Found ${allPrices.length} competitor prices for ${nutriProduct.name}`);
+
+            // Calculate min/max/avg
+            const minCompetitorPrice = Math.min(...allPrices);
+            const maxCompetitorPrice = Math.max(...allPrices);
+            const avgCompetitorPrice = allPrices.reduce((sum, p) => sum + p, 0) / allPrices.length;
+
+            // Get ingredient content
+            const ingredientContent = nutriProduct.ingredientContent instanceof Map
+              ? Object.fromEntries(nutriProduct.ingredientContent)
+              : (nutriProduct.ingredientContent || {});
+
+            // Generate recommendation
+            this.logger.log(`Generating recommendation for ${nutriProduct.name}...`);
+            const recommendation = await this.recommendationService.generateRecommendation({
+              productName: nutriProduct.name,
+              currentPrice: currentPrice?.precioConIva || null,
+              ingredientContent,
+              competitorPrices: competitorPriceData,
+              minCompetitorPrice,
+              maxCompetitorPrice,
+              avgCompetitorPrice,
+            });
+
+            // Update or create price with recommendation
+            if (currentPrice) {
+              currentPrice.recommendation = recommendation.recommendation;
+              currentPrice.recommendationReasoning = recommendation.reasoning;
+              currentPrice.recommendedPrice = recommendation.suggestedPrice;
+              await currentPrice.save();
+              this.logger.log(
+                `✓ Updated recommendation for ${nutriProduct.name}: ${recommendation.recommendation}`,
+              );
+            } else {
+              // Create a new price entry with recommendation only
+              await this.pricesService.create({
+                precioSinIva: 0,
+                precioConIva: 0,
+                ingredientContent: ingredientContent,
+                pricePerIngredientContent: {},
+                marketplaceId: null as any,
+                productId: nutriProduct._id.toString(),
+                ingestionRunId: validRunId.toString(),
+                recommendation: recommendation.recommendation,
+                recommendationReasoning: recommendation.reasoning,
+                recommendedPrice: recommendation.suggestedPrice,
+              });
+              this.logger.log(
+                `✓ Created recommendation for ${nutriProduct.name}: ${recommendation.recommendation}`,
+              );
+            }
+          } catch (error) {
+            this.logger.error(
+              `Failed to generate recommendation for ${nutriProduct.name}: ${error.message}`,
+            );
+          }
+        }
+
+        this.logger.log(`Completed recommendations for ${nutribioticsProducts.length} products`);
+      }
 
       // Mark the run as completed
       await job.updateProgress(100);
