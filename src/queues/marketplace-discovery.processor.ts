@@ -7,7 +7,7 @@ import { generateText } from 'ai';
 import { Marketplace, MarketplaceDocument } from '../marketplaces/schemas/marketplace.schema';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { MarketplacesService } from '../marketplaces/marketplaces.service';
-import { perplexity } from '@ai-sdk/perplexity';
+import { google } from 'src/providers/googleAiProvider';
 
 export interface MarketplaceDiscoveryJobData {
   triggeredBy?: string;
@@ -120,8 +120,11 @@ ${existingMarketplaceNames}
       await job.updateProgress(50);
 
       const { text } = await generateText({
-        model: perplexity('sonar-pro'),
+        model: google('gemini-3-pro-preview'),
         prompt,
+        tools: {
+          google_search: google.tools.googleSearch({}),
+        }
       });
 
       this.logger.log('LLM response received. Parsing results...');

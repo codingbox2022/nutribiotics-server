@@ -13,9 +13,9 @@ import {
   MarketplaceDocument,
 } from '../marketplaces/schemas/marketplace.schema';
 import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
-import { perplexity } from '@ai-sdk/perplexity';
 import { RecommendationService, CompetitorPriceData } from './recommendation.service';
 import { Price, PriceDocument } from '../prices/schemas/price.schema';
+import { google } from 'src/providers/googleAiProvider';
 
 export interface PriceComparisonJobData {
   triggeredBy?: string;
@@ -141,8 +141,11 @@ export class PriceComparisonProcessor extends WorkerHost {
     `;
 
               const result = await generateText({
-                model: perplexity('sonar-pro'),
+                model: google('gemini-3-pro-preview'),
                 prompt,
+                tools: {
+                  google_search: google.tools.googleSearch({}),
+                }
               });
 
               // Try to parse JSON response, handle malformed JSON gracefully

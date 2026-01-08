@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { generateText } from 'ai';
 import { z } from 'zod';
-import { perplexity } from '@ai-sdk/perplexity';
+import { google } from 'src/providers/googleAiProvider';
 
 export interface CompetitorPriceData {
   marketplaceName: string;
@@ -110,7 +110,7 @@ Ejemplo:
 }`;
 
       const result = await generateText({
-        model: perplexity('sonar-pro'),
+        model: google('gemini-3-pro-preview'),
         prompt,
       });
 

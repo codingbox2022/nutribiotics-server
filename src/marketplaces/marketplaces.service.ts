@@ -10,7 +10,7 @@ import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { Price, PriceDocument } from '../prices/schemas/price.schema';
 import { ProductsService } from '../products/products.service';
 import { generateText } from 'ai';
-import { perplexity } from '@ai-sdk/perplexity';
+import { google } from 'src/providers/googleAiProvider';
 
 interface FindAllFilters {
   search?: string;
@@ -192,8 +192,11 @@ ${existingMarketplaceNames}
       // Call LLM with web search
       this.logger.log('Calling LLM to discover marketplaces...');
       const { text } = await generateText({
-        model: perplexity('sonar-pro'),
+        model: google('gemini-3-pro-preview'),
         prompt,
+        tools: {
+          google_search: google.tools.googleSearch({}),
+        }
       });
 
       this.logger.log('LLM response received. Parsing results...');

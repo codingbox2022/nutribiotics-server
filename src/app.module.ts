@@ -32,8 +32,7 @@ import { IngestionRunsModule } from './ingestion-runs/ingestion-runs.module';
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         connection: {
-          host: configService.get<string>('REDIS_HOST'),
-          port: configService.get<number>('REDIS_PORT'),
+          url: configService.get<string>('REDIS_URL')
         },
       }),
       inject: [ConfigService],

@@ -16,9 +16,8 @@ import { PricesService } from '../prices/prices.service';
 import productsData from '../files/products.json';
 import { generateText, Output } from 'ai';
 import z from 'zod';
-import { openai } from '@ai-sdk/openai';
 import fs from 'fs';
-import { perplexity } from '@ai-sdk/perplexity';
+import { google } from 'src/providers/googleAiProvider';
 
 interface FindAllFilters {
   search?: string;
@@ -953,48 +952,53 @@ export class ProductsService {
         }
 
         const prompt = `<instructions>
-Given this product and its ingredients, I need you to look for comparable products in online stores available in the provided country. Use your own criteria to determine if a product is comparable based on the ingredients and their quantities.
-</instructions>
-<outputFormat>
-You should retrieve a markdown table with the following fields for each comparable product you find:
-- Product Name (The product name should not include presentation details like quantities or "cápsulas", "tabletas", etc.)
-- Brand
-- Presentation (must be one of: cucharadas, cápsulas, tableta, softGel, gotas, sobre, vial, mililitro, push)
-- totalContent (numeric value representing the total content in the package)
-- totalContentUnit (the unit of measurement for totalContent, e.g., "ml", "g", "tablets", etc.)
-- portion (numeric value representing the portion size)
+Search for comparable products available for purchase in ${COUNTRY} (Colombian online stores, pharmacies, retailers).
 
-- A list of ingredients with the following details for each ingredient:
-- Ingredient Name
-- Quantity
-- Unit
+IMPORTANT: Only include products that are:
+1. Actually available in ${COUNTRY} (not Mexico, Chile, or other countries)
+2. Have similar ingredients and quantities to the reference product
+
+If you cannot find specific products with detailed ingredient information, return an empty list rather than products from other countries.
+</instructions>
+
+<outputFormat>
+Return a markdown table with these fields for each comparable product found in ${COUNTRY}:
+- Product Name (without presentation details like "30 cápsulas")
+- Brand
+- Presentation (one of: cucharadas, cápsulas, tableta, softGel, gotas, sobre, vial, mililitro, push)
+- totalContent (numeric value)
+- totalContentUnit (unit like "ml", "g", "tablets")
+- portion (numeric portion size)
+- List of ingredients with: Ingredient Name, Quantity, Unit
 </outputFormat>
 
-<productName>
-   ${product.name}
-</productName>
-<brand>
-  ${brandName}
-</brand>
-<ingredients>
+<referenceProduct>
+Name: ${product.name}
+Brand: ${brandName}
+Country: ${COUNTRY}
+Ingredients:
 ${ingredientsXml}
-</ingredients>
-<country>
-   ${COUNTRY}
-</country>
+</referenceProduct>
 
 ${existingComparableSummaries.length > 0 ? `<excludeProducts>
-Neither the provided product or these products should be included in the list as they are already known:
+Do NOT include these already-known products:
 ${existingComparableSummaries.join('\n')}
 </excludeProducts>` : ''}`;
 
         const { text, sources } = await generateText({
-          model: perplexity('sonar-pro'),
+          model: google('gemini-3-pro-preview'),
           prompt,
+          tools:{
+            google_search: google.tools.googleSearch({})
+          }
         });
 
+        this.logger.debug(`Google response for ${product.name}:`);
+        this.logger.debug(`Text: ${text}`);
+        this.logger.debug(`Sources: ${JSON.stringify(sources, null, 2)}`);
+
         const { output } = await generateText({
-          model: openai('gpt-4o'),
+          model: google('gemini-3-pro-preview'),
           output: Output.object({
             schema: z.object({
               newProducts: z.array(z.object({
@@ -1045,6 +1049,11 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
         }
 
         const { newProducts, newIngredients, newBrands } = output;
+
+        this.logger.debug(`GPT-4o extraction results for ${product.name}:`);
+        this.logger.debug(`New Products: ${JSON.stringify(newProducts, null, 2)}`);
+        this.logger.debug(`New Ingredients: ${JSON.stringify(newIngredients, null, 2)}`);
+        this.logger.debug(`New Brands: ${JSON.stringify(newBrands, null, 2)}`);
 
         const normalizeKey = (value: string) => value.trim().toUpperCase();
         const normalizeMeasurementUnit = (unit?: string): MeasurementUnit => {
