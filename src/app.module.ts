@@ -15,6 +15,7 @@ import { BrandsModule } from './brands/brands.module';
 import { PricesModule } from './prices/prices.module';
 import { QueuesModule } from './queues/queues.module';
 import { IngestionRunsModule } from './ingestion-runs/ingestion-runs.module';
+import { StatsModule } from './stats/stats.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { IngestionRunsModule } from './ingestion-runs/ingestion-runs.module';
     PricesModule,
     IngestionRunsModule,
     QueuesModule,
+    StatsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
