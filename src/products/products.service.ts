@@ -1112,11 +1112,6 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
         totalNewIngredients += dedupedNewIngredients.length;
         totalNewBrands += dedupedNewBrands.length;
 
-        await fs.promises.writeFile(
-          `temp/product_${product._id}_comparables.json`,
-          JSON.stringify({text, sources, newProducts, newIngredients: dedupedNewIngredients, newBrands: dedupedNewBrands }, null, 2),
-        );
-
         // Update progress: creating brands and ingredients
         if (progressCallback) {
           await progressCallback(Math.round(productStartProgress + (progressPerProduct * 0.7)));
