@@ -3,13 +3,16 @@ import { HydratedDocument } from 'mongoose';
 import { ApprovalStatus } from '../../common/enums/approval-status.enum';
 
 export enum MeasurementUnit {
-  MG = 'MG',
-  MCG = 'MCG',
-  KCAL = 'KCAL',
-  UI = 'UI',
-  G = 'G',
-  ML = 'ML',
+  MG = 'mg',
+  MCG = 'mcg',
+  G = 'g',
+  KG = 'kg',
+  ML = 'ml',
+  L = 'L',
   UFC = 'UFC',
+  UI = 'UI',
+  KCAL = 'kcal',
+  PERCENT = '%',
 }
 
 export type IngredientDocument = HydratedDocument<Ingredient>;

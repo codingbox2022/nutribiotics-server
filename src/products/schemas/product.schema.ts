@@ -5,7 +5,7 @@ export type ProductDocument = HydratedDocument<Product>;
 
 export enum PresentationType {
   cucharadas = 'cucharadas',
-  capsulas = 'capsulas',
+  capsulas = 'cápsulas',
   tableta = 'tableta',
   softGel = 'softGel',
   gotas = 'gotas',
