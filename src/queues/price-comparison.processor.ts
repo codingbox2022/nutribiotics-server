@@ -56,7 +56,7 @@ export class PriceComparisonProcessor extends WorkerHost {
         .findOne({ name: { $regex: /^nutribiotics$/i } })
         .exec();
 
-      const productQuery: any = {};
+      const productQuery: any = { status: 'active' };
       if (nutribioticsBrand) {
         productQuery.brand = { $ne: nutribioticsBrand._id };
       }
@@ -316,7 +316,7 @@ export class PriceComparisonProcessor extends WorkerHost {
         this.logger.warn('Nutribiotics brand not found, skipping recommendations');
       } else {
         const nutribioticsProducts = await this.productModel
-          .find({ brand: nutribioticsBrand._id })
+          .find({ brand: nutribioticsBrand._id, status: 'active' })
           .populate({ path: 'brand', select: 'name status' })
           .exec();
 
@@ -335,7 +335,8 @@ export class PriceComparisonProcessor extends WorkerHost {
             const competitorProducts = await this.productModel
               .find({
                 comparedTo: nutriProduct._id,
-                brand: { $ne: nutribioticsBrand._id }
+                brand: { $ne: nutribioticsBrand._id },
+                status: 'active'
               })
               .populate({ path: 'brand', select: 'name status' })
               .exec();
