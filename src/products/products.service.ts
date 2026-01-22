@@ -333,7 +333,7 @@ export class ProductsService {
     options?: { status?: 'active' | 'suspended' | 'rejected' | 'pending' },
   ): Promise<ProductResponse> {
     try {
-      const { ingredients, ...rest } = createProductDto;
+      const { ingredients, brand, ...rest } = createProductDto;
       const status = options?.status ?? 'active';
 
       const ingredientContent = this.calculateIngredientContent(
@@ -346,6 +346,7 @@ export class ProductsService {
 
       const product = new this.productModel({
         ...rest,
+        brand: new Types.ObjectId(brand),
         ingredients: normalizedIngredients,
         ingredientContent,
         status,
@@ -607,7 +608,7 @@ export class ProductsService {
         );
       }
 
-      const { ingredients, ...rest } = updateProductDto;
+      const { ingredients, brand, ...rest } = updateProductDto;
       const updateData: Record<string, unknown> = {
         ...rest,
       };
@@ -618,6 +619,10 @@ export class ProductsService {
 
       if (hasIngredientUpdates && ingredients) {
         updateData.ingredients = this.normalizeIngredients(ingredients as IngredientInput[]);
+      }
+
+      if (brand !== undefined) {
+        updateData.brand = new Types.ObjectId(brand);
       }
 
       const product = await this.productModel

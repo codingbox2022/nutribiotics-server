@@ -12,7 +12,7 @@
       { "name": "Vitamina D3", "quantity": 1500 }
     ],
     "totalContent": 60,
-    "presentation": "capsulas",
+    "presentation": "cápsulas",
     "portion": 3,
     "comparables": [
       {
@@ -27,7 +27,7 @@
           { "name": "Vitamina D3", "quantity": 1250 }
         ],
         "totalContent": 30,
-        "presentation": "capsulas",
+        "presentation": "cápsulas",
         "portion": 1
       }
     ]
