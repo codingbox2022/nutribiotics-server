@@ -46,16 +46,25 @@ export class QueuesController {
   }
 
   @Post('price-comparison')
-  async startPriceComparison() {
-    const job = await this.priceComparisonQueue.add('compare-prices', {
+  async startPriceComparison(@Body() body?: { productId?: string }) {
+    const jobData: PriceComparisonJobData = {
       timestamp: new Date(),
       triggeredBy: 'user',
-    });
-    
+    };
+
+    if (body?.productId) {
+      jobData.productId = body.productId;
+    }
+
+    const job = await this.priceComparisonQueue.add('compare-prices', jobData);
+
     return {
-      message: 'Price comparison job started',
+      message: body?.productId
+        ? 'Single product price comparison job started'
+        : 'Price comparison job started',
       jobId: job.id,
       timestamp: new Date(),
+      productId: body?.productId,
     };
   }
 }

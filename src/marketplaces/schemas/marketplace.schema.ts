@@ -25,6 +25,9 @@ export class Marketplace {
 
   @Prop({ default: null })
   lastScanDate: Date;
+
+  @Prop({ default: false })
+  seenByUser: boolean;
 }
 
 export const MarketplaceSchema = SchemaFactory.createForClass(Marketplace);

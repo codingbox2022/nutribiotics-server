@@ -138,6 +138,7 @@ ${existingMarketplaceNames}
         country: string;
         ivaRate: number;
         status: 'active' | 'inactive';
+        seenByUser: boolean;
       }> = [];
 
       for (const line of lines) {
@@ -184,7 +185,8 @@ ${existingMarketplaceNames}
                 baseUrl: cleanUrl,
                 country: COUNTRY,
                 ivaRate: IVA_RATE,
-                status: 'inactive',
+                status: 'active',
+                seenByUser: false,
               });
             }
           }

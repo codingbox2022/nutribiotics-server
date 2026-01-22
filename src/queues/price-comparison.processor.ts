@@ -21,6 +21,7 @@ export interface PriceComparisonJobData {
   triggeredBy?: string;
   timestamp: Date;
   ingestionRunId?: string;
+  productId?: string;
 }
 
 @Processor('price-comparison')
@@ -45,20 +46,46 @@ export class PriceComparisonProcessor extends WorkerHost {
 
   async process(job: Job<PriceComparisonJobData>): Promise<void> {
     this.logger.log(`Starting price comparison job ${job.id}`);
-    const { triggeredBy, timestamp, ingestionRunId } = job.data;
+    const { triggeredBy, timestamp, ingestionRunId, productId } = job.data;
 
     let runId: Types.ObjectId | string | undefined;
 
     try {
-      // Step 1: Fetch real products and marketplaces from database (excluding Nutribiotics products)
-      this.logger.log('Step 1: Fetching products from database...');
+      // Step 1: Fetch real products and marketplaces from database
+      this.logger.log(`Step 1: Fetching products from database${productId ? ' (intelligent price search mode)' : ''}...`);
       const nutribioticsBrand = await this.brandModel
         .findOne({ name: { $regex: /^nutribiotics$/i } })
         .exec();
 
-      const productQuery: any = { status: 'active' };
-      if (nutribioticsBrand) {
-        productQuery.brand = { $ne: nutribioticsBrand._id };
+      let productQuery: any = { status: 'active' };
+
+      // If productId is provided, search for all competitor products comparable to it
+      // Note: productId will always be a Nutribiotics product from the UI
+      if (productId) {
+        const targetProduct = await this.productModel
+          .findById(productId)
+          .exec();
+
+        if (!targetProduct) {
+          throw new Error(`Product with ID ${productId} not found`);
+        }
+
+        // Search for all competitor products that compare to this Nutribiotics product
+        this.logger.log(`Finding all competitor products comparable to Nutribiotics product ${productId}...`);
+        productQuery = {
+          status: 'active',
+          comparedTo: new Types.ObjectId(productId),
+        };
+
+        // Exclude Nutribiotics brand if it exists
+        if (nutribioticsBrand) {
+          productQuery.brand = { $ne: nutribioticsBrand._id };
+        }
+      } else {
+        // Default: search all competitor products (excluding Nutribiotics)
+        if (nutribioticsBrand) {
+          productQuery.brand = { $ne: nutribioticsBrand._id };
+        }
       }
 
       const [products, marketplaces] = await Promise.all([
@@ -77,7 +104,7 @@ export class PriceComparisonProcessor extends WorkerHost {
         `Found ${totalProducts} products and ${totalMarketplaces} marketplaces (${totalLookups} total lookups)`,
       );
 
-      // Create or use existing ingestion run
+      // Create or use existing ingestion run (create BEFORE validation so it appears in list)
       if (ingestionRunId) {
         runId = ingestionRunId;
         await this.ingestionRunsService.markAsRunning(runId);
@@ -89,6 +116,11 @@ export class PriceComparisonProcessor extends WorkerHost {
         );
         runId = run._id;
         await this.ingestionRunsService.markAsRunning(runId);
+      }
+
+      // Validate products were found if filtering by productId
+      if (productId && products.length === 0) {
+        throw new Error(`No competitor products found for the selected product`);
       }
 
       await job.updateProgress(25);

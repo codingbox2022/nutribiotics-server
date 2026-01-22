@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsOptional,
   IsUrl,
+  IsBoolean,
   Min,
 } from 'class-validator';
 
@@ -34,4 +35,8 @@ export class CreateMarketplaceDto {
   @Min(0)
   @IsOptional()
   productsScanned?: number;
+
+  @IsBoolean()
+  @IsOptional()
+  seenByUser?: boolean;
 }

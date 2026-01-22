@@ -3,12 +3,14 @@
     "name": "Cruz Verde",
     "country": "Colombia",
     "baseUrl": "https://www.cruzverde.com.co",
-    "status": "active"
+    "status": "active",
+    "seenByUser": true
   },
   {
     "name": "Farmatodo Colombia",
     "country": "Colombia",
     "baseUrl": "https://www.farmatodo.com.co/",
-    "status": "active"
+    "status": "active",
+    "seenByUser": true
   }
 ]

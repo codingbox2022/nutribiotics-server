@@ -45,6 +45,11 @@ export class MarketplacesController {
     });
   }
 
+  @Get('unseen')
+  async getUnseen() {
+    return this.marketplacesService.findUnseen();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.marketplacesService.findOne(id);
@@ -100,5 +105,10 @@ export class MarketplacesController {
       result,
       failedReason,
     };
+  }
+
+  @Post('mark-all-seen')
+  async markAllAsSeen() {
+    return this.marketplacesService.markAllAsSeen();
   }
 }

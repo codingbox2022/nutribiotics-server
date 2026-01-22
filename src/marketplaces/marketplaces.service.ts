@@ -62,7 +62,7 @@ export class MarketplacesService {
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      this.marketplaceModel.find(query).skip(skip).limit(limit).exec(),
+      this.marketplaceModel.find(query).sort({ name: 1 }).skip(skip).limit(limit).exec(),
       this.marketplaceModel.countDocuments(query).exec(),
     ]);
 
@@ -229,7 +229,8 @@ ${existingMarketplaceNames}
                 baseUrl: cleanUrl,
                 country: COUNTRY,
                 ivaRate: IVA_RATE,
-                status: 'inactive',
+                status: 'active',
+                seenByUser: false,
               });
             }
           }
@@ -275,5 +276,29 @@ ${existingMarketplaceNames}
       this.logger.error('Error in discoverMarketplacesFromProducts:', error);
       throw error;
     }
+  }
+
+  async findUnseen(): Promise<{ count: number; marketplaces: MarketplaceDocument[] }> {
+    const unseenMarketplaces = await this.marketplaceModel
+      .find({ seenByUser: false })
+      .sort({ createdAt: -1 })
+      .exec();
+
+    return {
+      count: unseenMarketplaces.length,
+      marketplaces: unseenMarketplaces,
+    };
+  }
+
+  async markAllAsSeen(): Promise<{ updated: number }> {
+    const result = await this.marketplaceModel
+      .updateMany(
+        { seenByUser: false },
+        { $set: { seenByUser: true } },
+      )
+      .exec();
+
+    this.logger.log(`Marked ${result.modifiedCount} marketplaces as seen`);
+    return { updated: result.modifiedCount };
   }
 }
