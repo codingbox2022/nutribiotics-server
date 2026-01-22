@@ -7,7 +7,15 @@ import {
   IsUrl,
   IsBoolean,
   Min,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class SearchCapabilitiesDto {
+  @IsBoolean()
+  @IsOptional()
+  googleIndexedProducts?: boolean;
+}
 
 export class CreateMarketplaceDto {
   @IsString()
@@ -39,4 +47,7 @@ export class CreateMarketplaceDto {
   @IsBoolean()
   @IsOptional()
   seenByUser?: boolean;
+
+  @IsOptional()
+  searchCapabilities?: SearchCapabilitiesDto;
 }

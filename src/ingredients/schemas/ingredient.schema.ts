@@ -28,7 +28,7 @@ export class Ingredient {
   @Prop({
     type: String,
     enum: Object.values(ApprovalStatus),
-    default: ApprovalStatus.NOT_APPROVED
+    default: ApprovalStatus.APPROVED
   })
   status: ApprovalStatus;
 }

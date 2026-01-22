@@ -12,7 +12,7 @@ export class Brand {
   @Prop({
     type: String,
     enum: Object.values(ApprovalStatus),
-    default: ApprovalStatus.NOT_APPROVED
+    default: ApprovalStatus.APPROVED
   })
   status: ApprovalStatus;
 }

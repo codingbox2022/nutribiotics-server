@@ -12,6 +12,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Types } from 'mongoose';
+import { Capitalize } from '../../common/utils/capitalize.transformer';
 
 export class ProductIngredientInputDto {
   @IsMongoId()
@@ -23,6 +24,7 @@ export class ProductIngredientInputDto {
 }
 
 export class CreateProductDto {
+  @Capitalize()
   @IsString()
   @IsNotEmpty()
   name: string;

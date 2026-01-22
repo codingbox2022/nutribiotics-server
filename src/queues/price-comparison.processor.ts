@@ -26,6 +26,9 @@ export interface PriceComparisonJobData {
 }
 
 const MIN_RECOMMENDATION_PRICE_CONFIDENCE = 0.6;
+const MARKETPLACE_SEARCH_TIMEOUT_MS = 5 * 60 * 1000;
+
+type MarketplaceUrlType = 'product_detail' | 'search' | 'category' | 'redirect' | 'unknown';
 
 @Processor('price-comparison')
 export class PriceComparisonProcessor extends WorkerHost {
@@ -181,13 +184,17 @@ export class PriceComparisonProcessor extends WorkerHost {
 
                   If only one price is shown, put it in precioConIva and set precioSinIva to null.`;
 
-              const result = await generateText({
-                model: google('gemini-3-pro-preview'),
-                prompt,
-                tools: {
-                  google_search: google.tools.googleSearch({}),
-                }
-              });
+              const result = await this.withTimeout(
+                generateText({
+                  model: google('gemini-3-pro-preview'),
+                  prompt,
+                  tools: {
+                    google_search: google.tools.googleSearch({}),
+                  }
+                }),
+                MARKETPLACE_SEARCH_TIMEOUT_MS,
+                `LLM search timeout for ${product.name} on ${marketplace.name}`,
+              );
 
               // Try to parse JSON response, handle malformed JSON gracefully
               let parsed: z.infer<typeof searchSchema>;
@@ -255,18 +262,32 @@ export class PriceComparisonProcessor extends WorkerHost {
                 }
               }
 
+              const normalizedProductUrl = this.normalizeUrl(parsed.productUrl);
+              let resolvedProductUrl = marketplace.baseUrl;
+              let urlType: MarketplaceUrlType = 'unknown';
+
+              if (normalizedProductUrl) {
+                resolvedProductUrl = normalizedProductUrl.toString();
+                urlType = this.classifyMarketplaceUrl(resolvedProductUrl);
+              }
+
+              const isCanonicalUrl = this.isCanonicalProductUrl(urlType);
+
               let priceConfidence = 0;
               if (lookupStatus === 'success') {
-                const domainMatches = belongsToMarketplaceDomain(
-                  parsed.productUrl,
-                  marketplace.baseUrl,
-                );
+                const domainMatches = isCanonicalUrl
+                  ? belongsToMarketplaceDomain(resolvedProductUrl, marketplace.baseUrl)
+                  : false;
                 priceConfidence = calculatePriceConfidence({
                   inStock: Boolean(parsed.inStock),
                   hasPrecioConIva: Boolean(parsed.precioConIva),
                   domainMatches,
                   precioSinIvaCalculated,
                 });
+
+                if (!isCanonicalUrl) {
+                  priceConfidence = Number(Math.max(0.05, priceConfidence * 0.85).toFixed(2));
+                }
               }
 
               // Store lookup result in ingestion run (including calculated data)
@@ -277,7 +298,9 @@ export class PriceComparisonProcessor extends WorkerHost {
                 productBrand: brandName,
                 marketplaceId: marketplace._id,
                 marketplaceName: marketplace.name,
-                url: parsed.productUrl || marketplace.baseUrl,
+                url: resolvedProductUrl,
+                urlType,
+                isCanonicalUrl,
                 price: parsed.precioConIva ?? parsed.precioSinIva ?? undefined,
                 precioSinIva: parsed.precioSinIva ?? undefined,
                 precioSinIvaCalculated,
@@ -325,6 +348,8 @@ export class PriceComparisonProcessor extends WorkerHost {
                 marketplaceId: marketplace._id,
                 marketplaceName: marketplace.name,
                 url: marketplace.baseUrl,
+                urlType: 'unknown',
+                isCanonicalUrl: false,
                 price: undefined,
                 currency: undefined,
                 inStock: false,
@@ -343,9 +368,12 @@ export class PriceComparisonProcessor extends WorkerHost {
         processedLookups += results.length;
 
         // Update progress after completing all marketplaces for this product
+        const progressValue = totalLookups > 0
+          ? Math.floor((processedLookups / totalLookups) * totalProducts)
+          : 0;
         await this.ingestionRunsService.updateProgress(
           validRunId,
-          Math.floor((processedLookups / totalLookups) * totalProducts),
+          progressValue,
         );
 
         const progressPercentage = Math.min(
@@ -576,5 +604,124 @@ export class PriceComparisonProcessor extends WorkerHost {
 
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async withTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    timeoutMessage: string,
+  ): Promise<T> {
+    let timeoutHandle: NodeJS.Timeout | undefined;
+
+    const timeoutPromise = new Promise<T>((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        reject(new Error(timeoutMessage));
+      }, timeoutMs);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    }
+  }
+
+  private normalizeUrl(value: string | null | undefined): URL | null {
+    if (!value) {
+      return null;
+    }
+
+    try {
+      return new URL(value);
+    } catch (error) {
+      try {
+        return new URL(`https://${value}`);
+      } catch (nestedError) {
+        return null;
+      }
+    }
+  }
+
+  private classifyMarketplaceUrl(url: string | null | undefined): MarketplaceUrlType {
+    const parsed = this.normalizeUrl(url);
+    if (!parsed) {
+      return 'unknown';
+    }
+
+    const pathname = parsed.pathname.toLowerCase();
+    const searchParams = parsed.searchParams;
+
+    const redirectParamKeys = ['url', 'u', 'target', 'dest', 'destination', 'redirect', 'redir', 'r', 'out'];
+    for (const key of redirectParamKeys) {
+      const value = searchParams.get(key);
+      if (value && /(https?:\/\/|www\.)/i.test(value)) {
+        return 'redirect';
+      }
+    }
+
+    if (
+      pathname.includes('/redirect') ||
+      pathname.startsWith('/out') ||
+      pathname.includes('/goto') ||
+      pathname.includes('/click') ||
+      pathname.includes('/tracking') ||
+      pathname.includes('/trk')
+    ) {
+      return 'redirect';
+    }
+
+    const searchParamKeys = ['q', 'query', 'search', 's', 'keyword', 'keywords', 'k', 'term'];
+    for (const key of searchParamKeys) {
+      if (searchParams.has(key)) {
+        return 'search';
+      }
+    }
+
+    if (
+      pathname.includes('/search') ||
+      pathname.includes('/buscar') ||
+      pathname.includes('/results') ||
+      pathname === '/s' ||
+      pathname.startsWith('/s/')
+    ) {
+      return 'search';
+    }
+
+    if (
+      pathname.includes('/category') ||
+      pathname.includes('/categoria') ||
+      pathname.includes('/collection') ||
+      pathname.includes('/collections') ||
+      pathname.includes('/department') ||
+      pathname.includes('/departments') ||
+      pathname.includes('/product-category') ||
+      pathname.includes('/catalog') ||
+      pathname.includes('/catalogo') ||
+      pathname.includes('/tienda') ||
+      pathname.includes('/productos') ||
+      pathname.includes('/c/')
+    ) {
+      return 'category';
+    }
+
+    if (
+      pathname.includes('/product') ||
+      pathname.includes('/producto') ||
+      pathname.includes('/p/') ||
+      pathname.includes('/item') ||
+      pathname.includes('/items') ||
+      pathname.includes('/dp/') ||
+      pathname.includes('/gp/product')
+    ) {
+      return 'product_detail';
+    }
+
+    return 'unknown';
+  }
+
+  private isCanonicalProductUrl(urlType: MarketplaceUrlType): boolean {
+    return urlType === 'product_detail';
   }
 }

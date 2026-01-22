@@ -118,7 +118,14 @@ export class MarketplacesService {
 
     this.logger.log(`Marketplaces data length: ${marketplacesData.length}`);
     try {
-      await this.marketplaceModel.insertMany(marketplacesData);
+      const normalizedData = marketplacesData.map((marketplace) => ({
+        ...marketplace,
+        searchCapabilities: {
+          googleIndexedProducts: true,
+        },
+      }));
+
+      await this.marketplaceModel.insertMany(normalizedData);
       this.logger.log(`Seeded ${marketplacesData.length} marketplaces`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -231,6 +238,9 @@ ${existingMarketplaceNames}
                 ivaRate: IVA_RATE,
                 status: 'active',
                 seenByUser: false,
+                searchCapabilities: {
+                  googleIndexedProducts: true,
+                },
               });
             }
           }

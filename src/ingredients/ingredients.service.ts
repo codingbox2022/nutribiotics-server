@@ -26,10 +26,7 @@ export class IngredientsService {
   async create(
     createIngredientDto: CreateIngredientDto,
   ): Promise<IngredientDocument> {
-    const ingredient = new this.ingredientModel({
-      ...createIngredientDto,
-      name: createIngredientDto.name.toUpperCase(),
-    });
+    const ingredient = new this.ingredientModel(createIngredientDto);
     return ingredient.save();
   }
 
@@ -68,12 +65,8 @@ export class IngredientsService {
     id: string,
     updateIngredientDto: UpdateIngredientDto,
   ): Promise<IngredientDocument> {
-    const normalizedDto = updateIngredientDto.name
-      ? { ...updateIngredientDto, name: updateIngredientDto.name.toUpperCase() }
-      : updateIngredientDto;
-
     const ingredient = await this.ingredientModel
-      .findByIdAndUpdate(id, normalizedDto, { new: true })
+      .findByIdAndUpdate(id, updateIngredientDto, { new: true })
       .exec();
     if (!ingredient) {
       throw new NotFoundException(`Ingredient with ID ${id} not found`);

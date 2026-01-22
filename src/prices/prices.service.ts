@@ -269,9 +269,9 @@ export class PricesService {
 
         for (const comparedProduct of comparedProducts) {
           // Get all prices for this competitor product
-          // Convert ObjectId to string for query - Mongoose auto-converts when querying
+          // Use ObjectId directly, not string
           const prices = await this.priceModel
-            .find({ productId: comparedProduct._id.toString() })
+            .find({ productId: comparedProduct._id })
             .sort({ createdAt: -1 })
             .exec();
 
@@ -436,7 +436,7 @@ export class PricesService {
 
         // Get all prices for this competitor product
         const prices = await this.priceModel
-          .find({ productId: comp._id.toString() })
+          .find({ productId: comp._id })
           .sort({ createdAt: -1 })
           .exec();
 

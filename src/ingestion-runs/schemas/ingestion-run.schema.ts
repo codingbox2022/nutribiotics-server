@@ -22,6 +22,15 @@ export class LookupResult {
   @Prop({ required: true })
   url: string;
 
+  @Prop({
+    required: true,
+    enum: ['product_detail', 'search', 'category', 'redirect', 'unknown'],
+  })
+  urlType: string;
+
+  @Prop({ required: true })
+  isCanonicalUrl: boolean;
+
   @Prop()
   price?: number;
 

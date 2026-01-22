@@ -9,6 +9,7 @@ import { Model, FilterQuery, Types } from 'mongoose';
 import { PresentationType, Product, ProductDocument, ProductIngredient } from './schemas/product.schema';
 import { Ingredient, IngredientDocument, MeasurementUnit } from '../ingredients/schemas/ingredient.schema';
 import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
+import { ApprovalStatus } from '../common/enums/approval-status.enum';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PaginatedResult } from '../common/interfaces/response.interface';
@@ -336,6 +337,28 @@ export class ProductsService {
       const { ingredients, brand, ...rest } = createProductDto;
       const status = options?.status ?? 'inactive';
 
+      // Validate comparedTo logic: non-Nutribiotics products must have comparedTo
+      const brandDoc = await this.brandModel.findById(brand).exec();
+      if (!brandDoc) {
+        throw new NotFoundException(`Brand with ID ${brand} not found`);
+      }
+
+      const isNutribioticsProduct = brandDoc.name.toUpperCase() === 'NUTRIBIOTICS';
+
+      if (!isNutribioticsProduct && !createProductDto.comparedTo) {
+        throw new ConflictException(
+          `Products from brands other than Nutribiotics must be linked to a Nutribiotics product. ` +
+          `Please provide a 'comparedTo' reference or create the products together using the bulk endpoint.`,
+        );
+      }
+
+      if (isNutribioticsProduct && createProductDto.comparedTo) {
+        throw new ConflictException(
+          `Nutribiotics products cannot have a 'comparedTo' reference. ` +
+          `They should be the main products that other products compare to.`,
+        );
+      }
+
       const ingredientContent = this.calculateIngredientContent(
         ingredients,
         createProductDto.totalContent,
@@ -350,6 +373,7 @@ export class ProductsService {
         ingredients: normalizedIngredients,
         ingredientContent,
         status,
+        comparedTo: createProductDto.comparedTo,
       });
 
       await product.save();
@@ -371,6 +395,23 @@ export class ProductsService {
   async createBulk(
     products: CreateProductDto[],
   ): Promise<{ mainProduct: ProductResponse; comparables: ProductResponse[] }> {
+    if (products.length === 0) {
+      throw new ConflictException('At least one product is required');
+    }
+
+    // Validate that the first product is a Nutribiotics product
+    const mainProductBrand = await this.brandModel.findById(products[0].brand).exec();
+    if (!mainProductBrand) {
+      throw new NotFoundException(`Brand with ID ${products[0].brand} not found`);
+    }
+
+    if (mainProductBrand.name.toUpperCase() !== 'NUTRIBIOTICS') {
+      throw new ConflictException(
+        `The first product in bulk creation must be a Nutribiotics product. ` +
+        `Received brand: ${mainProductBrand.name}`,
+      );
+    }
+
     // Validate all products don't already exist before creating any
     const duplicates: string[] = [];
     for (const product of products) {
@@ -395,7 +436,7 @@ export class ProductsService {
       products.slice(1).map((p) =>
         this.create({
           ...p,
-          comparedTo: mainProduct._id,
+          comparedTo: new Types.ObjectId(mainProduct.id),
         }),
       ),
     );
@@ -658,7 +699,11 @@ export class ProductsService {
     comparables: CreateProductDto[],
   ): Promise<ProductResponse[]> {
     // Validate main product exists and is a main product (not a comparable)
-    const mainProduct = await this.productModel.findById(mainProductId).exec();
+    const mainProduct = await this.productModel
+      .findById(mainProductId)
+      .populate('brand')
+      .exec();
+
     if (!mainProduct) {
       throw new NotFoundException(
         `Main product with ID ${mainProductId} not found`,
@@ -668,6 +713,15 @@ export class ProductsService {
     if (mainProduct.comparedTo) {
       throw new ConflictException(
         `Product with ID ${mainProductId} is not a main product. Cannot add comparables to a comparable product.`,
+      );
+    }
+
+    // Validate that the main product is a Nutribiotics product
+    const mainProductBrand = mainProduct.brand as any;
+    if (mainProductBrand && mainProductBrand.name?.toUpperCase() !== 'NUTRIBIOTICS') {
+      throw new ConflictException(
+        `Cannot add comparables to non-Nutribiotics product. ` +
+        `Main product brand: ${mainProductBrand.name}`,
       );
     }
 
@@ -1131,6 +1185,7 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
             this.logger.debug(`Creating new brand: ${brand.brandName}`);
             const newBrand = new this.brandModel({
               name: brand.brandName.toUpperCase(),
+              status: ApprovalStatus.NOT_APPROVED,
             });
             await newBrand.save();
           }
@@ -1142,8 +1197,9 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
           if (!existing) {
             this.logger.debug(`Creating new ingredient: ${ing.ingredientName}`);
             const newIng = new this.ingredientModel({
-              name: ing.ingredientName,
+              name: ing.ingredientName.toUpperCase(),
               measurementUnit: ing.measurementUnit,
+              status: ApprovalStatus.NOT_APPROVED,
             });
             await newIng.save();
           }
@@ -1182,6 +1238,7 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
             this.logger.debug(`Creating new brand on the fly: ${p.brand}`);
             comparableBrand = await this.brandModel.create({
               name: p.brand.toUpperCase(),
+              status: ApprovalStatus.NOT_APPROVED,
             });
           }
 
