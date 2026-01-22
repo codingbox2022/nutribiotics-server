@@ -26,6 +26,9 @@ export class Price {
   @Prop({ type: Types.ObjectId, ref: 'IngestionRun', required: false })
   ingestionRunId?: Types.ObjectId;
 
+  @Prop({ type: Number, min: 0, max: 1, required: false })
+  priceConfidence?: number;
+
   @Prop({ enum: ['raise', 'lower', 'keep'], required: false })
   recommendation?: string;
 

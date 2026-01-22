@@ -42,35 +42,30 @@ export class MarketplaceDiscoveryProcessor extends WorkerHost {
 
     try {
       await job.updateProgress(10);
-      this.logger.log('Starting marketplace discovery from products...');
 
-      // Get all active products with brand information
+      // ---------------------------------------------------------------------
+      // Load products (used only as context for discovery)
+      // ---------------------------------------------------------------------
       const products = await this.productModel
         .find({ status: 'active', comparedTo: null })
         .populate({ path: 'brand', select: 'name' })
         .exec();
 
-      this.logger.log(`Found ${products.length} active products`);
-
-      if (products.length === 0) {
+      if (!products.length) {
         this.logger.warn('No active products found. Skipping marketplace discovery.');
         await job.updateProgress(100);
         return { discovered: 0, marketplaces: [] };
       }
 
-      await job.updateProgress(25);
-
-      // Build product list in "Brand → Name" format
       const productList = products
-        .map((product) => {
-          const brandName = (product.brand as any)?.name || 'Unknown';
-          return `${brandName} → ${product.name}`;
-        })
+        .map((p) => `${(p.brand as any)?.name || 'Unknown'} → ${p.name}`)
         .join('\n');
 
-      await job.updateProgress(35);
+      await job.updateProgress(30);
 
-      // Get existing marketplace names to exclude
+      // ---------------------------------------------------------------------
+      // Exclude ALL known marketplaces (active or rejected)
+      // ---------------------------------------------------------------------
       const existingMarketplaces = await this.marketplaceModel
         .find({ country: COUNTRY })
         .select('name')
@@ -82,153 +77,171 @@ export class MarketplaceDiscoveryProcessor extends WorkerHost {
 
       await job.updateProgress(45);
 
-      // Build prompt for LLM
-      const prompt = `<instructions>
-Given this list of products (in format "Brand → Product Name"), find online stores/marketplaces in ${COUNTRY} where these products are sold.
+      // ---------------------------------------------------------------------
+      // DISCOVERY PROMPT (CLASSIFICATION-BASED)
+      // ---------------------------------------------------------------------
+      const prompt = `
+You are discovering online marketplaces in Colombia that sell nutritional supplements.
 
-Return each marketplace in the following format, one per line:
-MarketplaceName | BaseURL
+Your task has TWO goals:
+1) Discover legitimate online marketplaces
+2) Classify whether each marketplace is suitable for AUTOMATED PRODUCT SEARCH using Google-indexed product pages
 
-CRITICAL formatting requirements:
-- BaseURL must be ONLY the clean homepage URL (e.g., https://example.com)
-- DO NOT include any markdown formatting, links, or parentheses in the URL
-- DO NOT include query parameters like ?utm_source=openai
-- DO NOT wrap URLs in [text](url) format
-- Each line must follow EXACTLY this format: Name | https://example.com
-- Example of CORRECT format: "Amazon Colombia | https://www.amazon.com.co"
-- Example of WRONG format: "Amazon Colombia | https://www.amazon.com.co ([amazon.com.co](https://www.amazon.com.co))"
+IMPORTANT:
+Some marketplaces are real and legitimate but are NOT suitable for automated search.
+These MUST be included and marked as REJECTED, not ignored.
 
-Additional requirements:
-- BaseURL must be the store's homepage, NOT product pages
-- Only include marketplaces that are NOT already in the existing list
-- Focus on legitimate online stores that sell nutritional supplements in ${COUNTRY}
-</instructions>
+--------------------------------
+DEFINITIONS
+--------------------------------
 
-<productList>
+ACCEPTED marketplace:
+- Has individual product pages
+- Product pages are publicly accessible and indexed by Google
+- Products can be found using queries like:
+  "Product Name" site:example.com
+- Does NOT require internal JS-only search to see products
+
+REJECTED marketplace:
+- Products are only accessible via internal search
+- Product pages are not Google-indexed
+- Site is JS-heavy, app-only, or hides inventory
+- Or primarily sells products offline
+- Or does not reliably list nutritional supplements online
+
+--------------------------------
+OUTPUT FORMAT (STRICT)
+--------------------------------
+
+Return ONE marketplace per line using EXACTLY this format:
+
+MarketplaceName | BaseURL | STATUS | REASON
+
+Where:
+- BaseURL is the clean homepage URL (e.g. https://example.com)
+- STATUS is either ACCEPTED or REJECTED
+- REASON is a short explanation (max 12 words)
+
+Examples:
+Farmatodo Colombia | https://www.farmatodo.com.co | REJECTED | Products not indexed, internal search only
+Mercado Libre Colombia | https://www.mercadolibre.com.co | ACCEPTED | Public product pages indexed by Google
+
+--------------------------------
+RULES
+--------------------------------
+- Include BOTH ACCEPTED and REJECTED marketplaces
+- DO NOT omit marketplaces just because they are rejected
+- DO NOT include marketplaces already in the exclude list
+- DO NOT include product page URLs
+- DO NOT include markdown or numbering
+- One marketplace per line only
+
+--------------------------------
+SCOPE
+--------------------------------
+Country: ${COUNTRY}
+Focus: nutritional supplements and vitamins
+
+<ProductList>
 ${productList}
-</productList>
+</ProductList>
 
-${existingMarketplaceNames ? `<excludeMarketplaces>
-DO NOT include these marketplaces as they are already in the database:
+<ExcludeMarketplaces>
 ${existingMarketplaceNames}
-</excludeMarketplaces>` : ''}
+</ExcludeMarketplaces>
+      `.trim();
 
-<country>${COUNTRY}</country>`;
-
-      // Call LLM with web search
-      this.logger.log('Calling LLM to discover marketplaces...');
-      await job.updateProgress(50);
+      this.logger.log('Calling LLM for classified marketplace discovery...');
+      await job.updateProgress(55);
 
       const { text } = await generateText({
         model: google('gemini-3-pro-preview'),
         prompt,
         tools: {
           google_search: google.tools.googleSearch({}),
-        }
+        },
       });
 
-      this.logger.log('LLM response received. Parsing results...');
       await job.updateProgress(70);
 
-      // Parse response - extract lines in format "Name | URL"
-      const lines = text.split('\n').filter((line) => line.trim());
+      // ---------------------------------------------------------------------
+      // PARSE RESPONSE
+      // ---------------------------------------------------------------------
+      const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+
       const marketplacesToCreate: Array<{
         name: string;
         baseUrl: string;
-        country: string;
-        ivaRate: number;
-        status: 'active' | 'inactive';
-        seenByUser: boolean;
+        status: 'active' | 'rejected';
+        rejectionReason?: string;
       }> = [];
 
       for (const line of lines) {
-        const trimmedLine = line.trim();
-        // Look for lines with the pattern "Name | URL"
-        if (trimmedLine.includes('|')) {
-          const parts = trimmedLine.split('|').map((p) => p.trim());
-          if (parts.length >= 2) {
-            const [name, rawUrl] = parts;
+        const parts = line.split('|').map((p) => p.trim());
+        if (parts.length !== 4) continue;
 
-            // Extract URL from various formats:
-            // - Plain URL: https://example.com
-            // - With parentheses: https://example.com (example.com)
-            // - Markdown link: [text](https://example.com)
-            // - Complex: https://example.com ([example.com](https://example.com/?utm_source=openai))
-            let extractedUrl = rawUrl;
+        const [name, rawUrl, statusRaw, reason] = parts;
+        if (!name || !rawUrl || !statusRaw) continue;
 
-            // First, try to extract from markdown link format [text](url)
-            const markdownMatch = rawUrl.match(/\[.*?\]\((https?:\/\/[^\)]+)\)/);
-            if (markdownMatch) {
-              extractedUrl = markdownMatch[1];
-            } else {
-              // Extract the first valid URL from the string
-              const urlMatch = rawUrl.match(/(https?:\/\/[^\s\(\)]+)/);
-              if (urlMatch) {
-                extractedUrl = urlMatch[1];
-              }
-            }
-
-            // Basic validation and URL cleanup
-            if (name && extractedUrl && extractedUrl.startsWith('http')) {
-              // Clean URL: remove UTM parameters and other query strings
-              let cleanUrl = extractedUrl;
-              try {
-                const url = new URL(extractedUrl);
-                // Keep only protocol, hostname, and port (if any)
-                cleanUrl = `${url.protocol}//${url.host}`;
-              } catch (error) {
-                this.logger.warn(`Failed to parse URL: ${extractedUrl}. Using as-is.`);
-              }
-
-              marketplacesToCreate.push({
-                name,
-                baseUrl: cleanUrl,
-                country: COUNTRY,
-                ivaRate: IVA_RATE,
-                status: 'active',
-                seenByUser: false,
-              });
-            }
-          }
+        let cleanUrl = rawUrl;
+        try {
+          const u = new URL(rawUrl);
+          cleanUrl = `${u.protocol}//${u.host}`;
+        } catch {
+          continue;
         }
+
+        const status =
+          statusRaw.toUpperCase() === 'ACCEPTED' ? 'active' : 'rejected';
+
+        marketplacesToCreate.push({
+          name,
+          baseUrl: cleanUrl,
+          status,
+          rejectionReason: status === 'rejected' ? reason : undefined,
+        });
       }
 
-      this.logger.log(`Parsed ${marketplacesToCreate.length} marketplaces from LLM response`);
-      await job.updateProgress(80);
+      await job.updateProgress(85);
 
-      // Create marketplaces in database
+      // ---------------------------------------------------------------------
+      // CREATE MARKETPLACES (INCLUDING REJECTED)
+      // ---------------------------------------------------------------------
       const createdMarketplaces: MarketplaceDocument[] = [];
-      for (const marketplaceDto of marketplacesToCreate) {
-        try {
-          // Check if marketplace already exists (by name or baseUrl)
-          const existing = await this.marketplaceModel
-            .findOne({
-              $or: [
-                { name: { $regex: `^${marketplaceDto.name}$`, $options: 'i' } },
-                { baseUrl: marketplaceDto.baseUrl },
-              ],
-            })
-            .exec();
 
-          if (!existing) {
-            const marketplace = await this.marketplacesService.create(marketplaceDto);
-            createdMarketplaces.push(marketplace);
-            this.logger.log(`Created marketplace: ${marketplaceDto.name}`);
-          } else {
-            this.logger.log(`Skipping duplicate marketplace: ${marketplaceDto.name}`);
-          }
-        } catch (error) {
-          this.logger.error(
-            `Error creating marketplace ${marketplaceDto.name}:`,
-            error,
-          );
-        }
+      for (const dto of marketplacesToCreate) {
+        const exists = await this.marketplaceModel.findOne({
+          $or: [
+            { name: { $regex: `^${dto.name}$`, $options: 'i' } },
+            { baseUrl: dto.baseUrl },
+          ],
+        });
+
+        if (exists) continue;
+
+        const marketplace = await this.marketplacesService.create({
+          name: dto.name,
+          baseUrl: dto.baseUrl,
+          country: COUNTRY,
+          ivaRate: IVA_RATE,
+          status: dto.status,
+          rejectionReason: dto.rejectionReason,
+          seenByUser: false,
+          searchCapabilities: {
+            googleIndexedProducts: dto.status === 'active',
+          },
+        } as any);
+
+        createdMarketplaces.push(marketplace);
+        this.logger.log(
+          `Created marketplace: ${dto.name} (${dto.status})`,
+        );
       }
 
       await job.updateProgress(100);
 
       this.logger.log(
-        `Marketplace discovery job ${job.id} completed successfully. Created ${createdMarketplaces.length} new marketplaces. Triggered by: ${triggeredBy || 'system'}, at ${timestamp}`,
+        `Marketplace discovery completed. Created ${createdMarketplaces.length} marketplaces.`,
       );
 
       return {
@@ -237,7 +250,7 @@ ${existingMarketplaceNames}
       };
     } catch (error) {
       this.logger.error(
-        `Failed to process marketplace discovery job ${job.id}: ${error.message}`,
+        `Marketplace discovery job failed: ${error.message}`,
       );
       throw error;
     }

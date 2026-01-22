@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString, Min, IsObject, IsOptional, IsEnum } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, Min, IsObject, IsOptional, IsEnum, Max } from 'class-validator';
 
 export class CreatePriceDto {
   @IsOptional()
@@ -30,6 +30,12 @@ export class CreatePriceDto {
   @IsOptional()
   @IsString()
   ingestionRunId?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(1)
+  priceConfidence?: number;
 
   // Simple price update fields (for Nutribiotics products)
   @IsOptional()

@@ -17,8 +17,21 @@ export class Marketplace {
   @Prop({ required: true })
   baseUrl: string;
 
-  @Prop({ enum: ['active', 'inactive'], default: 'active' })
+  @Prop({ enum: ['active', 'inactive', 'rejected'], default: 'active' })
   status: string;
+
+  @Prop({ type: String, required: false })
+  rejectionReason?: string;
+
+  @Prop({
+    type: {
+      googleIndexedProducts: { type: Boolean, default: false },
+    },
+    default: () => ({ googleIndexedProducts: false }),
+  })
+  searchCapabilities: {
+    googleIndexedProducts: boolean;
+  };
 
   @Prop({ default: 0 })
   productsScanned: number;

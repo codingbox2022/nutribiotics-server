@@ -71,8 +71,8 @@ export class Product {
   scanStatus: string;
 
   @Prop({
-    enum: ['active', 'suspended', 'rejected', 'pending'],
-    default: 'pending',
+    enum: ['active', 'inactive', 'rejected', 'deleted'],
+    default: 'inactive',
   })
   status: string;
 }

@@ -152,6 +152,7 @@ export class PricesService {
       marketplaceId: null,
       productId: new Types.ObjectId(dto.productId),
       ingestionRunId: null, // Manual price updates don't have ingestion runs
+      priceConfidence: 1,
     });
 
     return await price.save();

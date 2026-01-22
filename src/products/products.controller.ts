@@ -74,7 +74,7 @@ export class ProductsController {
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,
-    @Body('status') status: 'active' | 'suspended' | 'rejected' | 'pending',
+    @Body('status') status: 'active' | 'inactive' | 'rejected' | 'deleted',
   ) {
     return this.productsService.update(id, { status });
   }

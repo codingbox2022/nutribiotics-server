@@ -330,11 +330,11 @@ export class ProductsService {
 
   async create(
     createProductDto: CreateProductDto,
-    options?: { status?: 'active' | 'suspended' | 'rejected' | 'pending' },
+    options?: { status?: 'active' | 'inactive' | 'rejected' | 'deleted' },
   ): Promise<ProductResponse> {
     try {
       const { ingredients, brand, ...rest } = createProductDto;
-      const status = options?.status ?? 'active';
+      const status = options?.status ?? 'inactive';
 
       const ingredientContent = this.calculateIngredientContent(
         ingredients,
@@ -405,7 +405,7 @@ export class ProductsService {
 
   async findPending(): Promise<ProductResponse[]> {
     const pendingProducts = await this.productModel
-      .find({ status: 'pending' })
+      .find({ status: 'inactive' })
       .sort({ createdAt: -1 })
       .populate([
         { path: 'brand', select: 'name status' },
@@ -1195,7 +1195,7 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
               portion: p.portion,
               comparedTo: product._id,
             },
-            { status: 'pending' },
+            { status: 'inactive' },
           );
 
           if (createdComparable?.id) {
@@ -1209,10 +1209,10 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
         if (pendingCreatedProductIds.length > 0) {
           await this.productModel.updateMany(
             { _id: { $in: pendingCreatedProductIds } },
-            { status: 'pending' },
+            { status: 'inactive' },
           ).exec();
           this.logger.debug(
-            `Marked ${pendingCreatedProductIds.length} auto-created comparables as pending`,
+            `Marked ${pendingCreatedProductIds.length} auto-created comparables as inactive`,
           );
         }
 

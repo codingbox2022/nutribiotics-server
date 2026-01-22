@@ -16,6 +16,7 @@ import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
 import { RecommendationService, CompetitorPriceData } from './recommendation.service';
 import { Price, PriceDocument } from '../prices/schemas/price.schema';
 import { google } from 'src/providers/googleAiProvider';
+import { belongsToMarketplaceDomain, calculatePriceConfidence } from '../common/utils/price-confidence.util';
 
 export interface PriceComparisonJobData {
   triggeredBy?: string;
@@ -23,6 +24,8 @@ export interface PriceComparisonJobData {
   ingestionRunId?: string;
   productId?: string;
 }
+
+const MIN_RECOMMENDATION_PRICE_CONFIDENCE = 0.6;
 
 @Processor('price-comparison')
 export class PriceComparisonProcessor extends WorkerHost {
@@ -93,7 +96,12 @@ export class PriceComparisonProcessor extends WorkerHost {
           .find(productQuery)
           .populate({ path: 'brand', select: 'name status' })
           .exec(),
-        this.marketplaceModel.find({ status: 'active' }).exec(),
+        this.marketplaceModel
+          .find({
+            status: 'active',
+            'searchCapabilities.googleIndexedProducts': true,
+          })
+          .exec(),
       ]);
 
       const totalProducts = products.length;
@@ -160,17 +168,18 @@ export class PriceComparisonProcessor extends WorkerHost {
         const marketplaceSearchPromises = marketplaces.map(
           async (marketplace) => {
             try {
-              const prompt = `Look for this product "${product.name}" of brand "${brandName}" on the marketplace "${marketplace.name}" and get me the current prices (both with and without tax/IVA/VAT if available). If the product is not found, respond with inStock as false.
+                    const prompt = `You can assume the marketplace "${marketplace.name}" has searchable, Google-indexed product pages. Find the closest available match (exact or equivalent) for "${product.name}" from brand "${brandName}". Accept equivalent product sizes or bundles if they clearly represent the same item.
 
-      Return ONLY a valid JSON object (no markdown, no extra text) with the following fields:
-      - precioSinIva (number or null): Price without tax/IVA/VAT if shown on the page
-      - precioConIva (number or null): Price with tax/IVA/VAT included (usually the main displayed price)
-      - productUrl (string): URL to the product page
-      - productName (string): The exact product name found
-      - inStock (boolean): Whether the product is available
+                  Only return inStock as false when you have strong evidence that the product and its close equivalents are unavailable after searching multiple result pages. Otherwise provide the best available match.
 
-      If only one price is shown, put it in precioConIva and set precioSinIva to null.
-    `;
+                  Return ONLY a valid JSON object (no markdown, no extra text) with the following fields:
+                  - precioSinIva (number or null): Price without tax/IVA/VAT if shown on the page
+                  - precioConIva (number or null): Price with tax/IVA/VAT included (usually the main displayed price)
+                  - productUrl (string): URL to the product page
+                  - productName (string): The exact product name found
+                  - inStock (boolean): Whether the product is available
+
+                  If only one price is shown, put it in precioConIva and set precioSinIva to null.`;
 
               const result = await generateText({
                 model: google('gemini-3-pro-preview'),
@@ -246,6 +255,20 @@ export class PriceComparisonProcessor extends WorkerHost {
                 }
               }
 
+              let priceConfidence = 0;
+              if (lookupStatus === 'success') {
+                const domainMatches = belongsToMarketplaceDomain(
+                  parsed.productUrl,
+                  marketplace.baseUrl,
+                );
+                priceConfidence = calculatePriceConfidence({
+                  inStock: Boolean(parsed.inStock),
+                  hasPrecioConIva: Boolean(parsed.precioConIva),
+                  domainMatches,
+                  precioSinIvaCalculated,
+                });
+              }
+
               // Store lookup result in ingestion run (including calculated data)
               // Use marketplace's IVA rate and country instead of asking LLM
               await this.ingestionRunsService.addLookupResult(validRunId, {
@@ -279,6 +302,7 @@ export class PriceComparisonProcessor extends WorkerHost {
                   marketplaceId: marketplace._id.toString(),
                   productId: product._id.toString(),
                   ingestionRunId: validRunId.toString(),
+                  priceConfidence,
                 });
                 this.logger.debug(`Created price ${createdPrice._id} for product ${product._id} (${product.name})`);
               }
@@ -382,7 +406,7 @@ export class PriceComparisonProcessor extends WorkerHost {
 
             // Gather all competitor prices
             const competitorPriceData: CompetitorPriceData[] = [];
-            const allPrices: number[] = [];
+            const confidentPrices: { price: number; confidence: number }[] = [];
 
             for (const comp of competitorProducts) {
               this.logger.debug(`Checking prices for competitor: ${comp.name} (${comp._id})`);
@@ -394,10 +418,18 @@ export class PriceComparisonProcessor extends WorkerHost {
 
               this.logger.debug(`Found ${compPrices.length} prices for ${comp.name}`);
 
-              // Group by marketplace and take most recent
-              const pricesByMarketplace = new Map();
+              // Group by marketplace and take most recent high-confidence entry
+              const pricesByMarketplace = new Map<string, PriceDocument>();
               for (const price of compPrices) {
-                if (!price.marketplaceId) continue;
+                if (!price.marketplaceId) {
+                  continue;
+                }
+
+                const confidence = price.priceConfidence ?? 0;
+                if (confidence < MIN_RECOMMENDATION_PRICE_CONFIDENCE) {
+                  continue;
+                }
+
                 const mkId = price.marketplaceId.toString();
                 if (!pricesByMarketplace.has(mkId)) {
                   pricesByMarketplace.set(mkId, price);
@@ -412,6 +444,7 @@ export class PriceComparisonProcessor extends WorkerHost {
                 const compPricePerIngredient = price.pricePerIngredientContent instanceof Map
                   ? Object.fromEntries(price.pricePerIngredientContent)
                   : (price.pricePerIngredientContent || {});
+                const confidence = price.priceConfidence ?? 0;
 
                 competitorPriceData.push({
                   marketplaceName: marketplace?.name || 'Unknown',
@@ -423,21 +456,26 @@ export class PriceComparisonProcessor extends WorkerHost {
                   ingredientContent: compIngredientContent,
                 });
 
-                allPrices.push(price.precioConIva);
+                confidentPrices.push({ price: price.precioConIva, confidence });
               }
             }
 
-            if (allPrices.length === 0) {
-              this.logger.warn(`No competitor prices found for ${nutriProduct.name} (found ${competitorProducts.length} competitor products but no prices), skipping recommendation`);
+            if (confidentPrices.length === 0) {
+              this.logger.warn(`No high-confidence competitor prices found for ${nutriProduct.name} (found ${competitorProducts.length} competitor products but none met the confidence threshold), skipping recommendation`);
               continue;
             }
 
-            this.logger.log(`Found ${allPrices.length} competitor prices for ${nutriProduct.name}`);
+            this.logger.log(`Found ${confidentPrices.length} competitor prices >= ${MIN_RECOMMENDATION_PRICE_CONFIDENCE} confidence for ${nutriProduct.name}`);
 
-            // Calculate min/max/avg
-            const minCompetitorPrice = Math.min(...allPrices);
-            const maxCompetitorPrice = Math.max(...allPrices);
-            const avgCompetitorPrice = allPrices.reduce((sum, p) => sum + p, 0) / allPrices.length;
+            // Calculate min/max/weighted avg
+            const priceValues = confidentPrices.map((entry) => entry.price);
+            const minCompetitorPrice = Math.min(...priceValues);
+            const maxCompetitorPrice = Math.max(...priceValues);
+            const totalConfidence = confidentPrices.reduce((sum, entry) => sum + entry.confidence, 0);
+            const avgCompetitorPrice =
+              totalConfidence > 0
+                ? confidentPrices.reduce((sum, entry) => sum + entry.price * entry.confidence, 0) / totalConfidence
+                : priceValues.reduce((sum, value) => sum + value, 0) / priceValues.length;
 
             // Get ingredient content
             const ingredientContent = nutriProduct.ingredientContent instanceof Map
