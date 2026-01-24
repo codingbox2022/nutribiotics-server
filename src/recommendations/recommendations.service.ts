@@ -169,11 +169,27 @@ export class RecommendationsService {
     const results = {
       successful: 0,
       failed: 0,
+      skipped: 0,
       errors: [] as { recommendationId: string; error: string }[],
     };
 
     for (const recommendationId of recommendationIds) {
       try {
+        const recommendation = await this.recommendationModel.findById(recommendationId).exec();
+        if (!recommendation) {
+          results.failed++;
+          results.errors.push({
+            recommendationId,
+            error: 'Recommendation not found',
+          });
+          continue;
+        }
+
+        if (recommendation.recommendation === 'keep') {
+          results.skipped++;
+          continue;
+        }
+
         await this.acceptRecommendation(recommendationId, user);
         results.successful++;
       } catch (error) {

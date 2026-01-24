@@ -77,7 +77,12 @@ export class IngestionRunsService {
 
     // Count unique products with recommendations for this run
     const recommendationResults = await this.recommendationModel.aggregate([
-      { $match: { ingestionRunId: new Types.ObjectId(id) } },
+      {
+        $match: {
+          ingestionRunId: new Types.ObjectId(id),
+          recommendation: { $in: ['raise', 'lower'] },
+        },
+      },
       { $group: { _id: '$productId' } },
       { $count: 'total' },
     ]);

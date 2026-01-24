@@ -28,6 +28,7 @@ export interface PriceComparisonJobData {
 
 const MIN_RECOMMENDATION_PRICE_CONFIDENCE = 0.6;
 const MARKETPLACE_SEARCH_TIMEOUT_MS = 5 * 60 * 1000;
+const GENERIC_KEEP_REASON = 'No se encontró información suficiente de competidores; se recomienda mantener el precio actual.';
 
 type MarketplaceUrlType = 'product_detail' | 'search' | 'category' | 'redirect' | 'unknown';
 
@@ -447,7 +448,14 @@ export class PriceComparisonProcessor extends WorkerHost {
             this.logger.debug(`Found ${competitorProducts.length} competitor products`);
 
             if (competitorProducts.length === 0) {
-              this.logger.log(`No competitor products found for ${nutriProduct.name}, skipping recommendation`);
+              this.logger.log(`No competitor products found for ${nutriProduct.name}, defaulting recommendation to keep`);
+              await this.recommendationsService.upsertRecommendation({
+                productId: nutriProduct._id.toString(),
+                ingestionRunId: validRunId.toString(),
+                currentPrice: currentPrice?.precioConIva ?? null,
+                recommendation: 'keep',
+                recommendationReasoning: GENERIC_KEEP_REASON,
+              });
               continue;
             }
 
@@ -508,7 +516,14 @@ export class PriceComparisonProcessor extends WorkerHost {
             }
 
             if (confidentPrices.length === 0) {
-              this.logger.warn(`No high-confidence competitor prices found for ${nutriProduct.name} (found ${competitorProducts.length} competitor products but none met the confidence threshold), skipping recommendation`);
+              this.logger.warn(`No high-confidence competitor prices found for ${nutriProduct.name} (found ${competitorProducts.length} competitor products but none met the confidence threshold), defaulting recommendation to keep`);
+              await this.recommendationsService.upsertRecommendation({
+                productId: nutriProduct._id.toString(),
+                ingestionRunId: validRunId.toString(),
+                currentPrice: currentPrice?.precioConIva ?? null,
+                recommendation: 'keep',
+                recommendationReasoning: GENERIC_KEEP_REASON,
+              });
               continue;
             }
 
