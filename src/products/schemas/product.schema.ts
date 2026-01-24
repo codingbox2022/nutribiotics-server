@@ -97,3 +97,8 @@ ProductSchema.set('toObject', {
   }
 });
 ProductSchema.index({ name: 1, brand: 1 }, { unique: true });
+ProductSchema.index({ comparedTo: 1 });
+// Compound index for competitor queries that filter by comparedTo and brand
+ProductSchema.index({ comparedTo: 1, brand: 1 });
+// Index for status-based queries
+ProductSchema.index({ status: 1, createdAt: -1 });

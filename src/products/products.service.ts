@@ -452,66 +452,157 @@ export class ProductsService {
         { path: 'brand', select: 'name status' },
         { path: 'ingredients.ingredient', select: 'name status' },
       ])
+      .lean()
       .exec();
 
-    const data = await Promise.all(
-      pendingProducts.map(async (product) => {
-        const [productPayload, comparedToProduct] = await Promise.all([
-          this.buildProductResponse(product),
-          product.comparedTo
-            ? this.productModel
-                .findById(product.comparedTo)
-                .populate({ path: 'brand', select: 'name status' })
-                .exec()
-            : Promise.resolve(null),
-        ]);
+    if (pendingProducts.length === 0) {
+      return [];
+    }
 
-        const pendingIngredientIds = (product.ingredients || [])
-          .map((entry) => {
-            const ref: any = entry.ingredient;
-            const status = ref?.status;
-            if (status === 'not_approved') {
-              if (ref?._id) {
-                return ref._id.toString();
-              }
-              if (ref instanceof Types.ObjectId || typeof ref === 'string') {
-                return ref.toString();
-              }
-            }
-            return null;
-          })
-          .filter((value): value is string => Boolean(value));
+    // BATCH: Get all comparedTo product IDs and fetch them at once
+    const comparedToIds = pendingProducts
+      .map(p => p.comparedTo)
+      .filter((id): id is Types.ObjectId => Boolean(id));
 
-        const pendingBrandIds = (() => {
-          const brandRef: any = product.brand;
-          const status = brandRef?.status;
-          if (status === 'not_approved') {
-            if (brandRef?._id) {
-              return [brandRef._id.toString()];
-            }
-            if (brandRef instanceof Types.ObjectId || typeof brandRef === 'string') {
-              return [brandRef.toString()];
-            }
+    const comparedToProducts = comparedToIds.length > 0
+      ? await this.productModel
+          .find({ _id: { $in: comparedToIds } })
+          .populate({ path: 'brand', select: 'name status' })
+          .lean()
+          .exec()
+      : [];
+
+    const comparedToMap = new Map<string, any>();
+    for (const product of comparedToProducts) {
+      comparedToMap.set(product._id.toString(), product);
+    }
+
+    // BATCH: Get all unique ingredient IDs for ingredientContent normalization
+    const allIngredientIds = new Set<string>();
+    for (const product of pendingProducts) {
+      if (product.ingredientContent) {
+        const entries = product.ingredientContent instanceof Map
+          ? Array.from(product.ingredientContent.keys())
+          : Object.keys(product.ingredientContent);
+        for (const id of entries) {
+          if (Types.ObjectId.isValid(id)) {
+            allIngredientIds.add(id);
           }
-          return [];
-        })();
+        }
+      }
+    }
 
-        return {
-          ...productPayload,
-          comparesTo: comparedToProduct
-            ? {
-                id: comparedToProduct._id.toString(),
-                name: comparedToProduct.name,
-                brand: await this.hydrateBrand(comparedToProduct.brand as any),
-              }
-            : null,
-          pendingIngredientIds,
-          pendingBrandIds,
-          hasPendingDependencies:
-            pendingIngredientIds.length > 0 || pendingBrandIds.length > 0,
-        };
-      }),
-    );
+    const ingredientDocs = allIngredientIds.size > 0
+      ? await this.ingredientModel
+          .find({ _id: { $in: Array.from(allIngredientIds) } })
+          .select('name')
+          .lean()
+          .exec()
+      : [];
+
+    const ingredientNameMap = new Map<string, string>();
+    for (const doc of ingredientDocs) {
+      ingredientNameMap.set(doc._id.toString(), doc.name);
+    }
+
+    // Build responses using in-memory lookups
+    const data = pendingProducts.map((product) => {
+      // Format brand (already populated)
+      const brandRef: any = product.brand;
+      const brand: BrandDisplay | null = brandRef
+        ? { id: brandRef._id?.toString() || brandRef.toString(), name: brandRef.name || null }
+        : null;
+
+      // Format ingredients (already populated)
+      const ingredients: IngredientDisplay[] = (product.ingredients || [])
+        .map((entry: any) => {
+          const ref = entry.ingredient;
+          if (!ref) return null;
+          return {
+            id: ref._id?.toString() || ref.toString(),
+            name: ref.name || null,
+            quantity: entry.quantity,
+          };
+        })
+        .filter((entry): entry is IngredientDisplay => Boolean(entry && entry.id));
+
+      // Build ingredient quantities
+      const ingredientQuantities = ingredients.reduce<Record<string, number>>((acc, ing) => {
+        if (ing.id) acc[ing.id] = ing.quantity;
+        return acc;
+      }, {});
+
+      // Normalize ingredient content using pre-loaded map
+      const ingredientContent: Record<string, number> = {};
+      if (product.ingredientContent) {
+        const entries = product.ingredientContent instanceof Map
+          ? Array.from(product.ingredientContent.entries())
+          : Object.entries(product.ingredientContent);
+        for (const [id, value] of entries) {
+          const key = ingredientNameMap.get(id) || id;
+          ingredientContent[key] = Number(value);
+        }
+      }
+
+      // Get comparedTo product from map
+      const comparedToProduct = product.comparedTo
+        ? comparedToMap.get(product.comparedTo.toString())
+        : null;
+
+      // Extract pending ingredient IDs
+      const pendingIngredientIds = (product.ingredients || [])
+        .map((entry: any) => {
+          const ref = entry.ingredient;
+          if (ref?.status === 'not_approved') {
+            return ref._id?.toString() || ref.toString();
+          }
+          return null;
+        })
+        .filter((value): value is string => Boolean(value));
+
+      // Extract pending brand IDs
+      const pendingBrandIds: string[] = [];
+      if (brandRef?.status === 'not_approved') {
+        pendingBrandIds.push(brandRef._id?.toString() || brandRef.toString());
+      }
+
+      // Format comparedTo brand
+      const comparedToBrandRef: any = comparedToProduct?.brand;
+      const comparedToBrand: BrandDisplay | null = comparedToBrandRef
+        ? { id: comparedToBrandRef._id?.toString() || comparedToBrandRef.toString(), name: comparedToBrandRef.name || null }
+        : null;
+
+      const productObj = product as any;
+
+      return {
+        id: product._id.toString(),
+        name: product.name,
+        totalContent: product.totalContent,
+        presentation: product.presentation,
+        portion: product.portion,
+        imageUrl: product.imageUrl,
+        alertLevel: product.alertLevel,
+        lastScanDate: product.lastScanDate,
+        scanStatus: product.scanStatus,
+        status: product.status,
+        createdAt: productObj.createdAt,
+        updatedAt: productObj.updatedAt,
+        brand,
+        ingredients,
+        ingredientQuantities,
+        ingredientContent,
+        comparesTo: comparedToProduct
+          ? {
+              id: comparedToProduct._id.toString(),
+              name: comparedToProduct.name,
+              brand: comparedToBrand,
+            }
+          : null,
+        pendingIngredientIds,
+        pendingBrandIds,
+        hasPendingDependencies: pendingIngredientIds.length > 0 || pendingBrandIds.length > 0,
+      };
+    });
 
     return data;
   }

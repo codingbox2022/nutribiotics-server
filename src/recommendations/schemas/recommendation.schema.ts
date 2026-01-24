@@ -43,3 +43,5 @@ export const RecommendationSchema = SchemaFactory.createForClass(Recommendation)
 RecommendationSchema.index({ productId: 1, ingestionRunId: 1 }, { unique: true });
 RecommendationSchema.index({ productId: 1, createdAt: -1 });
 RecommendationSchema.index({ ingestionRunId: 1, createdAt: -1 });
+// Index for standalone ingestionRunId queries (used in aggregations)
+RecommendationSchema.index({ ingestionRunId: 1 });

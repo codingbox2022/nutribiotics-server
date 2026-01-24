@@ -57,3 +57,7 @@ PriceSchema.set('toObject', {
   }
 });
 PriceSchema.index({ productId: 1, marketplaceId: 1, createdAt: -1 });
+PriceSchema.index({ ingestionRunId: 1, productId: 1, createdAt: -1 });
+PriceSchema.index({ ingestionRunId: 1, marketplaceId: 1 });
+// Index for queries that filter by productId and sort by createdAt
+PriceSchema.index({ productId: 1, createdAt: -1 });
