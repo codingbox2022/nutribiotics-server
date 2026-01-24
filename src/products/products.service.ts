@@ -334,8 +334,9 @@ export class ProductsService {
     options?: { status?: 'active' | 'inactive' | 'rejected' | 'deleted' },
   ): Promise<ProductResponse> {
     try {
-      const { ingredients, brand, ...rest } = createProductDto;
+      const { ingredients, brand, name, ...rest } = createProductDto;
       const status = options?.status ?? 'inactive';
+      const normalizedName = name.trim().toUpperCase();
 
       // Validate comparedTo logic: non-Nutribiotics products must have comparedTo
       const brandDoc = await this.brandModel.findById(brand).exec();
@@ -369,6 +370,7 @@ export class ProductsService {
 
       const product = new this.productModel({
         ...rest,
+        name: normalizedName,
         brand: new Types.ObjectId(brand),
         ingredients: normalizedIngredients,
         ingredientContent,

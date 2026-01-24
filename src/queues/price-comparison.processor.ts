@@ -214,26 +214,57 @@ export class PriceComparisonProcessor extends WorkerHost {
               // Try to parse JSON response, handle malformed JSON gracefully
               let parsed: z.infer<typeof searchSchema>;
               try {
-                // Remove markdown code blocks if present
-                let jsonText = result.text.trim();
-                if (jsonText.startsWith('```')) {
-                  jsonText = jsonText.replace(/```json?\n?/g, '').replace(/```\n?$/g, '');
-                }
+                // Handle empty response
+                if (!result.text || result.text.trim() === '') {
+                  this.logger.warn(
+                    `Empty LLM response for ${product.name} on ${marketplace.name}, treating as not found`,
+                  );
+                  parsed = {
+                    precioSinIva: null,
+                    precioConIva: null,
+                    productUrl: null,
+                    productName: null,
+                    inStock: false,
+                  };
+                } else {
+                  // Remove markdown code blocks if present
+                  let jsonText = result.text.trim();
+                  if (jsonText.startsWith('```')) {
+                    jsonText = jsonText.replace(/```json?\n?/g, '').replace(/```\n?$/g, '');
+                  }
 
-                // Extract only the JSON object (everything between first { and last })
-                const firstBrace = jsonText.indexOf('{');
-                const lastBrace = jsonText.lastIndexOf('}');
-                if (firstBrace !== -1 && lastBrace !== -1) {
-                  jsonText = jsonText.substring(firstBrace, lastBrace + 1);
-                }
+                  // Extract only the JSON object (everything between first { and last })
+                  const firstBrace = jsonText.indexOf('{');
+                  const lastBrace = jsonText.lastIndexOf('}');
 
-                const jsonResponse = JSON.parse(jsonText);
-                parsed = searchSchema.parse(jsonResponse);
+                  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+                    this.logger.warn(
+                      `No valid JSON object found in LLM response for ${product.name} on ${marketplace.name}, treating as not found. Raw: ${result.text.substring(0, 200)}`,
+                    );
+                    parsed = {
+                      precioSinIva: null,
+                      precioConIva: null,
+                      productUrl: null,
+                      productName: null,
+                      inStock: false,
+                    };
+                  } else {
+                    jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+                    const jsonResponse = JSON.parse(jsonText);
+                    parsed = searchSchema.parse(jsonResponse);
+                  }
+                }
               } catch (parseError) {
-                this.logger.error(
-                  `Failed to parse LLM response for ${product.name} on ${marketplace.name}: ${parseError.message}. Raw response: ${result.text.substring(0, 500)}`,
+                this.logger.warn(
+                  `Failed to parse LLM response for ${product.name} on ${marketplace.name}: ${parseError.message}. Treating as not found. Raw response: ${result.text?.substring(0, 200) || '(empty)'}`,
                 );
-                throw new Error(`Invalid JSON response: ${parseError.message}`);
+                parsed = {
+                  precioSinIva: null,
+                  precioConIva: null,
+                  productUrl: null,
+                  productName: null,
+                  inStock: false,
+                };
               }
 
               // Ensure precioConIva is always populated if we have any price
