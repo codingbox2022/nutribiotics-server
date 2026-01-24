@@ -28,7 +28,7 @@ export class NotificationsProcessor extends WorkerHost {
       );
 
       if (metadata) {
-        this.logger.debug(`Metadata: ${JSON.stringify(metadata)}`);
+        this.logger.log(`Notification metadata: ${JSON.stringify(metadata)}`);
       }
 
       // Update job progress

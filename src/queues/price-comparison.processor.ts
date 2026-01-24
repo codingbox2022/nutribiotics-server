@@ -55,7 +55,6 @@ export class PriceComparisonProcessor extends WorkerHost {
 
   async process(job: Job<PriceComparisonJobData>): Promise<void> {
     this.logger.log(`Starting price comparison job ${job.id}`);
-    this.logger.debug(`Google API Key configured: ${process.env.GOOGLE_GENERATIVE_AI_API_KEY ? 'Yes (ends with: ...' + process.env.GOOGLE_GENERATIVE_AI_API_KEY.slice(-4) + ')' : 'No'}`);
     const { triggeredBy, timestamp, ingestionRunId, productId } = job.data;
 
     let runId: Types.ObjectId | string | undefined;
@@ -189,8 +188,6 @@ export class PriceComparisonProcessor extends WorkerHost {
                   If only one price is shown, put it in precioConIva and set precioSinIva to null.`;
 
               this.logger.log(`[${marketplace.name}] Starting LLM search for "${product.name}"...`);
-              this.logger.debug(`[${marketplace.name}] Using model: gemini-2.5-flash with google_search tool`);
-              this.logger.debug(`[${marketplace.name}] Timeout set to: ${MARKETPLACE_SEARCH_TIMEOUT_MS}ms (${MARKETPLACE_SEARCH_TIMEOUT_MS / 1000}s)`);
               const searchStartTime = Date.now();
 
               let result;
@@ -234,9 +231,8 @@ export class PriceComparisonProcessor extends WorkerHost {
                 parsed = searchSchema.parse(jsonResponse);
               } catch (parseError) {
                 this.logger.error(
-                  `Failed to parse LLM response for ${product.name} on ${marketplace.name}: ${parseError.message}`,
+                  `Failed to parse LLM response for ${product.name} on ${marketplace.name}: ${parseError.message}. Raw response: ${result.text.substring(0, 500)}`,
                 );
-                this.logger.debug(`Raw response: ${result.text}`);
                 throw new Error(`Invalid JSON response: ${parseError.message}`);
               }
 
@@ -335,7 +331,7 @@ export class PriceComparisonProcessor extends WorkerHost {
 
               // Create Price document if lookup was successful
               if (lookupStatus === 'success' && pricePerIngredientContent) {
-                const createdPrice = await this.pricesService.create({
+                await this.pricesService.create({
                   precioSinIva: parsed.precioSinIva || 0,
                   precioConIva: parsed.precioConIva || 0,
                   ingredientContent: productIngredientContent,
@@ -345,7 +341,6 @@ export class PriceComparisonProcessor extends WorkerHost {
                   ingestionRunId: validRunId.toString(),
                   priceConfidence,
                 });
-                this.logger.debug(`Created price ${createdPrice._id} for product ${product._id} (${product.name})`);
               }
 
               this.logger.log(
@@ -435,7 +430,6 @@ export class PriceComparisonProcessor extends WorkerHost {
               .exec();
 
             // Find all competitor products (products that compare to this one)
-            this.logger.debug(`Looking for competitors with comparedTo: ${nutriProduct._id}`);
             const competitorProducts = await this.productModel
               .find({
                 comparedTo: nutriProduct._id,
@@ -444,8 +438,6 @@ export class PriceComparisonProcessor extends WorkerHost {
               })
               .populate({ path: 'brand', select: 'name status' })
               .exec();
-
-            this.logger.debug(`Found ${competitorProducts.length} competitor products`);
 
             if (competitorProducts.length === 0) {
               this.logger.log(`No competitor products found for ${nutriProduct.name}, defaulting recommendation to keep`);
@@ -464,14 +456,11 @@ export class PriceComparisonProcessor extends WorkerHost {
             const confidentPrices: { price: number; confidence: number }[] = [];
 
             for (const comp of competitorProducts) {
-              this.logger.debug(`Checking prices for competitor: ${comp.name} (${comp._id})`);
               const compPrices = await this.priceModel
                 .find({ productId: new Types.ObjectId(comp._id) })
                 .sort({ createdAt: -1 })
                 .populate('marketplaceId')
                 .exec();
-
-              this.logger.debug(`Found ${compPrices.length} prices for ${comp.name}`);
 
               // Group by marketplace and take most recent high-confidence entry
               const pricesByMarketplace = new Map<string, PriceDocument>();
@@ -620,49 +609,25 @@ export class PriceComparisonProcessor extends WorkerHost {
     return brand.name;
   }
 
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-
   private async withTimeout<T>(
     promise: Promise<T>,
     timeoutMs: number,
     timeoutMessage: string,
   ): Promise<T> {
     let timeoutHandle: NodeJS.Timeout | undefined;
-    let timedOut = false;
 
     const timeoutPromise = new Promise<T>((_, reject) => {
       timeoutHandle = setTimeout(() => {
-        timedOut = true;
-        this.logger.warn(`⏱️ Timeout triggered after ${timeoutMs}ms: ${timeoutMessage}`);
         reject(new Error(timeoutMessage));
       }, timeoutMs);
     });
 
-    // Log progress every 30 seconds
-    const progressInterval = setInterval(() => {
-      if (!timedOut) {
-        this.logger.debug(`⏳ Still waiting for: ${timeoutMessage}`);
-      }
-    }, 30000);
-
     try {
-      const result = await Promise.race([promise, timeoutPromise]);
-      this.logger.debug(`✓ Completed before timeout: ${timeoutMessage}`);
-      return result;
-    } catch (error) {
-      if (timedOut) {
-        this.logger.error(`❌ Operation timed out: ${timeoutMessage}`);
-      } else {
-        this.logger.error(`❌ Operation failed: ${timeoutMessage} - ${error.message}`);
-      }
-      throw error;
+      return await Promise.race([promise, timeoutPromise]);
     } finally {
       if (timeoutHandle) {
         clearTimeout(timeoutHandle);
       }
-      clearInterval(progressInterval);
     }
   }
 
