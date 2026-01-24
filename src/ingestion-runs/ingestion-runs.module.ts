@@ -6,11 +6,13 @@ import {
   IngestionRun,
   IngestionRunSchema,
 } from './schemas/ingestion-run.schema';
+import { Price, PriceSchema } from '../prices/schemas/price.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: IngestionRun.name, schema: IngestionRunSchema },
+      { name: Price.name, schema: PriceSchema },
     ]),
   ],
   controllers: [IngestionRunsController],

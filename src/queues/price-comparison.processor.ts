@@ -52,6 +52,7 @@ export class PriceComparisonProcessor extends WorkerHost {
 
   async process(job: Job<PriceComparisonJobData>): Promise<void> {
     this.logger.log(`Starting price comparison job ${job.id}`);
+    this.logger.debug(`Google API Key configured: ${process.env.GOOGLE_GENERATIVE_AI_API_KEY ? 'Yes (ends with: ...' + process.env.GOOGLE_GENERATIVE_AI_API_KEY.slice(-4) + ')' : 'No'}`);
     const { triggeredBy, timestamp, ingestionRunId, productId } = job.data;
 
     let runId: Types.ObjectId | string | undefined;
@@ -184,17 +185,31 @@ export class PriceComparisonProcessor extends WorkerHost {
 
                   If only one price is shown, put it in precioConIva and set precioSinIva to null.`;
 
-              const result = await this.withTimeout(
-                generateText({
-                  model: google('gemini-3-pro-preview'),
-                  prompt,
-                  tools: {
-                    google_search: google.tools.googleSearch({}),
-                  }
-                }),
-                MARKETPLACE_SEARCH_TIMEOUT_MS,
-                `LLM search timeout for ${product.name} on ${marketplace.name}`,
-              );
+              this.logger.log(`[${marketplace.name}] Starting LLM search for "${product.name}"...`);
+              this.logger.debug(`[${marketplace.name}] Using model: gemini-2.5-flash with google_search tool`);
+              this.logger.debug(`[${marketplace.name}] Timeout set to: ${MARKETPLACE_SEARCH_TIMEOUT_MS}ms (${MARKETPLACE_SEARCH_TIMEOUT_MS / 1000}s)`);
+              const searchStartTime = Date.now();
+
+              let result;
+              try {
+                result = await this.withTimeout(
+                  generateText({
+                    model: google('gemini-2.5-flash'),
+                    prompt,
+                    tools: {
+                      google_search: google.tools.googleSearch({}),
+                    }
+                  }),
+                  MARKETPLACE_SEARCH_TIMEOUT_MS,
+                  `LLM search timeout for ${product.name} on ${marketplace.name}`,
+                );
+              } catch (generateError) {
+                this.logger.error(`[${marketplace.name}] generateText failed for "${product.name}": ${generateError.message}`);
+                throw generateError;
+              }
+
+              const searchDuration = Date.now() - searchStartTime;
+              this.logger.log(`[${marketplace.name}] LLM search completed in ${searchDuration}ms for "${product.name}"`);
 
               // Try to parse JSON response, handle malformed JSON gracefully
               let parsed: z.infer<typeof searchSchema>;
@@ -339,6 +354,8 @@ export class PriceComparisonProcessor extends WorkerHost {
               this.logger.error(
                 `Failed to search ${product.name} on ${marketplace.name}: ${error.message}`,
               );
+              this.logger.error(`Error stack: ${error.stack}`);
+              this.logger.error(`Error type: ${error.constructor.name}`);
 
               // Store failed lookup immediately in DB
               await this.ingestionRunsService.addLookupResult(validRunId, {
@@ -527,6 +544,7 @@ export class PriceComparisonProcessor extends WorkerHost {
               currentPrice.recommendation = recommendation.recommendation;
               currentPrice.recommendationReasoning = recommendation.reasoning;
               currentPrice.recommendedPrice = recommendation.suggestedPrice;
+              // Keep existing ingestionRunId (null for manual entries)
               await currentPrice.save();
               this.logger.log(
                 `✓ Updated recommendation for ${nutriProduct.name}: ${recommendation.recommendation}`,
@@ -612,19 +630,39 @@ export class PriceComparisonProcessor extends WorkerHost {
     timeoutMessage: string,
   ): Promise<T> {
     let timeoutHandle: NodeJS.Timeout | undefined;
+    let timedOut = false;
 
     const timeoutPromise = new Promise<T>((_, reject) => {
       timeoutHandle = setTimeout(() => {
+        timedOut = true;
+        this.logger.warn(`⏱️ Timeout triggered after ${timeoutMs}ms: ${timeoutMessage}`);
         reject(new Error(timeoutMessage));
       }, timeoutMs);
     });
 
+    // Log progress every 30 seconds
+    const progressInterval = setInterval(() => {
+      if (!timedOut) {
+        this.logger.debug(`⏳ Still waiting for: ${timeoutMessage}`);
+      }
+    }, 30000);
+
     try {
-      return await Promise.race([promise, timeoutPromise]);
+      const result = await Promise.race([promise, timeoutPromise]);
+      this.logger.debug(`✓ Completed before timeout: ${timeoutMessage}`);
+      return result;
+    } catch (error) {
+      if (timedOut) {
+        this.logger.error(`❌ Operation timed out: ${timeoutMessage}`);
+      } else {
+        this.logger.error(`❌ Operation failed: ${timeoutMessage} - ${error.message}`);
+      }
+      throw error;
     } finally {
       if (timeoutHandle) {
         clearTimeout(timeoutHandle);
       }
+      clearInterval(progressInterval);
     }
   }
 

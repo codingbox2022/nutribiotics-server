@@ -119,6 +119,9 @@ export class IngestionRun {
   @Prop({ default: 0 })
   productsNotFound?: number;
 
+  @Prop({ default: 0 })
+  productsWithRecommendations?: number;
+
   @Prop()
   errorMessage?: string;
 

@@ -120,11 +120,11 @@ MarketplaceName | BaseURL | STATUS | REASON
 Where:
 - BaseURL is the clean homepage URL (e.g. https://example.com)
 - STATUS is either ACCEPTED or REJECTED
-- REASON is a short explanation (max 12 words)
+- REASON is a short explanation in SPANISH (max 12 words)
 
 Examples:
-Farmatodo Colombia | https://www.farmatodo.com.co | REJECTED | Products not indexed, internal search only
-Mercado Libre Colombia | https://www.mercadolibre.com.co | ACCEPTED | Public product pages indexed by Google
+Farmatodo Colombia | https://www.farmatodo.com.co | REJECTED | Productos no indexados, solo búsqueda interna
+Mercado Libre Colombia | https://www.mercadolibre.com.co | ACCEPTED | Páginas de productos públicas e indexadas por Google
 
 --------------------------------
 RULES

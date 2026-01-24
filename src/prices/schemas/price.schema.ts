@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Types } from 'mongoose';
+import { ApprovalStatus } from '../../common/enums/approval-status.enum';
 
 export type PriceDocument = HydratedDocument<Price>;
 
@@ -37,6 +38,19 @@ export class Price {
 
   @Prop({ required: false })
   recommendedPrice?: number;
+
+  @Prop({
+    type: String,
+    enum: Object.values(ApprovalStatus),
+    default: ApprovalStatus.NOT_APPROVED,
+  })
+  recommendationStatus?: ApprovalStatus;
+
+  @Prop({ required: false })
+  recommendationApprovedAt?: Date;
+
+  @Prop({ required: false })
+  recommendationApprovedBy?: string;
 }
 
 export const PriceSchema = SchemaFactory.createForClass(Price);
@@ -65,3 +79,4 @@ PriceSchema.set('toObject', {
   }
 });
 PriceSchema.index({ productId: 1, marketplaceId: 1, createdAt: -1 });
+PriceSchema.index({ ingestionRunId: 1, recommendation: 1, productId: 1 });

@@ -6,6 +6,7 @@ import {
   IngestionRunDocument,
   LookupResult,
 } from './schemas/ingestion-run.schema';
+import { Price, PriceDocument } from '../prices/schemas/price.schema';
 
 @Injectable()
 export class IngestionRunsService {
@@ -14,6 +15,8 @@ export class IngestionRunsService {
   constructor(
     @InjectModel(IngestionRun.name)
     private ingestionRunModel: Model<IngestionRunDocument>,
+    @InjectModel(Price.name)
+    private priceModel: Model<PriceDocument>,
   ) {}
 
   /**
@@ -72,11 +75,28 @@ export class IngestionRunsService {
         .map((r) => r.productId.toString()),
     ).size;
 
+    // Count unique products with recommendations
+    // Include both competitor prices from this run AND Nutribiotics prices (ingestionRunId: null)
+    const recommendationResults = await this.priceModel.aggregate([
+      {
+        $match: {
+          $or: [
+            { ingestionRunId: id, recommendation: { $ne: null } },
+            { ingestionRunId: null, recommendation: { $ne: null } }
+          ]
+        }
+      },
+      { $group: { _id: '$productId' } },
+      { $count: 'total' },
+    ]);
+    const productsWithRecommendations = recommendationResults[0]?.total || 0;
+
     await this.ingestionRunModel.findByIdAndUpdate(id, {
       status: 'completed',
       completedAt: new Date(),
       productsWithPrices,
       productsNotFound,
+      productsWithRecommendations,
     });
 
     this.logger.log(`Ingestion run ${id} completed`);

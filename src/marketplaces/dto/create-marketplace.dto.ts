@@ -35,9 +35,13 @@ export class CreateMarketplaceDto {
   @IsNotEmpty()
   baseUrl: string;
 
-  @IsEnum(['active', 'inactive'])
+  @IsEnum(['active', 'inactive', 'rejected'])
   @IsOptional()
   status?: string;
+
+  @IsString()
+  @IsOptional()
+  rejectionReason?: string;
 
   @IsNumber()
   @Min(0)

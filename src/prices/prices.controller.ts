@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   Query,
+  Request,
 } from '@nestjs/common';
 import { PricesService } from './prices.service';
 import { CreatePriceDto } from './dto/create-price.dto';
@@ -35,6 +36,29 @@ export class PricesController {
   @Get('product-detail/:productId')
   getProductPriceDetail(@Param('productId') productId: string) {
     return this.pricesService.getProductPriceDetail(productId);
+  }
+
+  @Get('comparison-results/:ingestionRunId')
+  getComparisonResults(
+    @Param('ingestionRunId') ingestionRunId: string,
+    @Query('search') search?: string
+  ) {
+    return this.pricesService.getComparisonResultsByRunId(ingestionRunId, { search });
+  }
+
+  @Post('recommendations/bulk-accept')
+  bulkAcceptRecommendations(@Body() body: { priceIds: string[] }, @Request() req) {
+    return this.pricesService.bulkAcceptRecommendations(body.priceIds, req.user);
+  }
+
+  @Post('recommendation/:id/accept')
+  acceptRecommendation(@Param('id') id: string, @Request() req) {
+    return this.pricesService.acceptRecommendation(id, req.user);
+  }
+
+  @Post('recommendation/:id/reject')
+  rejectRecommendation(@Param('id') id: string, @Request() req) {
+    return this.pricesService.rejectRecommendation(id, req.user);
   }
 
   @Get('product/:productId')
