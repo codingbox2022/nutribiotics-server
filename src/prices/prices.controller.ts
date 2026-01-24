@@ -34,8 +34,11 @@ export class PricesController {
   }
 
   @Get('product-detail/:productId')
-  getProductPriceDetail(@Param('productId') productId: string) {
-    return this.pricesService.getProductPriceDetail(productId);
+  getProductPriceDetail(
+    @Param('productId') productId: string,
+    @Query('ingestionRunId') ingestionRunId?: string,
+  ) {
+    return this.pricesService.getProductPriceDetail(productId, ingestionRunId);
   }
 
   @Get('comparison-results/:ingestionRunId')
@@ -47,8 +50,8 @@ export class PricesController {
   }
 
   @Post('recommendations/bulk-accept')
-  bulkAcceptRecommendations(@Body() body: { priceIds: string[] }, @Request() req) {
-    return this.pricesService.bulkAcceptRecommendations(body.priceIds, req.user);
+  bulkAcceptRecommendations(@Body() body: { recommendationIds: string[] }, @Request() req) {
+    return this.pricesService.bulkAcceptRecommendations(body.recommendationIds, req.user);
   }
 
   @Post('recommendation/:id/accept')

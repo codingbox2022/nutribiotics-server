@@ -1,8 +1,7 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Price, PriceDocument } from './schemas/price.schema';
-import { PriceHistory, PriceHistoryDocument } from './schemas/price-history.schema';
 import { CreatePriceDto } from './dto/create-price.dto';
 import { UpdatePriceDto } from './dto/update-price.dto';
 import { PaginatedResult } from '../common/interfaces/response.interface';
@@ -10,7 +9,7 @@ import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { Marketplace, MarketplaceDocument } from '../marketplaces/schemas/marketplace.schema';
 import { Ingredient, IngredientDocument } from '../ingredients/schemas/ingredient.schema';
 import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
-import { ApprovalStatus } from '../common/enums/approval-status.enum';
+import { RecommendationsService } from '../recommendations/recommendations.service';
 
 interface FindAllFilters {
   productId?: string;
@@ -28,11 +27,11 @@ type BrandDisplay = {
 export class PricesService {
   constructor(
     @InjectModel(Price.name) private priceModel: Model<PriceDocument>,
-    @InjectModel(PriceHistory.name) private priceHistoryModel: Model<PriceHistoryDocument>,
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(Marketplace.name) private marketplaceModel: Model<MarketplaceDocument>,
     @InjectModel(Ingredient.name) private ingredientModel: Model<IngredientDocument>,
     @InjectModel(Brand.name) private brandModel: Model<BrandDocument>,
+    private recommendationsService: RecommendationsService,
   ) {}
 
   private formatBrand(
@@ -340,6 +339,10 @@ export class PricesService {
           }
         }
 
+        const latestRecommendation = await this.recommendationsService.getLatestRecommendationForProduct(
+          product._id.toString(),
+        );
+
         return {
           id: product._id.toString(),
           productName: product.name,
@@ -353,10 +356,11 @@ export class PricesService {
           difference,
           differencePercent,
           lastIngestionDate: lastIngestionDate ? lastIngestionDate.toISOString() : null,
-          recommendation: nutribioticsPrice?.recommendation,
-          recommendationReasoning: nutribioticsPrice?.recommendationReasoning,
-          recommendedPrice: nutribioticsPrice?.recommendedPrice,
-          recommendationStatus: nutribioticsPrice?.recommendationStatus,
+          recommendationId: latestRecommendation?._id?.toString(),
+          recommendation: latestRecommendation?.recommendation,
+          recommendationReasoning: latestRecommendation?.recommendationReasoning,
+          recommendedPrice: latestRecommendation?.recommendedPrice,
+          recommendationStatus: latestRecommendation?.recommendationStatus,
         };
       })
     );
@@ -392,16 +396,20 @@ export class PricesService {
     const comparisons = await Promise.all(
       nutribioticsProducts.map(async (product) => {
         // Get latest Nutribiotics price for this product
-        // Nutribiotics prices are manually entered and have ingestionRunId: null
         const nutribioticsPrice = await this.priceModel
           .findOne({
             productId: product._id,
-            ingestionRunId: null
+            marketplaceId: null,
           })
           .sort({ createdAt: -1 })
           .exec();
 
-        const currentPrice = nutribioticsPrice?.precioConIva || null;
+        const latestRecommendation = await this.recommendationsService.getLatestRecommendationForProduct(
+          product._id.toString(),
+          ingestionRunId,
+        );
+
+        const currentPrice = latestRecommendation?.currentPrice ?? nutribioticsPrice?.precioConIva ?? null;
 
         // Get all compared products (competitors)
         const comparedProducts = await this.productModel
@@ -499,10 +507,11 @@ export class PricesService {
           difference,
           differencePercent,
           lastIngestionDate: lastIngestionDate ? lastIngestionDate.toISOString() : null,
-          recommendation: nutribioticsPrice?.recommendation,
-          recommendationReasoning: nutribioticsPrice?.recommendationReasoning,
-          recommendedPrice: nutribioticsPrice?.recommendedPrice,
-          recommendationStatus: nutribioticsPrice?.recommendationStatus,
+          recommendationId: latestRecommendation?._id?.toString(),
+          recommendation: latestRecommendation?.recommendation,
+          recommendationReasoning: latestRecommendation?.recommendationReasoning,
+          recommendedPrice: latestRecommendation?.recommendedPrice,
+          recommendationStatus: latestRecommendation?.recommendationStatus,
         };
       })
     );
@@ -510,7 +519,7 @@ export class PricesService {
     return comparisons;
   }
 
-  async getProductPriceDetail(productId: string): Promise<any> {
+  async getProductPriceDetail(productId: string, ingestionRunId?: string): Promise<any> {
     // Fetch the main Nutribiotics product
     const product = await this.productModel
       .findById(productId)
@@ -548,22 +557,34 @@ export class PricesService {
       ? await this.normalizeIngredientMap(mainPrice.pricePerIngredientContent as any)
       : {};
 
+    const latestRecommendation = await this.recommendationsService.getLatestRecommendationForProduct(
+      product._id.toString(),
+      ingestionRunId,
+    );
+
+    const recommendationPrice = latestRecommendation?.currentPrice ?? null;
+    const displayCurrentPrice = recommendationPrice ?? mainPrice?.precioConIva ?? null;
+    const displayCurrentPriceWithoutIva = displayCurrentPrice !== null
+      ? displayCurrentPrice / (1 + IVA_RATE)
+      : null;
+
     const productData = {
       _id: mainPrice?._id?.toString(),
       id: product._id.toString(),
       name: product.name,
       brand: await this.hydrateBrand(product.brand as any),
       ingredientContent: normalizedIngredientContent,
-      currentPrice: mainPrice?.precioConIva || null,
-      currentPriceWithoutIva: mainPrice?.precioSinIva || null,
+      currentPrice: displayCurrentPrice,
+      currentPriceWithoutIva: displayCurrentPriceWithoutIva,
       currentPricePerIngredient: normalizedPricePerIngredient,
       marketplace: mainMarketplaceName,
-      recommendation: mainPrice?.recommendation,
-      recommendationReasoning: mainPrice?.recommendationReasoning,
-      recommendedPrice: mainPrice?.recommendedPrice,
-      recommendationStatus: mainPrice?.recommendationStatus,
-      recommendationApprovedAt: mainPrice?.recommendationApprovedAt?.toISOString(),
-      recommendationApprovedBy: mainPrice?.recommendationApprovedBy,
+      recommendationId: latestRecommendation?._id?.toString(),
+      recommendation: latestRecommendation?.recommendation,
+      recommendationReasoning: latestRecommendation?.recommendationReasoning,
+      recommendedPrice: latestRecommendation?.recommendedPrice,
+      recommendationStatus: latestRecommendation?.recommendationStatus,
+      recommendationApprovedAt: latestRecommendation?.recommendationApprovedAt?.toISOString(),
+      recommendationApprovedBy: latestRecommendation?.recommendationApprovedBy,
     };
 
     // Get all competitor products
@@ -655,121 +676,15 @@ export class PricesService {
     };
   }
 
-  async acceptRecommendation(priceId: string, user: any): Promise<any> {
-    // 1. Find the price document with the recommendation
-    const price = await this.priceModel.findById(priceId).exec();
-    if (!price) {
-      throw new NotFoundException(`Price with ID ${priceId} not found`);
-    }
-
-    // 2. Check if there's a recommended price
-    if (!price.recommendedPrice) {
-      throw new BadRequestException('No recommended price available');
-    }
-
-    // 3. Fetch product to recalculate price fields
-    const product = await this.productModel.findById(price.productId).exec();
-    if (!product) {
-      throw new NotFoundException(`Product not found`);
-    }
-
-    // 4. Calculate prices with IVA
-    const IVA_RATE = 0.19;
-    const precioConIva = price.recommendedPrice;
-    const precioSinIva = precioConIva / (1 + IVA_RATE);
-
-    // 5. Get ingredient content from product
-    const ingredientContent = product.ingredientContent instanceof Map
-      ? Object.fromEntries(product.ingredientContent)
-      : (product.ingredientContent || {});
-
-    // 6. Calculate price per ingredient content
-    const pricePerIngredientContent: Record<string, number> = {};
-    for (const [ingredientId, content] of Object.entries(ingredientContent)) {
-      const numContent = Number(content);
-      pricePerIngredientContent[ingredientId] = numContent > 0 ? precioSinIva / numContent : 0;
-    }
-
-    // 7. Create price history record before updating
-    const priceHistory = new this.priceHistoryModel({
-      priceId: price._id,
-      productId: price.productId,
-      oldPrecioConIva: price.precioConIva,
-      newPrecioConIva: precioConIva,
-      oldPrecioSinIva: price.precioSinIva,
-      newPrecioSinIva: precioSinIva,
-      changeReason: 'recommendation_accepted',
-      recommendation: price.recommendation,
-      recommendedPrice: price.recommendedPrice,
-      recommendationReasoning: price.recommendationReasoning,
-      changedBy: user?.email || user?.id,
-    });
-    await priceHistory.save();
-
-    // 8. Update the existing price document with the recommended price
-    // This preserves the recommendation fields and updates the actual price
-    const updatedPrice = await this.priceModel.findByIdAndUpdate(
-      priceId,
-      {
-        precioConIva,
-        precioSinIva,
-        pricePerIngredientContent,
-        recommendationStatus: ApprovalStatus.APPROVED,
-        recommendationApprovedAt: new Date(),
-        recommendationApprovedBy: user?.email || user?.id,
-      },
-      { new: true }
-    ).exec();
-
-    return {
-      success: true,
-      data: updatedPrice,
-    };
+  async acceptRecommendation(recommendationId: string, user: any): Promise<any> {
+    return this.recommendationsService.acceptRecommendation(recommendationId, user);
   }
 
-  async rejectRecommendation(priceId: string, user: any): Promise<any> {
-    const price = await this.priceModel
-      .findByIdAndUpdate(
-        priceId,
-        {
-          recommendationStatus: ApprovalStatus.REJECTED,
-          recommendationApprovedAt: new Date(),
-          recommendationApprovedBy: user?.email || user?.id,
-        },
-        { new: true }
-      )
-      .exec();
-
-    if (!price) {
-      throw new NotFoundException(`Price with ID ${priceId} not found`);
-    }
-
-    return { success: true, data: price };
+  async rejectRecommendation(recommendationId: string, user: any): Promise<any> {
+    return this.recommendationsService.rejectRecommendation(recommendationId, user);
   }
 
-  async bulkAcceptRecommendations(priceIds: string[], user: any): Promise<any> {
-    const results = {
-      successful: 0,
-      failed: 0,
-      errors: [] as { priceId: string; error: string }[],
-    };
-
-    for (const priceId of priceIds) {
-      try {
-        await this.acceptRecommendation(priceId, user);
-        results.successful++;
-      } catch (error) {
-        results.failed++;
-        results.errors.push({
-          priceId,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    }
-
-    return {
-      success: results.failed === 0,
-      data: results,
-    };
+  async bulkAcceptRecommendations(recommendationIds: string[], user: any): Promise<any> {
+    return this.recommendationsService.bulkAcceptRecommendations(recommendationIds, user);
   }
 }

@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsNumber, IsString, Min, IsObject, IsOptional, IsEnum, Max } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsString, Min, IsObject, IsOptional, Max } from 'class-validator';
 
 export class CreatePriceDto {
   @IsOptional()
@@ -47,17 +47,4 @@ export class CreatePriceDto {
   @IsString()
   marketplace?: string;
 
-  // Recommendation fields
-  @IsOptional()
-  @IsEnum(['raise', 'lower', 'keep'])
-  recommendation?: string;
-
-  @IsOptional()
-  @IsString()
-  recommendationReasoning?: string;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  recommendedPrice?: number;
 }

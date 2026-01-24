@@ -16,6 +16,7 @@ import { PricesModule } from './prices/prices.module';
 import { QueuesModule } from './queues/queues.module';
 import { IngestionRunsModule } from './ingestion-runs/ingestion-runs.module';
 import { StatsModule } from './stats/stats.module';
+import { RecommendationsModule } from './recommendations/recommendations.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { StatsModule } from './stats/stats.module';
     IngredientsModule,
     BrandsModule,
     PricesModule,
+    RecommendationsModule,
     IngestionRunsModule,
     QueuesModule,
     StatsModule,

@@ -12,6 +12,7 @@ import { QueuesController } from './queues.controller';
 import { RecommendationService } from './recommendation.service';
 import { IngestionRunsModule } from '../ingestion-runs/ingestion-runs.module';
 import { PricesModule } from '../prices/prices.module';
+import { RecommendationsModule } from '../recommendations/recommendations.module';
 import { MarketplacesModule } from '../marketplaces/marketplaces.module';
 import { ProductsModule } from '../products/products.module';
 import { Product, ProductSchema } from '../products/schemas/product.schema';
@@ -26,6 +27,7 @@ import { Price, PriceSchema } from '../prices/schemas/price.schema';
   imports: [
     IngestionRunsModule,
     PricesModule,
+    RecommendationsModule,
     MarketplacesModule,
     ProductsModule,
     MongooseModule.forFeature([

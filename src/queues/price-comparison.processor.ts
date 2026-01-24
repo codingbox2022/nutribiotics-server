@@ -15,6 +15,7 @@ import {
 import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
 import { RecommendationService, CompetitorPriceData } from './recommendation.service';
 import { Price, PriceDocument } from '../prices/schemas/price.schema';
+import { RecommendationsService } from '../recommendations/recommendations.service';
 import { google } from 'src/providers/googleAiProvider';
 import { belongsToMarketplaceDomain, calculatePriceConfidence } from '../common/utils/price-confidence.util';
 
@@ -38,6 +39,7 @@ export class PriceComparisonProcessor extends WorkerHost {
     private readonly ingestionRunsService: IngestionRunsService,
     private readonly pricesService: PricesService,
     private readonly recommendationService: RecommendationService,
+    private readonly recommendationsService: RecommendationsService,
     @InjectModel(Product.name)
     private productModel: Model<ProductDocument>,
     @InjectModel(Marketplace.name)
@@ -539,34 +541,17 @@ export class PriceComparisonProcessor extends WorkerHost {
               avgCompetitorPrice,
             });
 
-            // Update or create price with recommendation
-            if (currentPrice) {
-              currentPrice.recommendation = recommendation.recommendation;
-              currentPrice.recommendationReasoning = recommendation.reasoning;
-              currentPrice.recommendedPrice = recommendation.suggestedPrice;
-              // Keep existing ingestionRunId (null for manual entries)
-              await currentPrice.save();
-              this.logger.log(
-                `✓ Updated recommendation for ${nutriProduct.name}: ${recommendation.recommendation}`,
-              );
-            } else {
-              // Create a new price entry with recommendation only
-              await this.pricesService.create({
-                precioSinIva: 0,
-                precioConIva: 0,
-                ingredientContent: ingredientContent,
-                pricePerIngredientContent: {},
-                marketplaceId: null as any,
-                productId: nutriProduct._id.toString(),
-                ingestionRunId: validRunId.toString(),
-                recommendation: recommendation.recommendation,
-                recommendationReasoning: recommendation.reasoning,
-                recommendedPrice: recommendation.suggestedPrice,
-              });
-              this.logger.log(
-                `✓ Created recommendation for ${nutriProduct.name}: ${recommendation.recommendation}`,
-              );
-            }
+            await this.recommendationsService.upsertRecommendation({
+              productId: nutriProduct._id.toString(),
+              ingestionRunId: validRunId.toString(),
+              currentPrice: currentPrice?.precioConIva ?? null,
+              recommendation: recommendation.recommendation,
+              recommendationReasoning: recommendation.reasoning,
+              recommendedPrice: recommendation.suggestedPrice,
+            });
+            this.logger.log(
+              `✓ Stored recommendation for ${nutriProduct.name}: ${recommendation.recommendation}`,
+            );
           } catch (error) {
             this.logger.error(
               `Failed to generate recommendation for ${nutriProduct.name}: ${error.message}`,
