@@ -327,6 +327,7 @@ export class PriceComparisonProcessor extends WorkerHost {
                 inStock: parsed.inStock,
                 scrapedAt: new Date(),
                 lookupStatus,
+                priceConfidence,
               });
 
               // Create Price document if lookup was successful
@@ -370,6 +371,7 @@ export class PriceComparisonProcessor extends WorkerHost {
                 inStock: false,
                 scrapedAt: new Date(),
                 lookupStatus: 'error',
+                priceConfidence: 0,
               });
 
               return { success: false, marketplace: marketplace.name, error };
@@ -439,14 +441,21 @@ export class PriceComparisonProcessor extends WorkerHost {
               .populate({ path: 'brand', select: 'name status' })
               .exec();
 
+            // Check if Nutribiotics product has a price set
+            const hasCurrentPrice = currentPrice?.precioConIva != null;
+
             if (competitorProducts.length === 0) {
+              const reason = !hasCurrentPrice
+                ? `El producto ${nutriProduct.name} no tiene un precio actual configurado y no se encontraron productos competidores. Configure el precio del producto para poder generar recomendaciones.`
+                : `No se encontraron productos competidores vinculados a ${nutriProduct.name}. Se recomienda mantener el precio actual.`;
+
               this.logger.log(`No competitor products found for ${nutriProduct.name}, defaulting recommendation to keep`);
               await this.recommendationsService.upsertRecommendation({
                 productId: nutriProduct._id.toString(),
                 ingestionRunId: validRunId.toString(),
                 currentPrice: currentPrice?.precioConIva ?? null,
                 recommendation: 'keep',
-                recommendationReasoning: GENERIC_KEEP_REASON,
+                recommendationReasoning: reason,
               });
               continue;
             }
@@ -454,6 +463,9 @@ export class PriceComparisonProcessor extends WorkerHost {
             // Gather all competitor prices
             const competitorPriceData: CompetitorPriceData[] = [];
             const confidentPrices: { price: number; confidence: number }[] = [];
+            let totalPricesFound = 0;
+            let lowConfidencePricesCount = 0;
+            const lowConfidenceDetails: { marketplace: string; confidence: number }[] = [];
 
             for (const comp of competitorProducts) {
               const compPrices = await this.priceModel
@@ -462,15 +474,10 @@ export class PriceComparisonProcessor extends WorkerHost {
                 .populate('marketplaceId')
                 .exec();
 
-              // Group by marketplace and take most recent high-confidence entry
+              // Group by marketplace and take most recent entry
               const pricesByMarketplace = new Map<string, PriceDocument>();
               for (const price of compPrices) {
                 if (!price.marketplaceId) {
-                  continue;
-                }
-
-                const confidence = price.priceConfidence ?? 0;
-                if (confidence < MIN_RECOMMENDATION_PRICE_CONFIDENCE) {
                   continue;
                 }
 
@@ -482,13 +489,26 @@ export class PriceComparisonProcessor extends WorkerHost {
 
               for (const price of pricesByMarketplace.values()) {
                 const marketplace = await this.marketplaceModel.findById(price.marketplaceId).exec();
+                const confidence = price.priceConfidence ?? 0;
+
+                totalPricesFound++;
+
+                // Track low confidence prices for better error messaging
+                if (confidence < MIN_RECOMMENDATION_PRICE_CONFIDENCE) {
+                  lowConfidencePricesCount++;
+                  lowConfidenceDetails.push({
+                    marketplace: marketplace?.name || 'Unknown',
+                    confidence: confidence,
+                  });
+                  continue;
+                }
+
                 const compIngredientContent = comp.ingredientContent instanceof Map
                   ? Object.fromEntries(comp.ingredientContent)
                   : (comp.ingredientContent || {});
                 const compPricePerIngredient = price.pricePerIngredientContent instanceof Map
                   ? Object.fromEntries(price.pricePerIngredientContent)
                   : (price.pricePerIngredientContent || {});
-                const confidence = price.priceConfidence ?? 0;
 
                 competitorPriceData.push({
                   marketplaceName: marketplace?.name || 'Unknown',
@@ -505,13 +525,31 @@ export class PriceComparisonProcessor extends WorkerHost {
             }
 
             if (confidentPrices.length === 0) {
-              this.logger.warn(`No high-confidence competitor prices found for ${nutriProduct.name} (found ${competitorProducts.length} competitor products but none met the confidence threshold), defaulting recommendation to keep`);
+              // Build a detailed reason based on what was found
+              let detailedReason: string;
+              const noPriceWarning = !hasCurrentPrice
+                ? ` Además, el producto ${nutriProduct.name} no tiene un precio actual configurado.`
+                : '';
+
+              if (totalPricesFound === 0) {
+                detailedReason = !hasCurrentPrice
+                  ? `El producto ${nutriProduct.name} no tiene un precio actual configurado y no se encontraron precios de competidores. Configure el precio del producto para poder generar recomendaciones.`
+                  : `No se encontraron precios de competidores para este producto. Se recomienda mantener el precio actual.`;
+              } else if (lowConfidencePricesCount > 0) {
+                const marketplacesList = lowConfidenceDetails.slice(0, 3).map(d => `${d.marketplace} (${Math.round(d.confidence * 100)}%)`).join(', ');
+                const moreText = lowConfidenceDetails.length > 3 ? ` y ${lowConfidenceDetails.length - 3} más` : '';
+                detailedReason = `Se encontraron ${lowConfidencePricesCount} precios de competidores, pero ninguno alcanzó el umbral de confianza mínimo (${MIN_RECOMMENDATION_PRICE_CONFIDENCE * 100}%). Precios con baja confianza: ${marketplacesList}${moreText}.${noPriceWarning} Se recomienda mantener el precio actual hasta obtener datos más confiables.`;
+              } else {
+                detailedReason = GENERIC_KEEP_REASON + noPriceWarning;
+              }
+
+              this.logger.warn(`No high-confidence competitor prices found for ${nutriProduct.name} (found ${totalPricesFound} prices, ${lowConfidencePricesCount} below threshold), defaulting recommendation to keep`);
               await this.recommendationsService.upsertRecommendation({
                 productId: nutriProduct._id.toString(),
                 ingestionRunId: validRunId.toString(),
                 currentPrice: currentPrice?.precioConIva ?? null,
                 recommendation: 'keep',
-                recommendationReasoning: GENERIC_KEEP_REASON,
+                recommendationReasoning: detailedReason,
               });
               continue;
             }

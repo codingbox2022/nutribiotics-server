@@ -72,6 +72,9 @@ export class LookupResult {
 
   @Prop()
   errorMessage?: string;
+
+  @Prop({ type: Number, min: 0, max: 1 })
+  priceConfidence?: number;
 }
 
 @Schema({ timestamps: true })
