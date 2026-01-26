@@ -1,0 +1,144 @@
+[
+  {
+    "name": "CORAESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "CALORÍAS",
+        "quantity": 2,
+        "unit": "KCAL"
+      },
+      {
+        "name": "PROTEÍNAS",
+        "quantity": 138.6,
+        "unit": "MG"
+      },
+      {
+        "name": "LÍPIDOS",
+        "quantity": 72.6,
+        "unit": "MG"
+      },
+      {
+        "name": "CARBOHIDRATOS",
+        "quantity": 3.3,
+        "unit": "MG"
+      },
+      {
+        "name": "FOLATO",
+        "quantity": 900,
+        "unit": "MCG"
+      },
+      {
+        "name": "VITAMINA B6",
+        "quantity": 75,
+        "unit": "MG"
+      },
+      {
+        "name": "VITAMINA B12",
+        "quantity": 1.95,
+        "unit": "MCG"
+      },
+      {
+        "name": "VITAMINA C",
+        "quantity": 12.75,
+        "unit": "MG"
+      },
+      {
+        "name": "MAGNESIO",
+        "quantity": 332.56,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 90,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "B-100 ADVANCED",
+        "brandName": "NUTRIVITA",
+        "ingredients": [
+          {
+            "name": "VITAMINA B6",
+            "quantity": 100,
+            "unit": "MG"
+          },
+          {
+            "name": "VITAMINA B12",
+            "quantity": 100,
+            "unit": "MCG"
+          }
+        ],
+        "totalContent": 50,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "B-100 COMPLEX",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "VITAMINA B6",
+            "quantity": 100,
+            "unit": "MG"
+          },
+          {
+            "name": "VITAMINA B12",
+            "quantity": 100,
+            "unit": "MCG"
+          }
+        ],
+        "totalContent": 50,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "SUPER B-COMPLEX",
+        "brandName": "NATURE'S BOUNTY",
+        "ingredients": [
+          {
+            "name": "FOLATO",
+            "quantity": "NO INF.",
+            "unit": "MCG"
+          },
+          {
+            "name": "VITAMINA B6",
+            "quantity": 5,
+            "unit": "MG"
+          },
+          {
+            "name": "VITAMINA B12",
+            "quantity": 100,
+            "unit": "MCG"
+          },
+          {
+            "name": "VITAMINA C",
+            "quantity": 60,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 150,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "BALANCE B-50 COMPLEX",
+        "brandName": "SWANSON",
+        "ingredients": [
+          {
+            "name": "VITAMINA B6",
+            "quantity": 50,
+            "unit": "MG"
+          },
+          {
+            "name": "VITAMINA B12",
+            "quantity": 50,
+            "unit": "MCG"
+          }
+        ],
+        "totalContent": 250,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  }
+]

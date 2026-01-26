@@ -67,7 +67,7 @@ export class RecommendationService {
         )
         .join('\n');
 
-      const prompt = `Eres un experto en estrategia de precios para una compañía de suplementos nutricionales llamada Nutribiotics. Analiza los siguientes datos de precios del producto y proporciona una recomendación.
+      const prompt = `Eres un experto en estrategia de precios para una compañía de suplementos nutricionales llamada Nutrabiotics. Analiza los siguientes datos de precios del producto y proporciona una recomendación.
 
 **Producto:** ${productName}
 **Precio Actual:** ${currentPrice !== null ? `$${currentPrice.toFixed(2)} COP` : 'No definido'}
@@ -86,7 +86,7 @@ ${competitorSummary}
 ${ingredientBreakdown}
 
 **Tarea:**
-Basándote en estos datos, recomienda si Nutribiotics debe:
+Basándote en estos datos, recomienda si Nutrabiotics debe:
 1. **raise** - Aumentar el precio (si estamos significativamente por debajo del precio comparado con el valor)
 2. **lower** - Disminuir el precio (si estamos sobrevalorados comparado con los competidores)
 3. **keep** - Mantener el precio actual (si estamos competitivamente posicionados)

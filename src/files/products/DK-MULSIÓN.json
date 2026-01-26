@@ -1,0 +1,141 @@
+[
+  {
+    "name": "DK-MULSIÓN",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "VITAMINA D3",
+        "quantity": 2000,
+        "unit": "UI"
+      },
+      {
+        "name": "VITAMINA K2",
+        "quantity": 50,
+        "unit": "MCG"
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "gotas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "OSTIK-2",
+        "brandName": "NUTRIVITA",
+        "ingredients": [
+          {
+            "name": "VITAMINA D3",
+            "quantity": 2000,
+            "unit": "UI"
+          },
+          {
+            "name": "VITAMINA K2",
+            "quantity": 110,
+            "unit": "MCG"
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "D3-K2",
+        "brandName": "SEEKING HEALTH",
+        "ingredients": [
+          {
+            "name": "VITAMINA D3",
+            "quantity": 1800,
+            "unit": "UI"
+          },
+          {
+            "name": "VITAMINA K2",
+            "quantity": 50,
+            "unit": "MCG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "gotas",
+        "portion": 2
+      },
+      {
+        "name": "VITAMINA D3 5000 UI",
+        "brandName": "FARMA D",
+        "ingredients": [
+          {
+            "name": "VITAMINA D3",
+            "quantity": 5000,
+            "unit": "UI"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "DEFEROL + K",
+        "brandName": "PROCAPS",
+        "ingredients": [
+          {
+            "name": "VITAMINA D3",
+            "quantity": 2000,
+            "unit": "UI"
+          },
+          {
+            "name": "VITAMINA K2",
+            "quantity": 150,
+            "unit": "MCG"
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "DEBLAX",
+        "brandName": "TECNOFARMA",
+        "ingredients": [
+          {
+            "name": "VITAMINA D3",
+            "quantity": 1000000,
+            "unit": "UI"
+          }
+        ],
+        "totalContent": 1,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "GIRALMET",
+        "brandName": "SIEGFRIED",
+        "ingredients": [
+          {
+            "name": "VITAMINA D3",
+            "quantity": 2000,
+            "unit": "UI"
+          },
+          {
+            "name": "MAGNESIO",
+            "quantity": 50,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "HIDROFEROL",
+        "brandName": "FAES FARMA",
+        "ingredients": [
+          {
+            "name": "VITAMINA D3",
+            "quantity": 5320,
+            "unit": "UI"
+          }
+        ],
+        "totalContent": 3,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  }
+]

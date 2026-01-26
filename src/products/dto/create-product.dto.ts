@@ -9,6 +9,7 @@ import {
   IsArray,
   ValidateNested,
   ArrayMinSize,
+  ValidateIf,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Types } from 'mongoose';
@@ -18,9 +19,10 @@ export class ProductIngredientInputDto {
   @IsMongoId()
   ingredientId: string;
 
+  @ValidateIf((o) => o.quantity !== null)
   @IsNumber()
   @Min(0.0001)
-  quantity: number;
+  quantity: number | null;
 }
 
 export class CreateProductDto {
@@ -45,13 +47,17 @@ export class CreateProductDto {
   @IsEnum([
     'cucharadas',
     'cápsulas',
-    'tableta',
-    'softGel',
+    'tabletas',
+    'softgel',
     'gotas',
     'sobre',
     'vial',
     'mililitro',
     'push',
+    'dosis',
+    'ampollas',
+    'gomas',
+    'sticks',
   ])
   presentation: string;
 

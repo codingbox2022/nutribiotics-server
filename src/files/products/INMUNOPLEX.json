@@ -1,0 +1,58 @@
+[
+  {
+    "name": "INMUNOPLEX",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "PROTEÍNAS",
+        "quantity": 314
+      },
+      {
+        "name": "LÍPIDOS",
+        "quantity": 52.8
+      },
+      {
+        "name": "VITAMINA D3",
+        "quantity": 1950
+      },
+      {
+        "name": "ZINC",
+        "quantity": 15.39
+      }
+    ],
+    "totalContent": 90,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "Engystol",
+        "brandName": "HEEL",
+        "ingredients": [],
+        "totalContent": 50,
+        "presentation": "tabletas",
+        "portion": 3
+      },
+      {
+        "name": "DfsMix",
+        "brandName": "SAVVY",
+        "ingredients": [
+          {
+            "name": "PROTEÍNAS",
+            "quantity": 700
+          },
+          {
+            "name": "VITAMINA D3",
+            "quantity": 9.5
+          },
+          {
+            "name": "VITAMINA C",
+            "quantity": 53
+          }
+        ],
+        "totalContent": 1,
+        "presentation": "sobre",
+        "portion": 1
+      }
+    ]
+  }
+]

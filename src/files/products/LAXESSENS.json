@@ -1,0 +1,114 @@
+[
+  {
+    "name": "LAXESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "EXTRACTO CORTEZA CÁSCARA SAGRADA",
+        "quantity": 50,
+        "unit": "MG"
+      },
+      {
+        "name": "POLVO SEMILLAS ISPÁGULA",
+        "quantity": 150,
+        "unit": "MG"
+      },
+      {
+        "name": "POLVO RAÍZ RUIBARBO",
+        "quantity": 30,
+        "unit": "MG"
+      },
+      {
+        "name": "POLVO HOJAS SEN",
+        "quantity": 60,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "cápsulas",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "DIGESTAR",
+        "brandName": "NATURAL FRESHLY",
+        "ingredients": [
+          {
+            "name": "EXTRACTO CORTEZA CÁSCARA SAGRADA",
+            "quantity": 150,
+            "unit": "MG"
+          },
+          {
+            "name": "POLVO HOJAS SEN",
+            "quantity": 50,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 50,
+        "presentation": "cápsulas",
+        "portion": 2
+      },
+      {
+        "name": "BIOLAX",
+        "brandName": "LAFRANCOL",
+        "ingredients": [
+          {
+            "name": "PSYLLIUM HUSK",
+            "quantity": 70,
+            "unit": "G"
+          }
+        ],
+        "totalContent": 12,
+        "presentation": "sobre",
+        "portion": 1
+      },
+      {
+        "name": "LAXA FORT FORTE",
+        "brandName": "NATURAL FRESHLY",
+        "ingredients": [
+          {
+            "name": "EXTRACTO CORTEZA CÁSCARA SAGRADA",
+            "quantity": 150,
+            "unit": "MG"
+          },
+          {
+            "name": "POLVO HOJAS SEN",
+            "quantity": 50,
+            "unit": "MG"
+          },
+          {
+            "name": "PSYLLIUM HUSK",
+            "quantity": 100,
+            "unit": "G"
+          }
+        ],
+        "totalContent": 50,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "PURVEG",
+        "brandName": "FUNAT",
+        "ingredients": [
+          {
+            "name": "EXTRACTO CORTEZA CÁSCARA SAGRADA",
+            "quantity": 150,
+            "unit": "MG"
+          },
+          {
+            "name": "POLVO RAÍZ RUIBARBO",
+            "quantity": 120,
+            "unit": "MG"
+          },
+          {
+            "name": "POLVO HOJAS SEN",
+            "quantity": 130,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 8,
+        "presentation": "cápsulas",
+        "portion": 2
+      }
+    ]
+  }
+]

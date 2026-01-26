@@ -1,0 +1,100 @@
+[
+  {
+    "name": "OMEGAESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "FOSFOLÍPIDOS",
+        "quantity": 1260
+      },
+      {
+        "name": "OMEGA-3",
+        "quantity": 900
+      },
+      {
+        "name": "EPA",
+        "quantity": 450
+      },
+      {
+        "name": "DHA",
+        "quantity": 270
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 6,
+    "comparables": [
+      {
+        "name": "FISH OIL OMEGA-3",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "FOSFOLÍPIDOS",
+            "quantity": 3600
+          },
+          {
+            "name": "EPA",
+            "quantity": 648
+          },
+          {
+            "name": "DHA",
+            "quantity": 432
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "softgel",
+        "portion": 3
+      },
+      {
+        "name": "RED KRILL",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "FOSFOLÍPIDOS",
+            "quantity": 400
+          },
+          {
+            "name": "OMEGA-3",
+            "quantity": 550
+          },
+          {
+            "name": "EPA",
+            "quantity": 300
+          },
+          {
+            "name": "DHA",
+            "quantity": 250
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "softgel",
+        "portion": 1
+      },
+      {
+        "name": "OMEGA 3 FISH OIL",
+        "brandName": "SOLGAR",
+        "ingredients": [
+          {
+            "name": "FOSFOLÍPIDOS",
+            "quantity": 2000
+          },
+          {
+            "name": "OMEGA-3",
+            "quantity": 600
+          },
+          {
+            "name": "EPA",
+            "quantity": 320
+          },
+          {
+            "name": "DHA",
+            "quantity": 200
+          }
+        ],
+        "totalContent": 120,
+        "presentation": "softgel",
+        "portion": 2
+      }
+    ]
+  }
+]

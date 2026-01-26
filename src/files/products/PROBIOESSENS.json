@@ -1,0 +1,72 @@
+[
+  {
+    "name": "PROBIOESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "LACTOBACILLUS CASEI",
+        "quantity": 15.75
+      },
+      {
+        "name": "LACTOBACILLUS RHAMNOSUS",
+        "quantity": 13.5
+      },
+      {
+        "name": "LACTOBACILLUS HELVETICUS",
+        "quantity": 13.5
+      },
+      {
+        "name": "BIFIDOBACTERIUM ANIMALIS",
+        "quantity": 2.5
+      },
+      {
+        "name": "CEPAS VIVAS",
+        "quantity": "10^9"
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "sobre",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "PLUCBIOTIC",
+        "brandName": "ZACPHARMA",
+        "ingredients": [
+          {
+            "name": "CEPAS VIVAS",
+            "quantity": "10^10"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "sobre",
+        "portion": 1
+      },
+      {
+        "name": "MULTIFLORA PLUS",
+        "brandName": "MEGALABS",
+        "ingredients": [
+          {
+            "name": "CEPAS VIVAS",
+            "quantity": "10^8"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "ENTEROGERMINA",
+        "brandName": "OPELLA HEALTHCARE COLOMBIA",
+        "ingredients": [
+          {
+            "name": "CEPAS VIVAS",
+            "quantity": "20 MILLONES"
+          }
+        ],
+        "totalContent": 10,
+        "presentation": "vial",
+        "portion": 1
+      }
+    ]
+  }
+]

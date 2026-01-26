@@ -1,4 +1,4 @@
-export const DEFAULT_MARKETPLACE_NAME = 'Nutribiotics Store';
+export const DEFAULT_MARKETPLACE_NAME = 'Nutrabiotics Store';
 
 export const isDefaultMarketplaceName = (name?: string | null): boolean => {
   if (!name) {

@@ -1,85 +1,386 @@
 [
-  { "name": "Calorías", "measurementUnit": "kcal" },
-  { "name": "Boro", "measurementUnit": "mcg" },
-  { "name": "Cromo", "measurementUnit": "mg" },
-  { "name": "Magnesio", "measurementUnit": "mg" },
-  { "name": "Fósforo", "measurementUnit": "mg" },
-  { "name": "Potasio", "measurementUnit": "mg" },
-  { "name": "Molibdeno", "measurementUnit": "mcg" },
-  { "name": "Hierro", "measurementUnit": "mg" },
-  { "name": "Selenio", "measurementUnit": "mcg" },
-  { "name": "Manganeso", "measurementUnit": "mg" },
-  { "name": "Yodo", "measurementUnit": "mcg" },
-  { "name": "Zinc", "measurementUnit": "mg" },
-  { "name": "Vanadio", "measurementUnit": "mcg" },
-  { "name": "Cobre", "measurementUnit": "mg" },
-  { "name": "L-Carnitina", "measurementUnit": "mg" },
-  { "name": "L-glutamina", "measurementUnit": "mg" },
-  { "name": "Vitamina A", "measurementUnit": "UI" },
-  { "name": "Aloe Vera", "measurementUnit": "mg" },
-  { "name": "Regaliz", "measurementUnit": "mg" },
-  { "name": "Sodio", "measurementUnit": "mg" },
-  { "name": "glicina", "measurementUnit": "mg" },
-  { "name": "L-Lisina", "measurementUnit": "mg" },
-  { "name": "Vitamina D3", "measurementUnit": "UI" },
-  { "name": "Vitamina C", "measurementUnit": "mg" },
-  { "name": "Biotina", "measurementUnit": "mcg" },
-  { "name": "Proteínas", "measurementUnit": "mg" },
-  { "name": "Lípidos", "measurementUnit": "mg" },
-  { "name": "Ácido Tióctico", "measurementUnit": "mg" },
-  { "name": "Azul de Metileno", "measurementUnit": "mg" },
-  { "name": "Vitamina K2", "measurementUnit": "mcg" },
-  { "name": "Coenzima Q10", "measurementUnit": "mg" },
-  { "name": "Vitamina B1", "measurementUnit": "mg" },
-  { "name": "Vitamina B2", "measurementUnit": "mg" },
-  { "name": "Riboflavina", "measurementUnit": "mg" },
-  { "name": "Niacina", "measurementUnit": "mg" },
-  { "name": "Cisteína", "measurementUnit": "mg" },
-  { "name": "Ácido glutámico", "measurementUnit": "mg" },
-  { "name": "Schisandra", "measurementUnit": "mg" },
-  { "name": "Raíz Maral", "measurementUnit": "mg" },
-  { "name": "Ashwagandha", "measurementUnit": "mg" },
-  { "name": "Eleuthero", "measurementUnit": "mg" },
-  { "name": "Cannabidiol", "measurementUnit": "mg" },
-  { "name": "Ácido Alfa Lipoico", "measurementUnit": "mg" },
-  { "name": "Fosfolípidos", "measurementUnit": "mg" },
-  { "name": "Omega-3", "measurementUnit": "mg" },
-  { "name": "EPA", "measurementUnit": "mg" },
-  { "name": "DHA", "measurementUnit": "mg" },
-  { "name": "Lactobacillus Casei", "measurementUnit": "UFC" },
-  { "name": "Lactobacillus Rhamnosus", "measurementUnit": "UFC" },
-  { "name": "Lactobacillus Helveticus", "measurementUnit": "UFC" },
-  { "name": "Bifidobacterium Animalis", "measurementUnit": "UFC" },
-  { "name": "Cepas Vivas", "measurementUnit": "UFC" },
-  { "name": "Polvo Raíz Cúrcuma", "measurementUnit": "mg" },
-  { "name": "Quercetina", "measurementUnit": "mg" },
-  { "name": "Vitamina B3", "measurementUnit": "mg" },
-  { "name": "Ácido Butírico", "measurementUnit": "mg" },
-  { "name": "Vitamina B12", "measurementUnit": "mcg" },
-  { "name": "Bergamota", "measurementUnit": "mg" },
-  { "name": "L-Leucina", "measurementUnit": "mg" },
-  { "name": "Tocoferoles", "measurementUnit": "mg" },
-  { "name": "Folato", "measurementUnit": "mcg" },
-  { "name": "Fumarato Ferroso", "measurementUnit": "mg" },
-  { "name": "Ácido Fólico", "measurementUnit": "mcg" },
-  { "name": "Ácido Ascórbico", "measurementUnit": "mg" },
-  { "name": "Extracto Corteza Cáscara Sagrada", "measurementUnit": "mg" },
-  { "name": "Polvo Semillas Ispágula", "measurementUnit": "mg" },
-  { "name": "Polvo Raíz Ruibarbo", "measurementUnit": "mg" },
-  { "name": "Polvo Hojas Sen", "measurementUnit": "mg" },
-  { "name": "Psyllium Husk", "measurementUnit": "g" },
-  { "name": "L-Bitartrato de Colina", "measurementUnit": "mg" },
-  { "name": "D-Pantotenato de Calcio", "measurementUnit": "mg" },
-  { "name": "Extracto Harpagophytum", "measurementUnit": "mg" },
-  { "name": "Harpagósido", "measurementUnit": "mg" },
-  { "name": "Betacaroteno", "measurementUnit": "UI" },
-  { "name": "Vitamina B6", "measurementUnit": "mg" },
-  { "name": "Vitamina E", "measurementUnit": "UI" },
-  { "name": "L-Tirosina", "measurementUnit": "mg" },
-  { "name": "Carbohidratos", "measurementUnit": "mg" },
-  { "name": "D-Ribosa", "measurementUnit": "mg" },
-  { "name": "Creatina", "measurementUnit": "g" },
-  { "name": "Nicotinamida", "measurementUnit": "mg" },
-  { "name": "Betaína", "measurementUnit": "mg" },
-  { "name": "Pepsina", "measurementUnit": "mg" }
+  {
+    "name": "CALORÍAS",
+    "measurementUnit": "kcal"
+  },
+  {
+    "name": "BORO",
+    "measurementUnit": "mcg"
+  },
+  {
+    "name": "CROMO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "MAGNESIO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "FÓSFORO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "POTASIO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "MOLIBDENO",
+    "measurementUnit": "mcg"
+  },
+  {
+    "name": "HIERRO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "SELENIO",
+    "measurementUnit": "mcg"
+  },
+  {
+    "name": "MANGANESO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "YODO",
+    "measurementUnit": "mcg"
+  },
+  {
+    "name": "ZINC",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "VANADIO",
+    "measurementUnit": "mcg"
+  },
+  {
+    "name": "COBRE",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "L-CARNITINA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "L-GLUTAMINA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "VITAMINA A",
+    "measurementUnit": "UI"
+  },
+  {
+    "name": "ALOE VERA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "REGALIZ",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "SODIO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "GLICINA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "L-LISINA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "VITAMINA D3",
+    "measurementUnit": "UI"
+  },
+  {
+    "name": "VITAMINA C",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "BIOTINA",
+    "measurementUnit": "mcg"
+  },
+  {
+    "name": "PROTEÍNAS",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "LÍPIDOS",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "ÁCIDO TIÓCTICO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "AZUL DE METILENO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "VITAMINA K2",
+    "measurementUnit": "mcg"
+  },
+  {
+    "name": "COENZIMA Q10",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "VITAMINA B1",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "VITAMINA B2",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "RIBOFLAVINA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "NIACINA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "CISTEÍNA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "ÁCIDO GLUTÁMICO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "SCHISANDRA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "RAÍZ MARAL",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "ASHWAGANDHA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "ELEUTHERO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "CANNABIDIOL",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "ÁCIDO ALFA LIPOICO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "FOSFOLÍPIDOS",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "OMEGA-3",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "EPA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "DHA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "LACTOBACILLUS CASEI",
+    "measurementUnit": "UFC"
+  },
+  {
+    "name": "LACTOBACILLUS RHAMNOSUS",
+    "measurementUnit": "UFC"
+  },
+  {
+    "name": "LACTOBACILLUS HELVETICUS",
+    "measurementUnit": "UFC"
+  },
+  {
+    "name": "BIFIDOBACTERIUM ANIMALIS",
+    "measurementUnit": "UFC"
+  },
+  {
+    "name": "CEPAS VIVAS",
+    "measurementUnit": "UFC"
+  },
+  {
+    "name": "POLVO RAÍZ CÚRCUMA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "QUERCETINA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "VITAMINA B3",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "ÁCIDO BUTÍRICO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "VITAMINA B12",
+    "measurementUnit": "mcg"
+  },
+  {
+    "name": "BERGAMOTA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "L-LEUCINA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "TOCOFEROLES",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "FOLATO",
+    "measurementUnit": "mcg"
+  },
+  {
+    "name": "FUMARATO FERROSO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "ÁCIDO FÓLICO",
+    "measurementUnit": "mcg"
+  },
+  {
+    "name": "ÁCIDO ASCÓRBICO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "EXTRACTO CORTEZA CÁSCARA SAGRADA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "POLVO SEMILLAS ISPÁGULA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "POLVO RAÍZ RUIBARBO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "POLVO HOJAS SEN",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "PSYLLIUM HUSK",
+    "measurementUnit": "g"
+  },
+  {
+    "name": "L-BITARTRATO DE COLINA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "D-PANTOTENATO DE CALCIO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "EXTRACTO HARPAGOPHYTUM",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "HARPAGÓSIDO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "BETACAROTENO",
+    "measurementUnit": "UI"
+  },
+  {
+    "name": "VITAMINA B6",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "VITAMINA E",
+    "measurementUnit": "UI"
+  },
+  {
+    "name": "L-TIROSINA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "CARBOHIDRATOS",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "D-RIBOSA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "CREATINA",
+    "measurementUnit": "g"
+  },
+  {
+    "name": "NICOTINAMIDA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "BETAÍNA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "PEPSINA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "COLINA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "PROPÓLEO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "ACEITES ESENCIALES DE JENGIBRE",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "EXTRACTO DE CANELA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "MENTA PIPERITA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "CAJEPUT",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "MELISSA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "OREGANO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "TOMILLO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "ARBOL DE TÉ",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "CANELA",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "EUCALIPTO",
+    "measurementUnit": "mg"
+  },
+  {
+    "name": "JENGIBRE",
+    "measurementUnit": "mg"
+  }
 ]

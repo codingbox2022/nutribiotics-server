@@ -1,0 +1,107 @@
+[
+  {
+    "name": "MYOESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "MAGNESIO",
+        "quantity": 344
+      },
+      {
+        "name": "POTASIO",
+        "quantity": 394
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "MAGX3",
+        "brandName": "NUTRIVITA",
+        "ingredients": [
+          {
+            "name": "MAGNESIO",
+            "quantity": 400
+          }
+        ],
+        "totalContent": 90,
+        "presentation": "cápsulas",
+        "portion": 2
+      },
+      {
+        "name": "Super magnesium",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "MAGNESIO",
+            "quantity": 400
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 2
+      },
+      {
+        "name": "MAGHAN",
+        "brandName": "NUTRAHAN",
+        "ingredients": [
+          {
+            "name": "MAGNESIO",
+            "quantity": 240
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "gomas",
+        "portion": 3
+      },
+      {
+        "name": "NUTRAMAG",
+        "brandName": "NUTRA",
+        "ingredients": [
+          {
+            "name": "MAGNESIO",
+            "quantity": 400
+          }
+        ],
+        "totalContent": 90,
+        "presentation": "softgel",
+        "portion": 2
+      },
+      {
+        "name": "GREAT DAY",
+        "brandName": "SAVVY",
+        "ingredients": [
+          {
+            "name": "MAGNESIO",
+            "quantity": 300
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "sobre",
+        "portion": 1
+      },
+      {
+        "name": "RECHARGE",
+        "brandName": "SAVVY",
+        "ingredients": [
+          {
+            "name": "MAGNESIO",
+            "quantity": 70
+          },
+          {
+            "name": "POTASIO",
+            "quantity": 200
+          },
+          {
+            "name": "SODIO",
+            "quantity": 700
+          }
+        ],
+        "totalContent": 20,
+        "presentation": "sticks",
+        "portion": 1
+      }
+    ]
+  }
+]

@@ -1,0 +1,82 @@
+[
+  {
+    "name": "NEURESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "VITAMINA B12",
+        "quantity": 1950
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cucharadas",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "METHYLCOBALAMIN B12",
+        "brandName": "NUTRIVITA",
+        "ingredients": [
+          {
+            "name": "VITAMINA B12",
+            "quantity": 2000
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "cucharadas",
+        "portion": 1
+      },
+      {
+        "name": "LIQUID B-12",
+        "brandName": "SOLGAR",
+        "ingredients": [
+          {
+            "name": "VITAMINA B12",
+            "quantity": 2000
+          }
+        ],
+        "totalContent": 59,
+        "presentation": "gotas",
+        "portion": 1
+      },
+      {
+        "name": "NEUROBION",
+        "brandName": "PROCTER & GAMBLE COLOMBIA",
+        "ingredients": [
+          {
+            "name": "VITAMINA B12",
+            "quantity": 1000
+          }
+        ],
+        "totalContent": 3,
+        "presentation": "ampollas",
+        "portion": 1
+      },
+      {
+        "name": "BEDOYECTA TRI",
+        "brandName": "HUMAX PHARMACEUTICAL SA",
+        "ingredients": [
+          {
+            "name": "VITAMINA B12",
+            "quantity": 5000
+          }
+        ],
+        "totalContent": 3,
+        "presentation": "ampollas",
+        "portion": 1
+      },
+      {
+        "name": "VITAMINA B12",
+        "brandName": "ECAR",
+        "ingredients": [
+          {
+            "name": "VITAMINA B12",
+            "quantity": 1000
+          }
+        ],
+        "totalContent": 1,
+        "presentation": "ampollas",
+        "portion": 1
+      }
+    ]
+  }
+]

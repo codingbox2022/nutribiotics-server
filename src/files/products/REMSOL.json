@@ -1,0 +1,43 @@
+[
+  {
+    "name": "REMSOL",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "CANNABIDIOL",
+        "quantity": 100
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "mililitro",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "NEVIOT",
+        "brandName": "DESCONOCIDO",
+        "ingredients": [
+          {
+            "name": "CANNABIDIOL",
+            "quantity": 100
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "mililitro",
+        "portion": 1
+      },
+      {
+        "name": "CANNEPI",
+        "brandName": "DESCONOCIDO",
+        "ingredients": [
+          {
+            "name": "CANNABIDIOL",
+            "quantity": 100
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "mililitro",
+        "portion": 1
+      }
+    ]
+  }
+]

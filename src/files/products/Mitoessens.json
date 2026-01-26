@@ -1,0 +1,51 @@
+[
+  {
+    "name": "Mitoessens",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "D-RIBOSA",
+        "quantity": 1980,
+        "unit": "MG"
+      },
+      {
+        "name": "NICOTINAMIDA",
+        "quantity": 20,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 100,
+    "presentation": "cucharadas",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "D-Ribosa",
+        "brandName": "NUTRICOST",
+        "ingredients": [
+          {
+            "name": "D-RIBOSA",
+            "quantity": 5000,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "cucharadas",
+        "portion": 1
+      },
+      {
+        "name": "D-Ribosa",
+        "brandName": "CARLYLE",
+        "ingredients": [
+          {
+            "name": "D-RIBOSA",
+            "quantity": 3200,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 180,
+        "presentation": "cápsulas",
+        "portion": 4
+      }
+    ]
+  }
+]

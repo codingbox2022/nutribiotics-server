@@ -751,14 +751,14 @@ export class PricesService {
       .lean()
       .exec();
 
-    let mainMarketplaceName = 'Nutribiotics Store';
+    let mainMarketplaceName = 'Nutrabiotics Store';
     if (mainPrice?.marketplaceId) {
       const marketplace = await this.marketplaceModel
         .findById(mainPrice.marketplaceId)
         .select('name')
         .lean()
         .exec();
-      mainMarketplaceName = marketplace?.name || 'Nutribiotics Store';
+      mainMarketplaceName = marketplace?.name || 'Nutrabiotics Store';
     }
 
     // Get all ingredients to fetch units (with projection for only needed fields)

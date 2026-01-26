@@ -1,0 +1,75 @@
+[
+  {
+    "name": "COLESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "BERGAMOTA",
+        "quantity": 330,
+        "unit": "MG"
+      },
+      {
+        "name": "MAGNESIO",
+        "quantity": 85,
+        "unit": "MG"
+      },
+      {
+        "name": "L-LEUCINA",
+        "quantity": 70,
+        "unit": "MG"
+      },
+      {
+        "name": "TOCOFEROLES",
+        "quantity": 50,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "CITRUS BERGAMOT",
+        "brandName": "DESCONOCIDO",
+        "ingredients": [
+          {
+            "name": "BERGAMOTA",
+            "quantity": 600,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 150,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "CITRUS BERGAMOT",
+        "brandName": "NUTRICOL",
+        "ingredients": [
+          {
+            "name": "BERGAMOTA",
+            "quantity": 1200,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 120,
+        "presentation": "cápsulas",
+        "portion": 2
+      },
+      {
+        "name": "BERGAMOT",
+        "brandName": "SOLARAY",
+        "ingredients": [
+          {
+            "name": "BERGAMOTA",
+            "quantity": 500,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 2
+      }
+    ]
+  }
+]

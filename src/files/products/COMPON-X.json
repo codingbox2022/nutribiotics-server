@@ -1,0 +1,69 @@
+[
+  {
+    "name": "COMPON-X",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "L-CARNITINA",
+        "quantity": 1200
+      }
+    ],
+    "totalContent": 180,
+    "presentation": "cápsulas",
+    "portion": 4,
+    "comparables": [
+      {
+        "name": "L-CARNITINE",
+        "brandName": "HEALTHY SPORTS",
+        "ingredients": [
+          {
+            "name": "L-CARNITINA",
+            "quantity": 1000
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "L-CARNITINE",
+        "brandName": "HEALTHY SPORTS",
+        "ingredients": [
+          {
+            "name": "L-CARNITINA",
+            "quantity": 11
+          }
+        ],
+        "totalContent": 20,
+        "presentation": "vial",
+        "portion": 1
+      },
+      {
+        "name": "LECARNIN",
+        "brandName": "LIMINAL",
+        "ingredients": [
+          {
+            "name": "L-CARNITINA",
+            "quantity": 120
+          }
+        ],
+        "totalContent": 0,
+        "presentation": "",
+        "portion": 0
+      },
+      {
+        "name": "BELLY CUTS",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "L-CARNITINA",
+            "quantity": 0
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "softgel",
+        "portion": 2
+      }
+    ]
+  }
+]

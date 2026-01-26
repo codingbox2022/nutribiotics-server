@@ -1,0 +1,119 @@
+[
+  {
+    "name": "GASTROESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "BETAÍNA",
+        "quantity": 780,
+        "unit": "NO INF."
+      },
+      {
+        "name": "PEPSINA",
+        "quantity": 240,
+        "unit": "NO INF."
+      },
+      {
+        "name": "ZINC",
+        "quantity": 15,
+        "unit": "NO INF."
+      },
+      {
+        "name": "VITAMINA C",
+        "quantity": 12,
+        "unit": "NO INF."
+      }
+    ],
+    "totalContent": 90,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "BETAPETZINC",
+        "brandName": "NUTRIVITA",
+        "ingredients": [
+          {
+            "name": "BETAÍNA",
+            "quantity": 450,
+            "unit": "NO INF."
+          },
+          {
+            "name": "PEPSINA",
+            "quantity": 100,
+            "unit": "NO INF."
+          },
+          {
+            "name": "ZINC",
+            "quantity": 8,
+            "unit": "NO INF."
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "PEPTIDROL",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "BETAÍNA",
+            "quantity": 450,
+            "unit": "NO INF."
+          },
+          {
+            "name": "PEPSINA",
+            "quantity": 100,
+            "unit": "NO INF."
+          },
+          {
+            "name": "ZINC",
+            "quantity": 8,
+            "unit": "NO INF."
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "BETAINE HCL + PEPSIN",
+        "brandName": "NUTRICOST",
+        "ingredients": [
+          {
+            "name": "BETAÍNA",
+            "quantity": 650,
+            "unit": "NO INF."
+          },
+          {
+            "name": "PEPSINA",
+            "quantity": 140,
+            "unit": "NO INF."
+          }
+        ],
+        "totalContent": 240,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "BETAINE",
+        "brandName": "SOLGAR",
+        "ingredients": [
+          {
+            "name": "BETAÍNA",
+            "quantity": 325,
+            "unit": "NO INF."
+          },
+          {
+            "name": "PEPSINA",
+            "quantity": 59,
+            "unit": "NO INF."
+          }
+        ],
+        "totalContent": 240,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  }
+]

@@ -1,0 +1,85 @@
+[
+  {
+    "name": "QUINTESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "COENZIMA Q10",
+        "quantity": 200
+      },
+      {
+        "name": "VITAMINA B1",
+        "quantity": 15
+      },
+      {
+        "name": "VITAMINA B2",
+        "quantity": 18
+      },
+      {
+        "name": "VITAMINA C",
+        "quantity": 60
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "C-ZYME Q10",
+        "brandName": "NUTRIVITA",
+        "ingredients": [
+          {
+            "name": "COENZIMA Q10",
+            "quantity": 200
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "softgel",
+        "portion": 1
+      },
+      {
+        "name": "CO Q-10",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "COENZIMA Q10",
+            "quantity": 200
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "softgel",
+        "portion": 1
+      },
+      {
+        "name": "COENZYME Q-10 WITH VITAMIN C",
+        "brandName": "NATURAL SYSTEMS",
+        "ingredients": [
+          {
+            "name": "COENZIMA Q10",
+            "quantity": 200
+          },
+          {
+            "name": "VITAMINA C",
+            "quantity": 40
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "softgel",
+        "portion": 1
+      },
+      {
+        "name": "COQ10",
+        "brandName": "NOW",
+        "ingredients": [
+          {
+            "name": "COENZIMA Q10",
+            "quantity": 200
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  }
+]

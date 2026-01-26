@@ -1,0 +1,38 @@
+[
+  {
+    "name": "BUTIREX",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "ÁCIDO BUTÍRICO",
+        "quantity": 1185.64
+      },
+      {
+        "name": "MAGNESIO",
+        "quantity": 111.5
+      },
+      {
+        "name": "VITAMINA A",
+        "quantity": 1000
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "SODIUM BUTYRATE",
+        "brandName": "BODYBIO",
+        "ingredients": [
+          {
+            "name": "ÁCIDO BUTÍRICO",
+            "quantity": 1200
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "cápsulas",
+        "portion": 2
+      }
+    ]
+  }
+]

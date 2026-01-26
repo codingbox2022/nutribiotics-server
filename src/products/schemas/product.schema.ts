@@ -6,13 +6,17 @@ export type ProductDocument = HydratedDocument<Product>;
 export enum PresentationType {
   cucharadas = 'cucharadas',
   capsulas = 'cápsulas',
-  tableta = 'tableta',
-  softGel = 'softGel',
+  tabletas = 'tabletas',
+  softgel = 'softgel',
   gotas = 'gotas',
-  sobre  = 'sobre',
+  sobre = 'sobre',
   vial = 'vial',
   mililitro = 'mililitro',
   push = 'push',
+  dosis = 'dosis',
+  ampollas = 'ampollas',
+  gomas = 'gomas',
+  sticks = 'sticks',
 }
 
 @Schema({ _id: false })
@@ -20,8 +24,8 @@ export class ProductIngredient {
   @Prop({ type: Types.ObjectId, ref: 'Ingredient', required: true })
   ingredient: Types.ObjectId;
 
-  @Prop({ type: Number, required: true })
-  quantity: number;
+  @Prop({ type: Number, default: null })
+  quantity: number | null;
 }
 
 export const ProductIngredientSchema = SchemaFactory.createForClass(ProductIngredient);

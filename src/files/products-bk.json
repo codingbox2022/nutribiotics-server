@@ -1,0 +1,35 @@
+[
+  {
+    "name": "MULTIESSENS VITAMINAS",
+    "brandName": "NUTRIBIOTICS",
+    "ingredients": [
+      { "name": "Vitamina A", "quantity": 4500 },
+      { "name": "Betacaroteno", "quantity": 4.5 },
+      { "name": "Vitamina B1", "quantity": 30 },
+      { "name": "Vitamina B2", "quantity": 30 },
+      { "name": "Niacina", "quantity": 34.5 },
+      { "name": "Vitamina B6", "quantity": 15 },
+      { "name": "Vitamina D3", "quantity": 1500 }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "MULTIVIT",
+        "brandName": "PROCAPS",
+        "ingredients": [
+          { "name": "Vitamina B2", "quantity": 5 },
+          { "name": "Vitamina A", "quantity": 1000 },
+          { "name": "Betacaroteno", "quantity": 0 },
+          { "name": "Vitamina B1", "quantity": 5 },
+          { "name": "Niacina", "quantity": 6 },
+          { "name": "Vitamina D3", "quantity": 1250 }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  }
+]

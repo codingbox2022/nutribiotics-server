@@ -1,0 +1,61 @@
+[
+  {
+    "name": "ENTEROPLEX",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "L-GLUTAMINA",
+        "quantity": 5000,
+        "unit": "MG"
+      },
+      {
+        "name": "VITAMINA A",
+        "quantity": 6000,
+        "unit": "UI"
+      },
+      {
+        "name": "ALOE VERA",
+        "quantity": 200,
+        "unit": "MG"
+      },
+      {
+        "name": "REGALIZ",
+        "quantity": 780,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cucharadas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "L-GLUTAMINE",
+        "brandName": "SOLGAR",
+        "ingredients": [
+          {
+            "name": "L-GLUTAMINA",
+            "quantity": 500,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 50,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "L-GLUTAMINE",
+        "brandName": "HEALTHY SPORTS",
+        "ingredients": [
+          {
+            "name": "L-GLUTAMINA",
+            "quantity": 6000,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "cucharadas",
+        "portion": 2
+      }
+    ]
+  }
+]

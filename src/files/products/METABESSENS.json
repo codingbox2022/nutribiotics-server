@@ -1,0 +1,155 @@
+[
+  {
+    "name": "METABESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "VITAMINA A",
+        "quantity": 6,
+        "unit": "UI"
+      },
+      {
+        "name": "BETACAROTENO",
+        "quantity": 3.84,
+        "unit": "UI"
+      },
+      {
+        "name": "VITAMINA B2",
+        "quantity": 30,
+        "unit": "MG"
+      },
+      {
+        "name": "NIACINA",
+        "quantity": 34.5,
+        "unit": "MG"
+      },
+      {
+        "name": "VITAMINA B6",
+        "quantity": 30,
+        "unit": "MG"
+      },
+      {
+        "name": "VITAMINA B12",
+        "quantity": 240,
+        "unit": "MCG"
+      },
+      {
+        "name": "VITAMINA C",
+        "quantity": 225,
+        "unit": "MG"
+      },
+      {
+        "name": "VITAMINA E",
+        "quantity": 150,
+        "unit": "UI"
+      },
+      {
+        "name": "COBRE",
+        "quantity": 6,
+        "unit": "MG"
+      },
+      {
+        "name": "HIERRO",
+        "quantity": 9.96,
+        "unit": "MG"
+      },
+      {
+        "name": "POTASIO",
+        "quantity": 155.37,
+        "unit": "MG"
+      },
+      {
+        "name": "SELENIO",
+        "quantity": 390,
+        "unit": "MCG"
+      },
+      {
+        "name": "YODO",
+        "quantity": 1092,
+        "unit": "MCG"
+      },
+      {
+        "name": "ZINC",
+        "quantity": 15.39,
+        "unit": "MG"
+      },
+      {
+        "name": "L-TIROSINA",
+        "quantity": 1500,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "DYROID",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "VITAMINA A",
+            "quantity": 2500,
+            "unit": "UI"
+          },
+          {
+            "name": "VITAMINA B6",
+            "quantity": 15,
+            "unit": "MG"
+          },
+          {
+            "name": "VITAMINA C",
+            "quantity": 30,
+            "unit": "MG"
+          },
+          {
+            "name": "SELENIO",
+            "quantity": 100,
+            "unit": "MCG"
+          },
+          {
+            "name": "ZINC",
+            "quantity": 10,
+            "unit": "MG"
+          },
+          {
+            "name": "L-TIROSINA",
+            "quantity": 500,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 2
+      },
+      {
+        "name": "L-TYROSINE",
+        "brandName": "SOLGAR",
+        "ingredients": [
+          {
+            "name": "L-TIROSINA",
+            "quantity": 500,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 50,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "L-TYROSINE",
+        "brandName": "PRIMAFORCE",
+        "ingredients": [
+          {
+            "name": "L-TIROSINA",
+            "quantity": 500,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 180,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  }
+]

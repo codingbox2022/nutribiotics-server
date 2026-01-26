@@ -1,0 +1,48 @@
+[
+  {
+    "name": "V-CIDE",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "CAJEPUT",
+        "quantity": null
+      },
+      {
+        "name": "MELISSA",
+        "quantity": null
+      },
+      {
+        "name": "OREGANO",
+        "quantity": null
+      },
+      {
+        "name": "TOMILLO",
+        "quantity": null
+      },
+      {
+        "name": "ARBOL DE TÉ",
+        "quantity": null
+      },
+      {
+        "name": "CANELA",
+        "quantity": null
+      },
+      {
+        "name": "MENTA PIPERITA",
+        "quantity": null
+      },
+      {
+        "name": "EUCALIPTO",
+        "quantity": null
+      },
+      {
+        "name": "JENGIBRE",
+        "quantity": null
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "push",
+    "portion": 1,
+    "comparables": []
+  }
+]

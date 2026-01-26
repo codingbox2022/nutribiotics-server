@@ -1,0 +1,54 @@
+[
+  {
+    "name": "PANCREOGEN",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "VITAMINA D3",
+        "quantity": 1950
+      },
+      {
+        "name": "CROMO",
+        "quantity": 585.3
+      },
+      {
+        "name": "VITAMINA C",
+        "quantity": 12.75
+      },
+      {
+        "name": "BIOTINA",
+        "quantity": 600
+      },
+      {
+        "name": "PROTEÍNAS",
+        "quantity": 634
+      },
+      {
+        "name": "LÍPIDOS",
+        "quantity": 178
+      }
+    ],
+    "totalContent": 90,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "GLUCOVITA",
+        "brandName": "NUTRIVITA",
+        "ingredients": [
+          {
+            "name": "CROMO",
+            "quantity": 400
+          },
+          {
+            "name": "ÁCIDO TIÓCTICO",
+            "quantity": 600
+          }
+        ],
+        "totalContent": 90,
+        "presentation": "softgel",
+        "portion": 2
+      }
+    ]
+  }
+]

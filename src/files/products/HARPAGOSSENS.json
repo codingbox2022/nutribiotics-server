@@ -1,0 +1,103 @@
+[
+  {
+    "name": "HARPAGOSSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "EXTRACTO HARPAGOPHYTUM",
+        "quantity": 250,
+        "unit": "MG"
+      },
+      {
+        "name": "HARPAGÓSIDO",
+        "quantity": 30,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "cápsulas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "TRANALGEX",
+        "brandName": "ADEXA PHARMA SAS",
+        "ingredients": [
+          {
+            "name": "EXTRACTO HARPAGOPHYTUM",
+            "quantity": 480,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "DYPHLAMIN",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "EXTRACTO HARPAGOPHYTUM",
+            "quantity": 480,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "softgel",
+        "portion": 1
+      },
+      {
+        "name": "COX-AR",
+        "brandName": "HERSSEN",
+        "ingredients": [
+          {
+            "name": "EXTRACTO HARPAGOPHYTUM",
+            "quantity": 480,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "ARTRIFIT",
+        "brandName": "FITO MEDIC'S",
+        "ingredients": [
+          {
+            "name": "EXTRACTO HARPAGOPHYTUM",
+            "quantity": 480,
+            "unit": "MG"
+          },
+          {
+            "name": "HARPAGÓSIDO",
+            "quantity": 14.4,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "ARTRITEND",
+        "brandName": "FUNAT",
+        "ingredients": [
+          {
+            "name": "EXTRACTO HARPAGOPHYTUM",
+            "quantity": 480,
+            "unit": "MG"
+          },
+          {
+            "name": "HARPAGÓSIDO",
+            "quantity": 5.76,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  }
+]

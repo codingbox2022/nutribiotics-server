@@ -1,0 +1,28 @@
+[
+  {
+    "name": "S-CIDE",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "PROPÓLEO",
+        "quantity": null
+      },
+      {
+        "name": "ACEITES ESENCIALES DE JENGIBRE",
+        "quantity": null
+      },
+      {
+        "name": "EXTRACTO DE CANELA",
+        "quantity": null
+      },
+      {
+        "name": "MENTA PIPERITA",
+        "quantity": null
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "push",
+    "portion": 1,
+    "comparables": []
+  }
+]

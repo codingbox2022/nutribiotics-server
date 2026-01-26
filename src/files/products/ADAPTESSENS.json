@@ -1,0 +1,88 @@
+[
+  {
+    "name": "ADAPTESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "SCHISANDRA",
+        "quantity": 170
+      },
+      {
+        "name": "RAÍZ MARAL",
+        "quantity": 135
+      },
+      {
+        "name": "ASHWAGANDHA",
+        "quantity": 83
+      },
+      {
+        "name": "ELEUTHERO",
+        "quantity": 65
+      }
+    ],
+    "totalContent": 90,
+    "presentation": "cápsulas",
+    "portion": 6,
+    "comparables": [
+      {
+        "name": "RECESS",
+        "brandName": "HERSSEN",
+        "ingredients": [
+          {
+            "name": "SCHISANDRA",
+            "quantity": 150
+          },
+          {
+            "name": "ASHWAGANDHA",
+            "quantity": 250
+          },
+          {
+            "name": "ELEUTHERO",
+            "quantity": 150
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "ADAPTOGENIC HERBAL COMPLEX",
+        "brandName": "SWANSON",
+        "ingredients": [
+          {
+            "name": "SCHISANDRA",
+            "quantity": 75
+          },
+          {
+            "name": "ASHWAGANDHA",
+            "quantity": 7.5
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "ADAPTOGEN COMPLEX",
+        "brandName": "THE SYNERGY COMPANY",
+        "ingredients": [
+          {
+            "name": "SCHISANDRA",
+            "quantity": 50
+          },
+          {
+            "name": "ASHWAGANDHA",
+            "quantity": 250
+          },
+          {
+            "name": "ELEUTHERO",
+            "quantity": 50
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  }
+]

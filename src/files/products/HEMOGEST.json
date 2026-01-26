@@ -1,0 +1,128 @@
+[
+  {
+    "name": "HEMOGEST",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "HIERRO",
+        "quantity": 40,
+        "unit": "MG"
+      },
+      {
+        "name": "FOLATO",
+        "quantity": 800,
+        "unit": "MCG"
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "ANEMIDOX",
+        "brandName": "PROCTER & GAMBLE COLOMBIA",
+        "ingredients": [
+          {
+            "name": "FUMARATO FERROSO",
+            "quantity": 369.13,
+            "unit": "MG"
+          },
+          {
+            "name": "ÁCIDO FÓLICO",
+            "quantity": 18.33,
+            "unit": "MG"
+          },
+          {
+            "name": "ÁCIDO ASCÓRBICO",
+            "quantity": 124.58,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "FERRIMED PLUS",
+        "brandName": "NOVAMED",
+        "ingredients": [
+          {
+            "name": "HIERRO",
+            "quantity": 109,
+            "unit": "MG"
+          },
+          {
+            "name": "FUMARATO FERROSO",
+            "quantity": 330,
+            "unit": "MG"
+          },
+          {
+            "name": "ÁCIDO FÓLICO",
+            "quantity": 2,
+            "unit": "MG"
+          },
+          {
+            "name": "ÁCIDO ASCÓRBICO",
+            "quantity": 100,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "HERREX",
+        "brandName": "FARMA COLOMBIA",
+        "ingredients": [
+          {
+            "name": "HIERRO",
+            "quantity": 100,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "tabletas",
+        "portion": 1
+      },
+      {
+        "name": "HERREX",
+        "brandName": "FARMA COLOMBIA",
+        "ingredients": [
+          {
+            "name": "HIERRO",
+            "quantity": 60,
+            "unit": "MG"
+          },
+          {
+            "name": "ÁCIDO FÓLICO",
+            "quantity": 0.4,
+            "unit": "MG"
+          },
+          {
+            "name": "ÁCIDO ASCÓRBICO",
+            "quantity": 70,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "tabletas",
+        "portion": 1
+      },
+      {
+        "name": "HEMOCYTON",
+        "brandName": "TECNOQUIMICAS",
+        "ingredients": [
+          {
+            "name": "HIERRO",
+            "quantity": 195,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 340,
+        "presentation": "mililitro",
+        "portion": 100
+      }
+    ]
+  }
+]

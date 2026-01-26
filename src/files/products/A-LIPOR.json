@@ -1,0 +1,43 @@
+[
+  {
+    "name": "A-LIPOR",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "ÁCIDO ALFA LIPOICO",
+        "quantity": 600
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "tabletas",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "LIPOTIC",
+        "brandName": "DIABETRICS",
+        "ingredients": [
+          {
+            "name": "ÁCIDO TIÓCTICO",
+            "quantity": 600
+          }
+        ],
+        "totalContent": 90,
+        "presentation": "tabletas",
+        "portion": 1
+      },
+      {
+        "name": "THIOCTACID",
+        "brandName": "MERCK",
+        "ingredients": [
+          {
+            "name": "ÁCIDO TIÓCTICO",
+            "quantity": 600
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "tabletas",
+        "portion": 1
+      }
+    ]
+  }
+]

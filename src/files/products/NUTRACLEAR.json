@@ -1,0 +1,37 @@
+[
+  {
+    "name": "NUTRACLEAR",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "L-GLUTAMINA",
+        "quantity": 500
+      },
+      {
+        "name": "VITAMINA A",
+        "quantity": 2000
+      },
+      {
+        "name": "GLICINA",
+        "quantity": 1650
+      },
+      {
+        "name": "L-LISINA",
+        "quantity": 500
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "cucharadas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "D-PURE AM",
+        "brandName": "NUTRIVITA",
+        "ingredients": [],
+        "totalContent": 30,
+        "presentation": "tabletas",
+        "portion": 1
+      }
+    ]
+  }
+]

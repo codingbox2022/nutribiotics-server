@@ -1,5 +1,5 @@
 [
-  { "name": "NUTRIBIOTICS" },
+  { "name": "NUTRABIOTICS" },
   { "name": "1ST PHARMACEUTICALS" },
   { "name": "2ND SPRINGS" },
   { "name": "ADEXA PHARMA SAS" },
@@ -53,5 +53,8 @@
   { "name": "SWANSON" },
   { "name": "TECNOFARMA" },
   { "name": "TECNOQUIMICAS" },
-  { "name": "ZACPHARMA" }
+  { "name": "THE SYNERGY COMPANY" },
+  { "name": "NUTRICOL" },
+  { "name": "ZACPHARMA" },
+  { "name": "DESCONOCIDO" }
 ]

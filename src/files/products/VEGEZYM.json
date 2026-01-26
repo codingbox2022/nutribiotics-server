@@ -1,0 +1,54 @@
+[
+  {
+    "name": "VEGEZYM",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "MAGNESIO",
+        "quantity": 60
+      },
+      {
+        "name": "VITAMINA B3",
+        "quantity": 9
+      },
+      {
+        "name": "ZINC",
+        "quantity": 3.3
+      },
+      {
+        "name": "BORO",
+        "quantity": 3
+      },
+      {
+        "name": "SELENIO",
+        "quantity": 63
+      }
+    ],
+    "totalContent": 90,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "DIGEZIMES",
+        "brandName": "NUTRIVITA",
+        "ingredients": [],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "PANCREATIN 4X",
+        "brandName": "SWANSON",
+        "ingredients": [
+          {
+            "name": "SELENIO",
+            "quantity": 750
+          }
+        ],
+        "totalContent": 300,
+        "presentation": "cápsulas",
+        "portion": 2
+      }
+    ]
+  }
+]

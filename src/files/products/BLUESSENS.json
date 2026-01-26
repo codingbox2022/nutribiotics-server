@@ -1,0 +1,43 @@
+[
+  {
+    "name": "BLUESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "AZUL DE METILENO",
+        "quantity": 100
+      }
+    ],
+    "totalContent": 5,
+    "presentation": "vial",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "AZUL DE METILENO",
+        "brandName": "DORFARMA",
+        "ingredients": [
+          {
+            "name": "AZUL DE METILENO",
+            "quantity": 10
+          }
+        ],
+        "totalContent": 20,
+        "presentation": "mililitro",
+        "portion": 1
+      },
+      {
+        "name": "METHYLENE BLUE",
+        "brandName": "DESCONOCIDO",
+        "ingredients": [
+          {
+            "name": "AZUL DE METILENO",
+            "quantity": 10
+          }
+        ],
+        "totalContent": 10,
+        "presentation": "dosis",
+        "portion": 1
+      }
+    ]
+  }
+]

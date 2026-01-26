@@ -1,34 +1,2284 @@
 [
   {
-    "name": "MULTIESSENS VITAMINAS",
-    "brandName": "NUTRIBIOTICS",
+    "name": "A-LIPOR",
+    "brandName": "NUTRABIOTICS",
     "ingredients": [
-      { "name": "Vitamina A", "quantity": 4500 },
-      { "name": "Betacaroteno", "quantity": 4.5 },
-      { "name": "Vitamina B1", "quantity": 30 },
-      { "name": "Vitamina B2", "quantity": 30 },
-      { "name": "Niacina", "quantity": 34.5 },
-      { "name": "Vitamina B6", "quantity": 15 },
-      { "name": "Vitamina D3", "quantity": 1500 }
+      {
+        "name": "ÁCIDO ALFA LIPOICO",
+        "quantity": 600
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "tabletas",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "LIPOTIC",
+        "brandName": "DIABETRICS",
+        "ingredients": [
+          {
+            "name": "ÁCIDO TIÓCTICO",
+            "quantity": 600
+          }
+        ],
+        "totalContent": 90,
+        "presentation": "tabletas",
+        "portion": 1
+      },
+      {
+        "name": "THIOCTACID",
+        "brandName": "MERCK",
+        "ingredients": [
+          {
+            "name": "ÁCIDO TIÓCTICO",
+            "quantity": 600
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "tabletas",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "ADAPTESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "SCHISANDRA",
+        "quantity": 170
+      },
+      {
+        "name": "RAÍZ MARAL",
+        "quantity": 135
+      },
+      {
+        "name": "ASHWAGANDHA",
+        "quantity": 83
+      },
+      {
+        "name": "ELEUTHERO",
+        "quantity": 65
+      }
+    ],
+    "totalContent": 90,
+    "presentation": "cápsulas",
+    "portion": 6,
+    "comparables": [
+      {
+        "name": "RECESS",
+        "brandName": "HERSSEN",
+        "ingredients": [
+          {
+            "name": "SCHISANDRA",
+            "quantity": 150
+          },
+          {
+            "name": "ASHWAGANDHA",
+            "quantity": 250
+          },
+          {
+            "name": "ELEUTHERO",
+            "quantity": 150
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "ADAPTOGENIC HERBAL COMPLEX",
+        "brandName": "SWANSON",
+        "ingredients": [
+          {
+            "name": "SCHISANDRA",
+            "quantity": 75
+          },
+          {
+            "name": "ASHWAGANDHA",
+            "quantity": 7.5
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "ADAPTOGEN COMPLEX",
+        "brandName": "THE SYNERGY COMPANY",
+        "ingredients": [
+          {
+            "name": "SCHISANDRA",
+            "quantity": 50
+          },
+          {
+            "name": "ASHWAGANDHA",
+            "quantity": 250
+          },
+          {
+            "name": "ELEUTHERO",
+            "quantity": 50
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "BLUESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "AZUL DE METILENO",
+        "quantity": 100
+      }
+    ],
+    "totalContent": 5,
+    "presentation": "vial",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "AZUL DE METILENO",
+        "brandName": "DORFARMA",
+        "ingredients": [
+          {
+            "name": "AZUL DE METILENO",
+            "quantity": 10
+          }
+        ],
+        "totalContent": 20,
+        "presentation": "mililitro",
+        "portion": 1
+      },
+      {
+        "name": "METHYLENE BLUE",
+        "brandName": "DESCONOCIDO",
+        "ingredients": [
+          {
+            "name": "AZUL DE METILENO",
+            "quantity": 10
+          }
+        ],
+        "totalContent": 10,
+        "presentation": "dosis",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "BUTIREX",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "ÁCIDO BUTÍRICO",
+        "quantity": 1185.64
+      },
+      {
+        "name": "MAGNESIO",
+        "quantity": 111.5
+      },
+      {
+        "name": "VITAMINA A",
+        "quantity": 1000
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "SODIUM BUTYRATE",
+        "brandName": "BODYBIO",
+        "ingredients": [
+          {
+            "name": "ÁCIDO BUTÍRICO",
+            "quantity": 1200
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "cápsulas",
+        "portion": 2
+      }
+    ]
+  },
+  {
+    "name": "CALMESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "L-BITARTRATO DE COLINA",
+        "quantity": 400,
+        "unit": "MG"
+      },
+      {
+        "name": "D-PANTOTENATO DE CALCIO",
+        "quantity": 140,
+        "unit": "MG"
+      }
     ],
     "totalContent": 60,
     "presentation": "cápsulas",
     "portion": 3,
     "comparables": [
       {
-        "name": "MULTIVIT",
-        "brandName": "PROCAPS",
+        "name": "RENEW",
+        "brandName": "SAVVY",
         "ingredients": [
-          { "name": "Vitamina B2", "quantity": 5 },
-          { "name": "Vitamina A", "quantity": 1000 },
-          { "name": "Betacaroteno", "quantity": 0 },
-          { "name": "Vitamina B1", "quantity": 5 },
-          { "name": "Niacina", "quantity": 6 },
-          { "name": "Vitamina D3", "quantity": 1250 }
+          {
+            "name": "COLINA",
+            "quantity": "NO REPORTA",
+            "unit": "MG"
+          },
+          {
+            "name": "D-PANTOTENATO DE CALCIO",
+            "quantity": "NO REPORTA",
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "sobre",
+        "portion": 1
+      },
+      {
+        "name": "CHOLINE Y INOSITOL",
+        "brandName": "NOW",
+        "ingredients": [
+          {
+            "name": "COLINA",
+            "quantity": 250,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "CHOLINE",
+        "brandName": "NESTED",
+        "ingredients": [
+          {
+            "name": "COLINA",
+            "quantity": 500,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 90,
+        "presentation": "cápsulas",
+        "portion": 2
+      },
+      {
+        "name": "CHOLINE BITARTRATE",
+        "brandName": "PIPING ROCK",
+        "ingredients": [
+          {
+            "name": "COLINA",
+            "quantity": 205,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 180,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "CHOLINE Y INOSITOL",
+        "brandName": "NATURE'S WAY",
+        "ingredients": [
+          {
+            "name": "COLINA",
+            "quantity": 500,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "cápsulas",
+        "portion": 2
+      }
+    ]
+  },
+  {
+    "name": "COLESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "BERGAMOTA",
+        "quantity": 330,
+        "unit": "MG"
+      },
+      {
+        "name": "MAGNESIO",
+        "quantity": 85,
+        "unit": "MG"
+      },
+      {
+        "name": "L-LEUCINA",
+        "quantity": 70,
+        "unit": "MG"
+      },
+      {
+        "name": "TOCOFEROLES",
+        "quantity": 50,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "CITRUS BERGAMOT",
+        "brandName": "DESCONOCIDO",
+        "ingredients": [
+          {
+            "name": "BERGAMOTA",
+            "quantity": 600,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 150,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "CITRUS BERGAMOT",
+        "brandName": "NUTRICOL",
+        "ingredients": [
+          {
+            "name": "BERGAMOTA",
+            "quantity": 1200,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 120,
+        "presentation": "cápsulas",
+        "portion": 2
+      },
+      {
+        "name": "BERGAMOT",
+        "brandName": "SOLARAY",
+        "ingredients": [
+          {
+            "name": "BERGAMOTA",
+            "quantity": 500,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 2
+      }
+    ]
+  },
+  {
+    "name": "COMPON-X",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "L-CARNITINA",
+        "quantity": 1200
+      }
+    ],
+    "totalContent": 180,
+    "presentation": "cápsulas",
+    "portion": 4,
+    "comparables": [
+      {
+        "name": "L-CARNITINE",
+        "brandName": "HEALTHY SPORTS",
+        "ingredients": [
+          {
+            "name": "L-CARNITINA",
+            "quantity": 1000
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "L-CARNITINE",
+        "brandName": "HEALTHY SPORTS",
+        "ingredients": [
+          {
+            "name": "L-CARNITINA",
+            "quantity": 11
+          }
+        ],
+        "totalContent": 20,
+        "presentation": "vial",
+        "portion": 1
+      },
+      {
+        "name": "LECARNIN",
+        "brandName": "LIMINAL",
+        "ingredients": [
+          {
+            "name": "L-CARNITINA",
+            "quantity": 120
+          }
+        ],
+        "totalContent": 0,
+        "presentation": "",
+        "portion": 0
+      },
+      {
+        "name": "BELLY CUTS",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "L-CARNITINA",
+            "quantity": 0
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "softgel",
+        "portion": 2
+      }
+    ]
+  },
+  {
+    "name": "CORAESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "CALORÍAS",
+        "quantity": 2,
+        "unit": "KCAL"
+      },
+      {
+        "name": "PROTEÍNAS",
+        "quantity": 138.6,
+        "unit": "MG"
+      },
+      {
+        "name": "LÍPIDOS",
+        "quantity": 72.6,
+        "unit": "MG"
+      },
+      {
+        "name": "CARBOHIDRATOS",
+        "quantity": 3.3,
+        "unit": "MG"
+      },
+      {
+        "name": "FOLATO",
+        "quantity": 900,
+        "unit": "MCG"
+      },
+      {
+        "name": "VITAMINA B6",
+        "quantity": 75,
+        "unit": "MG"
+      },
+      {
+        "name": "VITAMINA B12",
+        "quantity": 1.95,
+        "unit": "MCG"
+      },
+      {
+        "name": "VITAMINA C",
+        "quantity": 12.75,
+        "unit": "MG"
+      },
+      {
+        "name": "MAGNESIO",
+        "quantity": 332.56,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 90,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "B-100 ADVANCED",
+        "brandName": "NUTRIVITA",
+        "ingredients": [
+          {
+            "name": "VITAMINA B6",
+            "quantity": 100,
+            "unit": "MG"
+          },
+          {
+            "name": "VITAMINA B12",
+            "quantity": 100,
+            "unit": "MCG"
+          }
+        ],
+        "totalContent": 50,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "B-100 COMPLEX",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "VITAMINA B6",
+            "quantity": 100,
+            "unit": "MG"
+          },
+          {
+            "name": "VITAMINA B12",
+            "quantity": 100,
+            "unit": "MCG"
+          }
+        ],
+        "totalContent": 50,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "SUPER B-COMPLEX",
+        "brandName": "NATURE'S BOUNTY",
+        "ingredients": [
+          {
+            "name": "FOLATO",
+            "quantity": "NO INF.",
+            "unit": "MCG"
+          },
+          {
+            "name": "VITAMINA B6",
+            "quantity": 5,
+            "unit": "MG"
+          },
+          {
+            "name": "VITAMINA B12",
+            "quantity": 100,
+            "unit": "MCG"
+          },
+          {
+            "name": "VITAMINA C",
+            "quantity": 60,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 150,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "BALANCE B-50 COMPLEX",
+        "brandName": "SWANSON",
+        "ingredients": [
+          {
+            "name": "VITAMINA B6",
+            "quantity": 50,
+            "unit": "MG"
+          },
+          {
+            "name": "VITAMINA B12",
+            "quantity": 50,
+            "unit": "MCG"
+          }
+        ],
+        "totalContent": 250,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "CURCETIN",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "POLVO RAÍZ CÚRCUMA",
+        "quantity": 600
+      },
+      {
+        "name": "QUERCETINA",
+        "quantity": 495
+      },
+      {
+        "name": "VITAMINA C",
+        "quantity": 60
+      },
+      {
+        "name": "MAGNESIO",
+        "quantity": 43.5
+      }
+    ],
+    "totalContent": 90,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "CURCUMAX (TABLETAS)",
+        "brandName": "NUTRAHAN",
+        "ingredients": [
+          {
+            "name": "POLVO RAÍZ CÚRCUMA",
+            "quantity": 240
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "tabletas",
+        "portion": 2
+      },
+      {
+        "name": "CURCUMAX (POLVO)",
+        "brandName": "NUTRAHAN",
+        "ingredients": [
+          {
+            "name": "POLVO RAÍZ CÚRCUMA",
+            "quantity": 240
+          }
+        ],
+        "totalContent": 11,
+        "presentation": "cucharadas",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "DK-MULSIÓN",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "VITAMINA D3",
+        "quantity": 2000,
+        "unit": "UI"
+      },
+      {
+        "name": "VITAMINA K2",
+        "quantity": 50,
+        "unit": "MCG"
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "gotas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "OSTIK-2",
+        "brandName": "NUTRIVITA",
+        "ingredients": [
+          {
+            "name": "VITAMINA D3",
+            "quantity": 2000,
+            "unit": "UI"
+          },
+          {
+            "name": "VITAMINA K2",
+            "quantity": 110,
+            "unit": "MCG"
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "D3-K2",
+        "brandName": "SEEKING HEALTH",
+        "ingredients": [
+          {
+            "name": "VITAMINA D3",
+            "quantity": 1800,
+            "unit": "UI"
+          },
+          {
+            "name": "VITAMINA K2",
+            "quantity": 50,
+            "unit": "MCG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "gotas",
+        "portion": 2
+      },
+      {
+        "name": "VITAMINA D3 5000 UI",
+        "brandName": "FARMA D",
+        "ingredients": [
+          {
+            "name": "VITAMINA D3",
+            "quantity": 5000,
+            "unit": "UI"
+          }
         ],
         "totalContent": 30,
         "presentation": "cápsulas",
         "portion": 1
+      },
+      {
+        "name": "DEFEROL + K",
+        "brandName": "PROCAPS",
+        "ingredients": [
+          {
+            "name": "VITAMINA D3",
+            "quantity": 2000,
+            "unit": "UI"
+          },
+          {
+            "name": "VITAMINA K2",
+            "quantity": 150,
+            "unit": "MCG"
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "DEBLAX",
+        "brandName": "TECNOFARMA",
+        "ingredients": [
+          {
+            "name": "VITAMINA D3",
+            "quantity": 1000000,
+            "unit": "UI"
+          }
+        ],
+        "totalContent": 1,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "GIRALMET",
+        "brandName": "SIEGFRIED",
+        "ingredients": [
+          {
+            "name": "VITAMINA D3",
+            "quantity": 2000,
+            "unit": "UI"
+          },
+          {
+            "name": "MAGNESIO",
+            "quantity": 50,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "HIDROFEROL",
+        "brandName": "FAES FARMA",
+        "ingredients": [
+          {
+            "name": "VITAMINA D3",
+            "quantity": 5320,
+            "unit": "UI"
+          }
+        ],
+        "totalContent": 3,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "ENTEROPLEX",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "L-GLUTAMINA",
+        "quantity": 5000,
+        "unit": "MG"
+      },
+      {
+        "name": "VITAMINA A",
+        "quantity": 6000,
+        "unit": "UI"
+      },
+      {
+        "name": "ALOE VERA",
+        "quantity": 200,
+        "unit": "MG"
+      },
+      {
+        "name": "REGALIZ",
+        "quantity": 780,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cucharadas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "L-GLUTAMINE",
+        "brandName": "SOLGAR",
+        "ingredients": [
+          {
+            "name": "L-GLUTAMINA",
+            "quantity": 500,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 50,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "L-GLUTAMINE",
+        "brandName": "HEALTHY SPORTS",
+        "ingredients": [
+          {
+            "name": "L-GLUTAMINA",
+            "quantity": 6000,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "cucharadas",
+        "portion": 2
+      }
+    ]
+  },
+  {
+    "name": "GASTROESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "BETAÍNA",
+        "quantity": 780,
+        "unit": "NO INF."
+      },
+      {
+        "name": "PEPSINA",
+        "quantity": 240,
+        "unit": "NO INF."
+      },
+      {
+        "name": "ZINC",
+        "quantity": 15,
+        "unit": "NO INF."
+      },
+      {
+        "name": "VITAMINA C",
+        "quantity": 12,
+        "unit": "NO INF."
+      }
+    ],
+    "totalContent": 90,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "BETAPETZINC",
+        "brandName": "NUTRIVITA",
+        "ingredients": [
+          {
+            "name": "BETAÍNA",
+            "quantity": 450,
+            "unit": "NO INF."
+          },
+          {
+            "name": "PEPSINA",
+            "quantity": 100,
+            "unit": "NO INF."
+          },
+          {
+            "name": "ZINC",
+            "quantity": 8,
+            "unit": "NO INF."
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "PEPTIDROL",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "BETAÍNA",
+            "quantity": 450,
+            "unit": "NO INF."
+          },
+          {
+            "name": "PEPSINA",
+            "quantity": 100,
+            "unit": "NO INF."
+          },
+          {
+            "name": "ZINC",
+            "quantity": 8,
+            "unit": "NO INF."
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "BETAINE HCL + PEPSIN",
+        "brandName": "NUTRICOST",
+        "ingredients": [
+          {
+            "name": "BETAÍNA",
+            "quantity": 650,
+            "unit": "NO INF."
+          },
+          {
+            "name": "PEPSINA",
+            "quantity": 140,
+            "unit": "NO INF."
+          }
+        ],
+        "totalContent": 240,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "BETAINE",
+        "brandName": "SOLGAR",
+        "ingredients": [
+          {
+            "name": "BETAÍNA",
+            "quantity": 325,
+            "unit": "NO INF."
+          },
+          {
+            "name": "PEPSINA",
+            "quantity": 59,
+            "unit": "NO INF."
+          }
+        ],
+        "totalContent": 240,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "GLUTACEON",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "RIBOFLAVINA",
+        "quantity": 40
+      },
+      {
+        "name": "NIACINA",
+        "quantity": 35
+      },
+      {
+        "name": "CISTEÍNA",
+        "quantity": 68.4
+      },
+      {
+        "name": "GLICINA",
+        "quantity": 43
+      },
+      {
+        "name": "ÁCIDO GLUTÁMICO",
+        "quantity": 84.2
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "L-Glutathione",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "CISTEÍNA",
+            "quantity": 100
+          },
+          {
+            "name": "L-GLUTAMINA",
+            "quantity": 500
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "HARPAGOSSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "EXTRACTO HARPAGOPHYTUM",
+        "quantity": 250,
+        "unit": "MG"
+      },
+      {
+        "name": "HARPAGÓSIDO",
+        "quantity": 30,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "cápsulas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "TRANALGEX",
+        "brandName": "ADEXA PHARMA SAS",
+        "ingredients": [
+          {
+            "name": "EXTRACTO HARPAGOPHYTUM",
+            "quantity": 480,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "DYPHLAMIN",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "EXTRACTO HARPAGOPHYTUM",
+            "quantity": 480,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "softgel",
+        "portion": 1
+      },
+      {
+        "name": "COX-AR",
+        "brandName": "HERSSEN",
+        "ingredients": [
+          {
+            "name": "EXTRACTO HARPAGOPHYTUM",
+            "quantity": 480,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "ARTRIFIT",
+        "brandName": "FITO MEDIC'S",
+        "ingredients": [
+          {
+            "name": "EXTRACTO HARPAGOPHYTUM",
+            "quantity": 480,
+            "unit": "MG"
+          },
+          {
+            "name": "HARPAGÓSIDO",
+            "quantity": 14.4,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "ARTRITEND",
+        "brandName": "FUNAT",
+        "ingredients": [
+          {
+            "name": "EXTRACTO HARPAGOPHYTUM",
+            "quantity": 480,
+            "unit": "MG"
+          },
+          {
+            "name": "HARPAGÓSIDO",
+            "quantity": 5.76,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "HEMOGEST",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "HIERRO",
+        "quantity": 40,
+        "unit": "MG"
+      },
+      {
+        "name": "FOLATO",
+        "quantity": 800,
+        "unit": "MCG"
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "ANEMIDOX",
+        "brandName": "PROCTER & GAMBLE COLOMBIA",
+        "ingredients": [
+          {
+            "name": "FUMARATO FERROSO",
+            "quantity": 369.13,
+            "unit": "MG"
+          },
+          {
+            "name": "ÁCIDO FÓLICO",
+            "quantity": 18.33,
+            "unit": "MG"
+          },
+          {
+            "name": "ÁCIDO ASCÓRBICO",
+            "quantity": 124.58,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "FERRIMED PLUS",
+        "brandName": "NOVAMED",
+        "ingredients": [
+          {
+            "name": "HIERRO",
+            "quantity": 109,
+            "unit": "MG"
+          },
+          {
+            "name": "FUMARATO FERROSO",
+            "quantity": 330,
+            "unit": "MG"
+          },
+          {
+            "name": "ÁCIDO FÓLICO",
+            "quantity": 2,
+            "unit": "MG"
+          },
+          {
+            "name": "ÁCIDO ASCÓRBICO",
+            "quantity": 100,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "HERREX",
+        "brandName": "FARMA COLOMBIA",
+        "ingredients": [
+          {
+            "name": "HIERRO",
+            "quantity": 100,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "tabletas",
+        "portion": 1
+      },
+      {
+        "name": "HERREX",
+        "brandName": "FARMA COLOMBIA",
+        "ingredients": [
+          {
+            "name": "HIERRO",
+            "quantity": 60,
+            "unit": "MG"
+          },
+          {
+            "name": "ÁCIDO FÓLICO",
+            "quantity": 0.4,
+            "unit": "MG"
+          },
+          {
+            "name": "ÁCIDO ASCÓRBICO",
+            "quantity": 70,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "tabletas",
+        "portion": 1
+      },
+      {
+        "name": "HEMOCYTON",
+        "brandName": "TECNOQUIMICAS",
+        "ingredients": [
+          {
+            "name": "HIERRO",
+            "quantity": 195,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 340,
+        "presentation": "mililitro",
+        "portion": 100
+      }
+    ]
+  },
+  {
+    "name": "INMUNOPLEX",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "PROTEÍNAS",
+        "quantity": 314
+      },
+      {
+        "name": "LÍPIDOS",
+        "quantity": 52.8
+      },
+      {
+        "name": "VITAMINA D3",
+        "quantity": 1950
+      },
+      {
+        "name": "ZINC",
+        "quantity": 15.39
+      }
+    ],
+    "totalContent": 90,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "Engystol",
+        "brandName": "HEEL",
+        "ingredients": [],
+        "totalContent": 50,
+        "presentation": "tabletas",
+        "portion": 3
+      },
+      {
+        "name": "DfsMix",
+        "brandName": "SAVVY",
+        "ingredients": [
+          {
+            "name": "PROTEÍNAS",
+            "quantity": 700
+          },
+          {
+            "name": "VITAMINA D3",
+            "quantity": 9.5
+          },
+          {
+            "name": "VITAMINA C",
+            "quantity": 53
+          }
+        ],
+        "totalContent": 1,
+        "presentation": "sobre",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "LAXESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "EXTRACTO CORTEZA CÁSCARA SAGRADA",
+        "quantity": 50,
+        "unit": "MG"
+      },
+      {
+        "name": "POLVO SEMILLAS ISPÁGULA",
+        "quantity": 150,
+        "unit": "MG"
+      },
+      {
+        "name": "POLVO RAÍZ RUIBARBO",
+        "quantity": 30,
+        "unit": "MG"
+      },
+      {
+        "name": "POLVO HOJAS SEN",
+        "quantity": 60,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "cápsulas",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "DIGESTAR",
+        "brandName": "NATURAL FRESHLY",
+        "ingredients": [
+          {
+            "name": "EXTRACTO CORTEZA CÁSCARA SAGRADA",
+            "quantity": 150,
+            "unit": "MG"
+          },
+          {
+            "name": "POLVO HOJAS SEN",
+            "quantity": 50,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 50,
+        "presentation": "cápsulas",
+        "portion": 2
+      },
+      {
+        "name": "BIOLAX",
+        "brandName": "LAFRANCOL",
+        "ingredients": [
+          {
+            "name": "PSYLLIUM HUSK",
+            "quantity": 70,
+            "unit": "G"
+          }
+        ],
+        "totalContent": 12,
+        "presentation": "sobre",
+        "portion": 1
+      },
+      {
+        "name": "LAXA FORT FORTE",
+        "brandName": "NATURAL FRESHLY",
+        "ingredients": [
+          {
+            "name": "EXTRACTO CORTEZA CÁSCARA SAGRADA",
+            "quantity": 150,
+            "unit": "MG"
+          },
+          {
+            "name": "POLVO HOJAS SEN",
+            "quantity": 50,
+            "unit": "MG"
+          },
+          {
+            "name": "PSYLLIUM HUSK",
+            "quantity": 100,
+            "unit": "G"
+          }
+        ],
+        "totalContent": 50,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "PURVEG",
+        "brandName": "FUNAT",
+        "ingredients": [
+          {
+            "name": "EXTRACTO CORTEZA CÁSCARA SAGRADA",
+            "quantity": 150,
+            "unit": "MG"
+          },
+          {
+            "name": "POLVO RAÍZ RUIBARBO",
+            "quantity": 120,
+            "unit": "MG"
+          },
+          {
+            "name": "POLVO HOJAS SEN",
+            "quantity": 130,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 8,
+        "presentation": "cápsulas",
+        "portion": 2
+      }
+    ]
+  },
+  {
+    "name": "METABESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "VITAMINA A",
+        "quantity": 6,
+        "unit": "UI"
+      },
+      {
+        "name": "BETACAROTENO",
+        "quantity": 3.84,
+        "unit": "UI"
+      },
+      {
+        "name": "VITAMINA B2",
+        "quantity": 30,
+        "unit": "MG"
+      },
+      {
+        "name": "NIACINA",
+        "quantity": 34.5,
+        "unit": "MG"
+      },
+      {
+        "name": "VITAMINA B6",
+        "quantity": 30,
+        "unit": "MG"
+      },
+      {
+        "name": "VITAMINA B12",
+        "quantity": 240,
+        "unit": "MCG"
+      },
+      {
+        "name": "VITAMINA C",
+        "quantity": 225,
+        "unit": "MG"
+      },
+      {
+        "name": "VITAMINA E",
+        "quantity": 150,
+        "unit": "UI"
+      },
+      {
+        "name": "COBRE",
+        "quantity": 6,
+        "unit": "MG"
+      },
+      {
+        "name": "HIERRO",
+        "quantity": 9.96,
+        "unit": "MG"
+      },
+      {
+        "name": "POTASIO",
+        "quantity": 155.37,
+        "unit": "MG"
+      },
+      {
+        "name": "SELENIO",
+        "quantity": 390,
+        "unit": "MCG"
+      },
+      {
+        "name": "YODO",
+        "quantity": 1092,
+        "unit": "MCG"
+      },
+      {
+        "name": "ZINC",
+        "quantity": 15.39,
+        "unit": "MG"
+      },
+      {
+        "name": "L-TIROSINA",
+        "quantity": 1500,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "DYROID",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "VITAMINA A",
+            "quantity": 2500,
+            "unit": "UI"
+          },
+          {
+            "name": "VITAMINA B6",
+            "quantity": 15,
+            "unit": "MG"
+          },
+          {
+            "name": "VITAMINA C",
+            "quantity": 30,
+            "unit": "MG"
+          },
+          {
+            "name": "SELENIO",
+            "quantity": 100,
+            "unit": "MCG"
+          },
+          {
+            "name": "ZINC",
+            "quantity": 10,
+            "unit": "MG"
+          },
+          {
+            "name": "L-TIROSINA",
+            "quantity": 500,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 2
+      },
+      {
+        "name": "L-TYROSINE",
+        "brandName": "SOLGAR",
+        "ingredients": [
+          {
+            "name": "L-TIROSINA",
+            "quantity": 500,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 50,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "L-TYROSINE",
+        "brandName": "PRIMAFORCE",
+        "ingredients": [
+          {
+            "name": "L-TIROSINA",
+            "quantity": 500,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 180,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "MYOESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "MAGNESIO",
+        "quantity": 344
+      },
+      {
+        "name": "POTASIO",
+        "quantity": 394
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "MAGX3",
+        "brandName": "NUTRIVITA",
+        "ingredients": [
+          {
+            "name": "MAGNESIO",
+            "quantity": 400
+          }
+        ],
+        "totalContent": 90,
+        "presentation": "cápsulas",
+        "portion": 2
+      },
+      {
+        "name": "Super magnesium",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "MAGNESIO",
+            "quantity": 400
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 2
+      },
+      {
+        "name": "MAGHAN",
+        "brandName": "NUTRAHAN",
+        "ingredients": [
+          {
+            "name": "MAGNESIO",
+            "quantity": 240
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "gomas",
+        "portion": 3
+      },
+      {
+        "name": "NUTRAMAG",
+        "brandName": "NUTRA",
+        "ingredients": [
+          {
+            "name": "MAGNESIO",
+            "quantity": 400
+          }
+        ],
+        "totalContent": 90,
+        "presentation": "softgel",
+        "portion": 2
+      },
+      {
+        "name": "GREAT DAY",
+        "brandName": "SAVVY",
+        "ingredients": [
+          {
+            "name": "MAGNESIO",
+            "quantity": 300
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "sobre",
+        "portion": 1
+      },
+      {
+        "name": "RECHARGE",
+        "brandName": "SAVVY",
+        "ingredients": [
+          {
+            "name": "MAGNESIO",
+            "quantity": 70
+          },
+          {
+            "name": "POTASIO",
+            "quantity": 200
+          },
+          {
+            "name": "SODIO",
+            "quantity": 700
+          }
+        ],
+        "totalContent": 20,
+        "presentation": "sticks",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "Mitoessens",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "D-RIBOSA",
+        "quantity": 1980,
+        "unit": "MG"
+      },
+      {
+        "name": "NICOTINAMIDA",
+        "quantity": 20,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 100,
+    "presentation": "cucharadas",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "D-Ribosa",
+        "brandName": "NUTRICOST",
+        "ingredients": [
+          {
+            "name": "D-RIBOSA",
+            "quantity": 5000,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "cucharadas",
+        "portion": 1
+      },
+      {
+        "name": "D-Ribosa",
+        "brandName": "CARLYLE",
+        "ingredients": [
+          {
+            "name": "D-RIBOSA",
+            "quantity": 3200,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 180,
+        "presentation": "cápsulas",
+        "portion": 4
+      }
+    ]
+  },
+  {
+    "name": "NEURESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "VITAMINA B12",
+        "quantity": 1950
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cucharadas",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "METHYLCOBALAMIN B12",
+        "brandName": "NUTRIVITA",
+        "ingredients": [
+          {
+            "name": "VITAMINA B12",
+            "quantity": 2000
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "cucharadas",
+        "portion": 1
+      },
+      {
+        "name": "LIQUID B-12",
+        "brandName": "SOLGAR",
+        "ingredients": [
+          {
+            "name": "VITAMINA B12",
+            "quantity": 2000
+          }
+        ],
+        "totalContent": 59,
+        "presentation": "gotas",
+        "portion": 1
+      },
+      {
+        "name": "NEUROBION",
+        "brandName": "PROCTER & GAMBLE COLOMBIA",
+        "ingredients": [
+          {
+            "name": "VITAMINA B12",
+            "quantity": 1000
+          }
+        ],
+        "totalContent": 3,
+        "presentation": "ampollas",
+        "portion": 1
+      },
+      {
+        "name": "BEDOYECTA TRI",
+        "brandName": "HUMAX PHARMACEUTICAL SA",
+        "ingredients": [
+          {
+            "name": "VITAMINA B12",
+            "quantity": 5000
+          }
+        ],
+        "totalContent": 3,
+        "presentation": "ampollas",
+        "portion": 1
+      },
+      {
+        "name": "VITAMINA B12",
+        "brandName": "ECAR",
+        "ingredients": [
+          {
+            "name": "VITAMINA B12",
+            "quantity": 1000
+          }
+        ],
+        "totalContent": 1,
+        "presentation": "ampollas",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "NUTRACLEAR",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "L-GLUTAMINA",
+        "quantity": 500
+      },
+      {
+        "name": "VITAMINA A",
+        "quantity": 2000
+      },
+      {
+        "name": "GLICINA",
+        "quantity": 1650
+      },
+      {
+        "name": "L-LISINA",
+        "quantity": 500
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "cucharadas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "D-PURE AM",
+        "brandName": "NUTRIVITA",
+        "ingredients": [],
+        "totalContent": 30,
+        "presentation": "tabletas",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "OMEGAESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "FOSFOLÍPIDOS",
+        "quantity": 1260
+      },
+      {
+        "name": "OMEGA-3",
+        "quantity": 900
+      },
+      {
+        "name": "EPA",
+        "quantity": 450
+      },
+      {
+        "name": "DHA",
+        "quantity": 270
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 6,
+    "comparables": [
+      {
+        "name": "FISH OIL OMEGA-3",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "FOSFOLÍPIDOS",
+            "quantity": 3600
+          },
+          {
+            "name": "EPA",
+            "quantity": 648
+          },
+          {
+            "name": "DHA",
+            "quantity": 432
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "softgel",
+        "portion": 3
+      },
+      {
+        "name": "RED KRILL",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "FOSFOLÍPIDOS",
+            "quantity": 400
+          },
+          {
+            "name": "OMEGA-3",
+            "quantity": 550
+          },
+          {
+            "name": "EPA",
+            "quantity": 300
+          },
+          {
+            "name": "DHA",
+            "quantity": 250
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "softgel",
+        "portion": 1
+      },
+      {
+        "name": "OMEGA 3 FISH OIL",
+        "brandName": "SOLGAR",
+        "ingredients": [
+          {
+            "name": "FOSFOLÍPIDOS",
+            "quantity": 2000
+          },
+          {
+            "name": "OMEGA-3",
+            "quantity": 600
+          },
+          {
+            "name": "EPA",
+            "quantity": 320
+          },
+          {
+            "name": "DHA",
+            "quantity": 200
+          }
+        ],
+        "totalContent": 120,
+        "presentation": "softgel",
+        "portion": 2
+      }
+    ]
+  },
+  {
+    "name": "PANCREOGEN",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "VITAMINA D3",
+        "quantity": 1950
+      },
+      {
+        "name": "CROMO",
+        "quantity": 585.3
+      },
+      {
+        "name": "VITAMINA C",
+        "quantity": 12.75
+      },
+      {
+        "name": "BIOTINA",
+        "quantity": 600
+      },
+      {
+        "name": "PROTEÍNAS",
+        "quantity": 634
+      },
+      {
+        "name": "LÍPIDOS",
+        "quantity": 178
+      }
+    ],
+    "totalContent": 90,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "GLUCOVITA",
+        "brandName": "NUTRIVITA",
+        "ingredients": [
+          {
+            "name": "CROMO",
+            "quantity": 400
+          },
+          {
+            "name": "ÁCIDO TIÓCTICO",
+            "quantity": 600
+          }
+        ],
+        "totalContent": 90,
+        "presentation": "softgel",
+        "portion": 2
+      }
+    ]
+  },
+  {
+    "name": "PROBIOESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "LACTOBACILLUS CASEI",
+        "quantity": 15.75
+      },
+      {
+        "name": "LACTOBACILLUS RHAMNOSUS",
+        "quantity": 13.5
+      },
+      {
+        "name": "LACTOBACILLUS HELVETICUS",
+        "quantity": 13.5
+      },
+      {
+        "name": "BIFIDOBACTERIUM ANIMALIS",
+        "quantity": 2.5
+      },
+      {
+        "name": "CEPAS VIVAS",
+        "quantity": "10^9"
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "sobre",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "PLUCBIOTIC",
+        "brandName": "ZACPHARMA",
+        "ingredients": [
+          {
+            "name": "CEPAS VIVAS",
+            "quantity": "10^10"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "sobre",
+        "portion": 1
+      },
+      {
+        "name": "MULTIFLORA PLUS",
+        "brandName": "MEGALABS",
+        "ingredients": [
+          {
+            "name": "CEPAS VIVAS",
+            "quantity": "10^8"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "ENTEROGERMINA",
+        "brandName": "OPELLA HEALTHCARE COLOMBIA",
+        "ingredients": [
+          {
+            "name": "CEPAS VIVAS",
+            "quantity": "20 MILLONES"
+          }
+        ],
+        "totalContent": 10,
+        "presentation": "vial",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "QUINTESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "COENZIMA Q10",
+        "quantity": 200
+      },
+      {
+        "name": "VITAMINA B1",
+        "quantity": 15
+      },
+      {
+        "name": "VITAMINA B2",
+        "quantity": 18
+      },
+      {
+        "name": "VITAMINA C",
+        "quantity": 60
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "C-ZYME Q10",
+        "brandName": "NUTRIVITA",
+        "ingredients": [
+          {
+            "name": "COENZIMA Q10",
+            "quantity": 200
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "softgel",
+        "portion": 1
+      },
+      {
+        "name": "CO Q-10",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "COENZIMA Q10",
+            "quantity": 200
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "softgel",
+        "portion": 1
+      },
+      {
+        "name": "COENZYME Q-10 WITH VITAMIN C",
+        "brandName": "NATURAL SYSTEMS",
+        "ingredients": [
+          {
+            "name": "COENZIMA Q10",
+            "quantity": 200
+          },
+          {
+            "name": "VITAMINA C",
+            "quantity": 40
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "softgel",
+        "portion": 1
+      },
+      {
+        "name": "COQ10",
+        "brandName": "NOW",
+        "ingredients": [
+          {
+            "name": "COENZIMA Q10",
+            "quantity": 200
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "REMSOL",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "CANNABIDIOL",
+        "quantity": 100
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "mililitro",
+    "portion": 1,
+    "comparables": [
+      {
+        "name": "NEVIOT",
+        "brandName": "DESCONOCIDO",
+        "ingredients": [
+          {
+            "name": "CANNABIDIOL",
+            "quantity": 100
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "mililitro",
+        "portion": 1
+      },
+      {
+        "name": "CANNEPI",
+        "brandName": "DESCONOCIDO",
+        "ingredients": [
+          {
+            "name": "CANNABIDIOL",
+            "quantity": 100
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "mililitro",
+        "portion": 1
+      }
+    ]
+  },
+  {
+    "name": "S-CIDE",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "PROPÓLEO",
+        "quantity": "NO INF."
+      },
+      {
+        "name": "ACEITES ESENCIALES DE JENGIBRE",
+        "quantity": "NO INF."
+      },
+      {
+        "name": "EXTRACTO DE CANELA",
+        "quantity": "NO INF."
+      },
+      {
+        "name": "MENTA PIPERITA",
+        "quantity": "NO INF."
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "push",
+    "portion": 1,
+    "comparables": []
+  },
+  {
+    "name": "V-CIDE",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "CAJEPUT",
+        "quantity": "No especificado"
+      },
+      {
+        "name": "MELISSA",
+        "quantity": "No especificado"
+      },
+      {
+        "name": "OREGANO",
+        "quantity": "No especificado"
+      },
+      {
+        "name": "TOMILLO",
+        "quantity": "No especificado"
+      },
+      {
+        "name": "ARBOL DE TÉ",
+        "quantity": "No especificado"
+      },
+      {
+        "name": "CANELA",
+        "quantity": "No especificado"
+      },
+      {
+        "name": "MENTA PIPERITA",
+        "quantity": "No especificado"
+      },
+      {
+        "name": "EUCALIPTO",
+        "quantity": "No especificado"
+      },
+      {
+        "name": "JENGIBRE",
+        "quantity": "No especificado"
+      }
+    ],
+    "totalContent": 30,
+    "presentation": "push",
+    "portion": 1,
+    "comparables": []
+  },
+  {
+    "name": "VEGEZYM",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "MAGNESIO",
+        "quantity": 60
+      },
+      {
+        "name": "VITAMINA B3",
+        "quantity": 9
+      },
+      {
+        "name": "ZINC",
+        "quantity": 3.3
+      },
+      {
+        "name": "BORO",
+        "quantity": 3
+      },
+      {
+        "name": "SELENIO",
+        "quantity": 63
+      }
+    ],
+    "totalContent": 90,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "DIGEZIMES",
+        "brandName": "NUTRIVITA",
+        "ingredients": [],
+        "totalContent": 60,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "PANCREATIN 4X",
+        "brandName": "SWANSON",
+        "ingredients": [
+          {
+            "name": "SELENIO",
+            "quantity": 750
+          }
+        ],
+        "totalContent": 300,
+        "presentation": "cápsulas",
+        "portion": 2
       }
     ]
   }

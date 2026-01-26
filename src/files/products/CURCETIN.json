@@ -1,0 +1,55 @@
+[
+  {
+    "name": "CURCETIN",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "POLVO RAÍZ CÚRCUMA",
+        "quantity": 600
+      },
+      {
+        "name": "QUERCETINA",
+        "quantity": 495
+      },
+      {
+        "name": "VITAMINA C",
+        "quantity": 60
+      },
+      {
+        "name": "MAGNESIO",
+        "quantity": 43.5
+      }
+    ],
+    "totalContent": 90,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "CURCUMAX (TABLETAS)",
+        "brandName": "NUTRAHAN",
+        "ingredients": [
+          {
+            "name": "POLVO RAÍZ CÚRCUMA",
+            "quantity": 240
+          }
+        ],
+        "totalContent": 60,
+        "presentation": "tabletas",
+        "portion": 2
+      },
+      {
+        "name": "CURCUMAX (POLVO)",
+        "brandName": "NUTRAHAN",
+        "ingredients": [
+          {
+            "name": "POLVO RAÍZ CÚRCUMA",
+            "quantity": 240
+          }
+        ],
+        "totalContent": 11,
+        "presentation": "cucharadas",
+        "portion": 1
+      }
+    ]
+  }
+]

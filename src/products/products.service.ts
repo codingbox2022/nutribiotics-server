@@ -34,13 +34,13 @@ const COUNTRY = 'Colombia';
 
 type IngredientInput = {
   ingredientId: string;
-  quantity: number;
+  quantity: number | null;
 };
 
 type IngredientDisplay = {
   id: string;
   name: string | null;
-  quantity: number;
+  quantity: number | null;
 };
 
 type BrandDisplay = {
@@ -53,7 +53,7 @@ type ProductResponse = {
   id: string;
   brand: BrandDisplay | null;
   ingredients: IngredientDisplay[];
-  ingredientQuantities: Record<string, number>;
+  ingredientQuantities: Record<string, number | null>;
 };
 
 @Injectable()
@@ -69,7 +69,7 @@ export class ProductsService {
 
   private normalizeIngredients(
     ingredients: IngredientInput[] = [],
-  ): { ingredient: Types.ObjectId; quantity: number }[] {
+  ): { ingredient: Types.ObjectId; quantity: number | null }[] {
     return ingredients.map(({ ingredientId, quantity }) => ({
       ingredient: new Types.ObjectId(ingredientId),
       quantity,
@@ -233,8 +233,8 @@ export class ProductsService {
 
   private buildIngredientQuantities(
     ingredients: IngredientDisplay[],
-  ): Record<string, number> {
-    return ingredients.reduce<Record<string, number>>((acc, ingredient) => {
+  ): Record<string, number | null> {
+    return ingredients.reduce<Record<string, number | null>>((acc, ingredient) => {
       if (ingredient.id) {
         acc[ingredient.id] = ingredient.quantity;
       }
@@ -287,7 +287,7 @@ export class ProductsService {
   }
 
   private async mapSeedIngredients(
-    seedIngredients: { name: string; quantity: number }[],
+    seedIngredients: { name: string; quantity: number | null }[],
   ): Promise<IngredientInput[]> {
     if (!seedIngredients || seedIngredients.length === 0) {
       return [];
@@ -321,6 +321,7 @@ export class ProductsService {
     const ingredientContent = new Map<string, number>();
 
     for (const { ingredientId, quantity } of ingredients) {
+      if (quantity == null) continue;
       // Ingredient Content = (totalContent × ingredient_quantity) ÷ portion
       const content = (totalContent * quantity) / portion;
       ingredientContent.set(ingredientId, content);
@@ -344,18 +345,18 @@ export class ProductsService {
         throw new NotFoundException(`Brand with ID ${brand} not found`);
       }
 
-      const isNutribioticsProduct = brandDoc.name.toUpperCase() === 'NUTRIBIOTICS';
+      const isNutrabioticsProduct = brandDoc.name.toUpperCase() === 'NUTRABIOTICS';
 
-      if (!isNutribioticsProduct && !createProductDto.comparedTo) {
+      if (!isNutrabioticsProduct && !createProductDto.comparedTo) {
         throw new ConflictException(
-          `Products from brands other than Nutribiotics must be linked to a Nutribiotics product. ` +
+          `Products from brands other than Nutrabiotics must be linked to a Nutrabiotics product. ` +
           `Please provide a 'comparedTo' reference or create the products together using the bulk endpoint.`,
         );
       }
 
-      if (isNutribioticsProduct && createProductDto.comparedTo) {
+      if (isNutrabioticsProduct && createProductDto.comparedTo) {
         throw new ConflictException(
-          `Nutribiotics products cannot have a 'comparedTo' reference. ` +
+          `Nutrabiotics products cannot have a 'comparedTo' reference. ` +
           `They should be the main products that other products compare to.`,
         );
       }
@@ -407,9 +408,9 @@ export class ProductsService {
       throw new NotFoundException(`Brand with ID ${products[0].brand} not found`);
     }
 
-    if (mainProductBrand.name.toUpperCase() !== 'NUTRIBIOTICS') {
+    if (mainProductBrand.name.toUpperCase() !== 'NUTRABIOTICS') {
       throw new ConflictException(
-        `The first product in bulk creation must be a Nutribiotics product. ` +
+        `The first product in bulk creation must be a Nutrabiotics product. ` +
         `Received brand: ${mainProductBrand.name}`,
       );
     }
@@ -529,7 +530,7 @@ export class ProductsService {
         .filter((entry): entry is IngredientDisplay => Boolean(entry && entry.id));
 
       // Build ingredient quantities
-      const ingredientQuantities = ingredients.reduce<Record<string, number>>((acc, ing) => {
+      const ingredientQuantities = ingredients.reduce<Record<string, number | null>>((acc, ing) => {
         if (ing.id) acc[ing.id] = ing.quantity;
         return acc;
       }, {});
@@ -811,9 +812,9 @@ export class ProductsService {
 
     // Validate that the main product is a Nutribiotics product
     const mainProductBrand = mainProduct.brand as any;
-    if (mainProductBrand && mainProductBrand.name?.toUpperCase() !== 'NUTRIBIOTICS') {
+    if (mainProductBrand && mainProductBrand.name?.toUpperCase() !== 'NUTRABIOTICS') {
       throw new ConflictException(
-        `Cannot add comparables to non-Nutribiotics product. ` +
+        `Cannot add comparables to non-Nutrabiotics product. ` +
         `Main product brand: ${mainProductBrand.name}`,
       );
     }
@@ -1084,7 +1085,7 @@ export class ProductsService {
       <ingredientName>
         ${ingredientEntry.name}
       </ingredientName>
-      <qty>${ingredientEntry.quantity}</qty>
+      <qty>${ingredientEntry.quantity ?? 'unknown'}</qty>
       <measurementUnit>${measurementUnit}</measurementUnit>
    </ingredient>`;
           })

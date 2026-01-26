@@ -1,0 +1,98 @@
+[
+  {
+    "name": "CALMESSENS",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "L-BITARTRATO DE COLINA",
+        "quantity": 400,
+        "unit": "MG"
+      },
+      {
+        "name": "D-PANTOTENATO DE CALCIO",
+        "quantity": 140,
+        "unit": "MG"
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 3,
+    "comparables": [
+      {
+        "name": "RENEW",
+        "brandName": "SAVVY",
+        "ingredients": [
+          {
+            "name": "COLINA",
+            "quantity": "NO REPORTA",
+            "unit": "MG"
+          },
+          {
+            "name": "D-PANTOTENATO DE CALCIO",
+            "quantity": "NO REPORTA",
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "sobre",
+        "portion": 1
+      },
+      {
+        "name": "CHOLINE Y INOSITOL",
+        "brandName": "NOW",
+        "ingredients": [
+          {
+            "name": "COLINA",
+            "quantity": 250,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "CHOLINE",
+        "brandName": "NESTED",
+        "ingredients": [
+          {
+            "name": "COLINA",
+            "quantity": 500,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 90,
+        "presentation": "cápsulas",
+        "portion": 2
+      },
+      {
+        "name": "CHOLINE BITARTRATE",
+        "brandName": "PIPING ROCK",
+        "ingredients": [
+          {
+            "name": "COLINA",
+            "quantity": 205,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 180,
+        "presentation": "cápsulas",
+        "portion": 1
+      },
+      {
+        "name": "CHOLINE Y INOSITOL",
+        "brandName": "NATURE'S WAY",
+        "ingredients": [
+          {
+            "name": "COLINA",
+            "quantity": 500,
+            "unit": "MG"
+          }
+        ],
+        "totalContent": 100,
+        "presentation": "cápsulas",
+        "portion": 2
+      }
+    ]
+  }
+]

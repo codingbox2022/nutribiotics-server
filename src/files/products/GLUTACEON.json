@@ -1,0 +1,50 @@
+[
+  {
+    "name": "GLUTACEON",
+    "brandName": "NUTRABIOTICS",
+    "ingredients": [
+      {
+        "name": "RIBOFLAVINA",
+        "quantity": 40
+      },
+      {
+        "name": "NIACINA",
+        "quantity": 35
+      },
+      {
+        "name": "CISTEÍNA",
+        "quantity": 68.4
+      },
+      {
+        "name": "GLICINA",
+        "quantity": 43
+      },
+      {
+        "name": "ÁCIDO GLUTÁMICO",
+        "quantity": 84.2
+      }
+    ],
+    "totalContent": 60,
+    "presentation": "cápsulas",
+    "portion": 2,
+    "comparables": [
+      {
+        "name": "L-Glutathione",
+        "brandName": "HEALTHY AMERICA",
+        "ingredients": [
+          {
+            "name": "CISTEÍNA",
+            "quantity": 100
+          },
+          {
+            "name": "L-GLUTAMINA",
+            "quantity": 500
+          }
+        ],
+        "totalContent": 30,
+        "presentation": "cápsulas",
+        "portion": 1
+      }
+    ]
+  }
+]
