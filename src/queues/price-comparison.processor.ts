@@ -525,7 +525,10 @@ export class PriceComparisonProcessor extends WorkerHost {
 
             for (const comp of competitorProducts) {
               const compPrices = await this.priceModel
-                .find({ productId: new Types.ObjectId(comp._id) })
+                .find({
+                  productId: new Types.ObjectId(comp._id),
+                  ingestionRunId: validRunId,
+                })
                 .sort({ createdAt: -1 })
                 .populate('marketplaceId')
                 .exec();
