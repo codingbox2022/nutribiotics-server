@@ -2164,19 +2164,19 @@
     "ingredients": [
       {
         "name": "PROPÓLEO",
-        "quantity": "NO INF."
+        "quantity": null
       },
       {
         "name": "ACEITES ESENCIALES DE JENGIBRE",
-        "quantity": "NO INF."
+        "quantity": null
       },
       {
         "name": "EXTRACTO DE CANELA",
-        "quantity": "NO INF."
+        "quantity": null
       },
       {
         "name": "MENTA PIPERITA",
-        "quantity": "NO INF."
+        "quantity": null
       }
     ],
     "totalContent": 30,
@@ -2190,39 +2190,39 @@
     "ingredients": [
       {
         "name": "CAJEPUT",
-        "quantity": "No especificado"
+        "quantity": null
       },
       {
         "name": "MELISSA",
-        "quantity": "No especificado"
+        "quantity": null
       },
       {
         "name": "OREGANO",
-        "quantity": "No especificado"
+        "quantity": null
       },
       {
         "name": "TOMILLO",
-        "quantity": "No especificado"
+        "quantity": null
       },
       {
         "name": "ARBOL DE TÉ",
-        "quantity": "No especificado"
+        "quantity": null
       },
       {
         "name": "CANELA",
-        "quantity": "No especificado"
+        "quantity": null
       },
       {
         "name": "MENTA PIPERITA",
-        "quantity": "No especificado"
+        "quantity": null
       },
       {
         "name": "EUCALIPTO",
-        "quantity": "No especificado"
+        "quantity": null
       },
       {
         "name": "JENGIBRE",
-        "quantity": "No especificado"
+        "quantity": null
       }
     ],
     "totalContent": 30,

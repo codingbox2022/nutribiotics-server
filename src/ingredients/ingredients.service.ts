@@ -82,23 +82,34 @@ export class IngredientsService {
   }
 
   async seedIngredients(): Promise<void> {
-    const count = await this.ingredientModel.countDocuments().exec();
-    this.logger.log(`Current ingredient count: ${count}`);
-    if (count > 0) {
-      this.logger.log('Ingredients already seeded');
+    this.logger.log(`Checking ingredients seed data...`);
+    
+    // Normalize data from JSON
+    const normalizedData = ingredientsData.map((ingredient) => ({
+      ...ingredient,
+      name: ingredient.name.toUpperCase(),
+      status: ApprovalStatus.APPROVED,
+    }));
+
+    // Get all existing ingredient names to minimize DB queries
+    const existingIngredients = await this.ingredientModel
+      .find({}, { name: 1 })
+      .lean()
+      .exec();
+    
+    const existingNames = new Set(existingIngredients.map(i => i.name));
+    const newIngredients = normalizedData.filter(i => !existingNames.has(i.name));
+
+    if (newIngredients.length === 0) {
+      this.logger.log('All ingredients already seeded');
       return;
     }
 
-    this.logger.log(`Ingredients data length: ${ingredientsData.length}`);
-    try {
-      const normalizedData = ingredientsData.map((ingredient) => ({
-        ...ingredient,
-        name: ingredient.name.toUpperCase(),
-        status: ApprovalStatus.APPROVED,
-      }));
+    this.logger.log(`Found ${newIngredients.length} new ingredients to seed`);
 
-      await this.ingredientModel.insertMany(normalizedData);
-      this.logger.log(`Seeded ${ingredientsData.length} ingredients`);
+    try {
+      await this.ingredientModel.insertMany(newIngredients);
+      this.logger.log(`Seeded ${newIngredients.length} new ingredients`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`Error seeding ingredients: ${errorMessage}`, error instanceof Error ? error.stack : undefined);

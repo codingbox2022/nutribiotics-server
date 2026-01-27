@@ -26,6 +26,7 @@ export class IngestionRunsService {
     triggeredBy: string,
     totalProducts: number,
     totalLookups: number,
+    productId?: string,
   ): Promise<IngestionRunDocument> {
     const ingestionRun = new this.ingestionRunModel({
       status: 'pending',
@@ -37,6 +38,7 @@ export class IngestionRunsService {
       completedLookups: 0,
       failedLookups: 0,
       results: [],
+      ...(productId && { productId: new Types.ObjectId(productId) }),
     });
 
     const saved = await ingestionRun.save();
@@ -63,17 +65,22 @@ export class IngestionRunsService {
     if (!run) return;
 
     // Calculate final stats
-    const productsWithPrices = new Set(
+    const allProductIds = new Set(
+      run.results.map((r) => r.productId.toString()),
+    );
+
+    const productsWithPricesSet = new Set(
       run.results
         .filter((r) => r.lookupStatus === 'success' && r.price !== undefined)
         .map((r) => r.productId.toString()),
-    ).size;
+    );
 
-    const productsNotFound = new Set(
-      run.results
-        .filter((r) => r.lookupStatus === 'not_found')
-        .map((r) => r.productId.toString()),
-    ).size;
+    const productsWithPrices = productsWithPricesSet.size;
+
+    // Count products that have NO successful lookups at all
+    const productsNotFound = [...allProductIds].filter(
+      (id) => !productsWithPricesSet.has(id),
+    ).length;
 
     // Count unique products with recommendations for this run
     const recommendationResults = await this.recommendationModel.aggregate([
@@ -207,5 +214,13 @@ export class IngestionRunsService {
       completedAt: new Date(),
     });
     this.logger.log(`Ingestion run ${id} cancelled`);
+  }
+
+  /**
+   * Check if a run has been cancelled
+   */
+  async isCancelled(id: string | Types.ObjectId): Promise<boolean> {
+    const run = await this.ingestionRunModel.findById(id).select('status').lean().exec();
+    return run?.status === 'cancelled';
   }
 }

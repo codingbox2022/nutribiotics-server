@@ -308,7 +308,17 @@ export class ProductsService {
         return acc;
       }
 
-      acc.push({ ingredientId: id, quantity: ing.quantity });
+      let quantity: number | null = ing.quantity;
+      if (typeof ing.quantity === 'string') {
+        if (ing.quantity === 'NO REPORTA' || ing.quantity === 'NO INF.') {
+          quantity = null;
+        } else {
+          const parsed = Number(ing.quantity);
+          quantity = isNaN(parsed) ? null : parsed;
+        }
+      }
+
+      acc.push({ ingredientId: id, quantity });
       return acc;
     }, []);
   }
@@ -884,85 +894,111 @@ export class ProductsService {
   }
 
   async seedProducts(): Promise<void> {
-    const count = await this.productModel.countDocuments().exec();
-    this.logger.log(`Current product count: ${count}`);
-    if (count > 0) {
-      this.logger.log('Products already seeded');
-      return;
-    }
+    // We don't skip if products exist anymore, we check individually.
+    this.logger.log(`Starting product seed check. Products data length: ${productsData.length}`);
 
     this.logger.log(`Products data length: ${productsData.length}`);
     try {
       let totalSeeded = 0;
 
       for (const productData of productsData as any[]) {
-        const {
-          comparables = [],
-          brandName,
-          ingredients: seedIngredients,
-          ...mainProductData
-        } = productData;
+        try {
+          const {
+            comparables = [],
+            brandName,
+            ingredients: seedIngredients,
+            ...mainProductData
+          } = productData;
 
-        const brandId = await this.resolveBrandIdByName(brandName);
-        const ingredientInputs = await this.mapSeedIngredients(seedIngredients);
+          const brandId = await this.resolveBrandIdByName(brandName);
+          const ingredientInputs = await this.mapSeedIngredients(seedIngredients);
 
-        if (ingredientInputs.length === 0) {
-          this.logger.warn(`Skipping product "${mainProductData.name}" because it has no valid ingredients.`);
-          continue;
-        }
+          if (ingredientInputs.length === 0) {
+            this.logger.warn(`Skipping product "${mainProductData.name}" because it has no valid ingredients.`);
+            continue;
+          }
 
-        const ingredientContent = this.calculateIngredientContent(
-          ingredientInputs,
-          mainProductData.totalContent,
-          mainProductData.portion,
-        );
+          // Check if main product already exists
+          const existingProduct = await this.productModel.findOne({
+            name: mainProductData.name,
+            brand: brandId
+          }).exec();
 
-        const mainProduct = await this.productModel.create({
-          ...mainProductData,
-          brand: brandId,
-          ingredients: this.normalizeIngredients(ingredientInputs),
-          ingredientContent,
-          comparedTo: null,
-          status: 'active',
-        });
-        totalSeeded++;
+          let mainProduct: ProductDocument;
 
-        if (comparables && comparables.length > 0) {
-          for (const comparable of comparables) {
-            const {
-              brandName: comparableBrandName,
-              ingredients: comparableSeedIngredients,
-              ...comparableData
-            } = comparable;
-
-            const comparableBrandId = await this.resolveBrandIdByName(comparableBrandName);
-            const comparableIngredientInputs = await this.mapSeedIngredients(comparableSeedIngredients);
-
-            if (comparableIngredientInputs.length === 0) {
-              this.logger.warn(`Skipping comparable "${comparable.name}" because it has no valid ingredients.`);
-              continue;
-            }
-
-            const comparableIngredientContent = this.calculateIngredientContent(
-              comparableIngredientInputs,
-              comparable.totalContent,
-              comparable.portion,
+          if (existingProduct) {
+            mainProduct = existingProduct;
+          } else {
+            const ingredientContent = this.calculateIngredientContent(
+              ingredientInputs,
+              mainProductData.totalContent,
+              mainProductData.portion,
             );
 
-            await this.productModel.create({
-              ...comparableData,
-              brand: comparableBrandId,
-              ingredients: this.normalizeIngredients(comparableIngredientInputs),
-              ingredientContent: comparableIngredientContent,
-              comparedTo: mainProduct._id,
+            mainProduct = await this.productModel.create({
+              ...mainProductData,
+              brand: brandId,
+              ingredients: this.normalizeIngredients(ingredientInputs),
+              ingredientContent,
+              comparedTo: null,
               status: 'active',
             });
             totalSeeded++;
+            this.logger.log(`Created new product: ${mainProductData.name}`);
           }
+
+          if (comparables && comparables.length > 0) {
+            for (const comparable of comparables) {
+              const {
+                brandName: comparableBrandName,
+                ingredients: comparableSeedIngredients,
+                ...comparableData
+              } = comparable;
+
+              // Check if comparable already exists
+              const comparableBrandId = await this.resolveBrandIdByName(comparableBrandName);
+            
+              const existingComparable = await this.productModel.findOne({
+                name: comparableData.name,
+                brand: comparableBrandId,
+                comparedTo: mainProduct._id
+              }).exec();
+
+              if (existingComparable) {
+                continue;
+              }
+
+              const comparableIngredientInputs = await this.mapSeedIngredients(comparableSeedIngredients);
+
+              if (comparableIngredientInputs.length === 0) {
+                this.logger.warn(`Skipping comparable "${comparable.name}" because it has no valid ingredients.`);
+                continue;
+              }
+
+              const comparableIngredientContent = this.calculateIngredientContent(
+                comparableIngredientInputs,
+                comparable.totalContent,
+                comparable.portion,
+              );
+
+              await this.productModel.create({
+                ...comparableData,
+                brand: comparableBrandId,
+                ingredients: this.normalizeIngredients(comparableIngredientInputs),
+                ingredientContent: comparableIngredientContent,
+                comparedTo: mainProduct._id,
+                status: 'active',
+              });
+              totalSeeded++;
+            }
+          }
+        } catch (error) {
+           const errorMessage = error instanceof Error ? error.message : String(error);
+           this.logger.error(`Failed to seed product ${productData.name}: ${errorMessage}`);
         }
       }
 
-      this.logger.log(`Seeded ${totalSeeded} products (${productsData.length} main + comparables)`);
+      this.logger.log(`Seeding complete. Added ${totalSeeded} new products/comparables.`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.logger.error(`Error seeding products: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
@@ -986,7 +1022,7 @@ export class ProductsService {
       if (progressCallback) await progressCallback(10);
 
       const nutribioticsBrand = await this.brandModel
-        .findOne({ name: { $regex: /^nutribiotics$/i } })
+        .findOne({ name: { $regex: /^nutrabiotics$/i } })
         .exec();
 
       if (!nutribioticsBrand) {

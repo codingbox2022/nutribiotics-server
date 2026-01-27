@@ -89,6 +89,9 @@ export class IngestionRun {
   @Prop({ required: true })
   triggeredBy: string;
 
+  @Prop({ type: Types.ObjectId })
+  productId?: Types.ObjectId;
+
   @Prop({ type: Date, required: true, default: Date.now })
   triggeredAt: Date;
 

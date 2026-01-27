@@ -63,7 +63,7 @@ export class PriceComparisonProcessor extends WorkerHost {
       // Step 1: Fetch real products and marketplaces from database
       this.logger.log(`Step 1: Fetching products from database${productId ? ' (intelligent price search mode)' : ''}...`);
       const nutribioticsBrand = await this.brandModel
-        .findOne({ name: { $regex: /^nutribiotics$/i } })
+        .findOne({ name: { $regex: /^nutrabiotics$/i } })
         .exec();
 
       let productQuery: any = { status: 'active' };
@@ -127,6 +127,7 @@ export class PriceComparisonProcessor extends WorkerHost {
           triggeredBy || 'system',
           totalProducts,
           totalLookups,
+          productId,
         );
         runId = run._id;
         await this.ingestionRunsService.markAsRunning(runId);
@@ -160,6 +161,12 @@ export class PriceComparisonProcessor extends WorkerHost {
 
       // Iterate through products one at a time
       for (const product of products) {
+        // Check if job was cancelled before processing next product
+        if (await this.ingestionRunsService.isCancelled(validRunId)) {
+          this.logger.log(`Job ${job.id} cancelled by user, stopping price search.`);
+          return;
+        }
+
         const brandName = this.getBrandName(product.brand as any);
         this.logger.log(
           `Processing ${product.name} by ${brandName} across ${totalMarketplaces} marketplaces in parallel...`,
@@ -425,8 +432,8 @@ export class PriceComparisonProcessor extends WorkerHost {
         );
 
         const progressPercentage = Math.min(
-          75,
-          25 + Math.floor((processedLookups / totalLookups) * 50),
+          70,
+          25 + Math.floor((processedLookups / totalLookups) * 45),
         );
         await job.updateProgress(progressPercentage);
 
@@ -439,7 +446,13 @@ export class PriceComparisonProcessor extends WorkerHost {
         `Completed ${processedLookups} lookups across ${totalMarketplaces} marketplaces`,
       );
 
-      await job.updateProgress(75);
+      await job.updateProgress(70);
+
+      // Check cancellation before starting recommendations
+      if (await this.ingestionRunsService.isCancelled(validRunId)) {
+        this.logger.log(`Job ${job.id} cancelled by user, stopping before recommendations.`);
+        return;
+      }
 
       // Step 4: Generate price recommendations for Nutribiotics products
       this.logger.log('Step 4: Generating price recommendations for Nutribiotics products...');
@@ -447,14 +460,26 @@ export class PriceComparisonProcessor extends WorkerHost {
       if (!nutribioticsBrand) {
         this.logger.warn('Nutribiotics brand not found, skipping recommendations');
       } else {
+        // If a specific productId was provided, only generate recommendations for that product
+        const nutriQuery: any = { brand: nutribioticsBrand._id, status: 'active' };
+        if (productId) {
+          nutriQuery._id = new Types.ObjectId(productId);
+        }
+
         const nutribioticsProducts = await this.productModel
-          .find({ brand: nutribioticsBrand._id, status: 'active' })
+          .find(nutriQuery)
           .populate({ path: 'brand', select: 'name status' })
           .exec();
 
         this.logger.log(`Found ${nutribioticsProducts.length} Nutribiotics products to analyze`);
+        let recommendationsProcessed = 0;
 
         for (const nutriProduct of nutribioticsProducts) {
+          if (await this.ingestionRunsService.isCancelled(validRunId)) {
+            this.logger.log(`Job ${job.id} cancelled by user, stopping recommendations.`);
+            return;
+          }
+
           try {
             // Get current price for this Nutribiotics product
             const currentPrice = await this.priceModel
@@ -630,6 +655,13 @@ export class PriceComparisonProcessor extends WorkerHost {
               `Failed to generate recommendation for ${nutriProduct.name}: ${error.message}`,
             );
           }
+
+          recommendationsProcessed++;
+          const recProgress = Math.min(
+            95,
+            75 + Math.floor((recommendationsProcessed / nutribioticsProducts.length) * 20),
+          );
+          await job.updateProgress(recProgress);
         }
 
         this.logger.log(`Completed recommendations for ${nutribioticsProducts.length} products`);

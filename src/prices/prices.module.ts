@@ -7,6 +7,7 @@ import { Product, ProductSchema } from '../products/schemas/product.schema';
 import { Marketplace, MarketplaceSchema } from '../marketplaces/schemas/marketplace.schema';
 import { Ingredient, IngredientSchema } from '../ingredients/schemas/ingredient.schema';
 import { Brand, BrandSchema } from '../brands/schemas/brand.schema';
+import { IngestionRun, IngestionRunSchema } from '../ingestion-runs/schemas/ingestion-run.schema';
 import { RecommendationsModule } from '../recommendations/recommendations.module';
 
 @Module({
@@ -18,6 +19,7 @@ import { RecommendationsModule } from '../recommendations/recommendations.module
       { name: Marketplace.name, schema: MarketplaceSchema },
       { name: Ingredient.name, schema: IngredientSchema },
       { name: Brand.name, schema: BrandSchema },
+      { name: IngestionRun.name, schema: IngestionRunSchema },
     ]),
   ],
   controllers: [PricesController],

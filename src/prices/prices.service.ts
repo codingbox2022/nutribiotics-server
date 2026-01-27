@@ -9,6 +9,7 @@ import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { Marketplace, MarketplaceDocument } from '../marketplaces/schemas/marketplace.schema';
 import { Ingredient, IngredientDocument } from '../ingredients/schemas/ingredient.schema';
 import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
+import { IngestionRun, IngestionRunDocument } from '../ingestion-runs/schemas/ingestion-run.schema';
 import { RecommendationsService } from '../recommendations/recommendations.service';
 
 interface FindAllFilters {
@@ -31,6 +32,7 @@ export class PricesService {
     @InjectModel(Marketplace.name) private marketplaceModel: Model<MarketplaceDocument>,
     @InjectModel(Ingredient.name) private ingredientModel: Model<IngredientDocument>,
     @InjectModel(Brand.name) private brandModel: Model<BrandDocument>,
+    @InjectModel(IngestionRun.name) private ingestionRunModel: Model<IngestionRunDocument>,
     private recommendationsService: RecommendationsService,
   ) {}
 
@@ -226,7 +228,7 @@ export class PricesService {
 
   async getNutribioticsComparison(filters?: { search?: string }): Promise<any[]> {
     const nutribioticsBrand = await this.brandModel
-      .findOne({ name: { $regex: /^nutribiotics$/i } })
+      .findOne({ name: { $regex: /^nutrabiotics$/i } })
       .select('_id name')
       .lean()
       .exec();
@@ -480,7 +482,7 @@ export class PricesService {
 
   async getComparisonResultsByRunId(ingestionRunId: string, filters?: { search?: string }): Promise<any[]> {
     const nutribioticsBrand = await this.brandModel
-      .findOne({ name: { $regex: /^nutribiotics$/i } })
+      .findOne({ name: { $regex: /^nutrabiotics$/i } })
       .lean()
       .exec();
 
@@ -488,8 +490,19 @@ export class PricesService {
       return [];
     }
 
-    // Fetch all Nutribiotics products
+    // Check if this run was for a single product
+    const ingestionRun = await this.ingestionRunModel
+      .findById(ingestionRunId)
+      .select('productId')
+      .lean()
+      .exec();
+
+    // Fetch Nutribiotics products — scoped to the run's target product if applicable
     const query: any = { brand: nutribioticsBrand._id };
+
+    if (ingestionRun?.productId) {
+      query._id = ingestionRun.productId;
+    }
 
     if (filters?.search) {
       query.name = { $regex: filters.search, $options: 'i' };
@@ -829,9 +842,13 @@ export class PricesService {
 
     // BATCH: Get all competitor prices at once
     const competitorProductIds = comparedProducts.map(p => p._id);
+    const competitorPriceFilter: any = { productId: { $in: competitorProductIds } };
+    if (ingestionRunId) {
+      competitorPriceFilter.ingestionRunId = new Types.ObjectId(ingestionRunId);
+    }
     const allCompetitorPrices = competitorProductIds.length > 0
       ? await this.priceModel
-          .find({ productId: { $in: competitorProductIds } })
+          .find(competitorPriceFilter)
           .sort({ createdAt: -1 })
           .lean()
           .exec()
