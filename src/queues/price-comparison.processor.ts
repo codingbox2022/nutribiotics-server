@@ -487,6 +487,28 @@ export class PriceComparisonProcessor extends WorkerHost {
               .sort({ createdAt: -1 })
               .exec();
 
+            // Check if Nutribiotics product has a price set
+            const hasCurrentPrice = currentPrice?.precioConIva != null;
+
+            if (!hasCurrentPrice) {
+              this.logger.warn(`Product ${nutriProduct.name} has no price set. Skipping recommendation.`);
+              await this.recommendationsService.upsertRecommendation({
+                productId: nutriProduct._id.toString(),
+                ingestionRunId: validRunId.toString(),
+                currentPrice: null,
+                recommendation: 'keep',
+                recommendationReasoning: 'El precio no fue establecido por lo tanto no se puede hacer una recomendación.',
+              });
+
+              recommendationsProcessed++;
+              const recProgress = Math.min(
+                95,
+                75 + Math.floor((recommendationsProcessed / nutribioticsProducts.length) * 20),
+              );
+              await job.updateProgress(recProgress);
+              continue;
+            }
+
             // Find all competitor products (products that compare to this one)
             const competitorProducts = await this.productModel
               .find({
@@ -496,9 +518,6 @@ export class PriceComparisonProcessor extends WorkerHost {
               })
               .populate({ path: 'brand', select: 'name status' })
               .exec();
-
-            // Check if Nutribiotics product has a price set
-            const hasCurrentPrice = currentPrice?.precioConIva != null;
 
             if (competitorProducts.length === 0) {
               const reason = !hasCurrentPrice
