@@ -159,29 +159,36 @@ export class PriceComparisonProcessor extends WorkerHost {
         inStock: z.boolean().default(false),
       });
 
-      // Iterate through products one at a time
+      // Use p-limit for global concurrency control across all products and marketplaces
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const pLimit = require('p-limit');
+      const limit = pLimit(20); // Limit to 20 concurrent marketplace requests globally
+
+      // Iterating through products to prepare all lookup tasks
+      const allLookupTasks: Promise<any>[] = [];
+
       for (const product of products) {
-        // Check if job was cancelled before processing next product
+        // Check if job was cancelled before queuing tasks for this product
         if (await this.ingestionRunsService.isCancelled(validRunId)) {
           this.logger.log(`Job ${job.id} cancelled by user, stopping price search.`);
           return;
         }
 
         const brandName = this.getBrandName(product.brand as any);
-        this.logger.log(
-          `Processing ${product.name} by ${brandName} across ${totalMarketplaces} marketplaces in parallel...`,
-        );
-
-        // Use pre-calculated ingredient content from product
         const productIngredientContent: Record<string, number> = product.ingredientContent instanceof Map
           ? Object.fromEntries(product.ingredientContent)
           : (product.ingredientContent || {});
 
-        // Launch all marketplace searches for this product in parallel
-        const marketplaceSearchPromises = marketplaces.map(
-          async (marketplace) => {
+        // Queue marketplace searches for this product
+        const productTasks = marketplaces.map((marketplace) => {
+          return limit(async () => {
             try {
-                    const prompt = `You can assume the marketplace "${marketplace.name}" has searchable, Google-indexed product pages. Find the closest available match (exact or equivalent) for "${product.name}" from brand "${brandName}". Accept equivalent product sizes or bundles if they clearly represent the same item.
+              // Check cancellation again inside the task
+              if (await this.ingestionRunsService.isCancelled(validRunId)) {
+                return { success: false, marketplace: marketplace.name, cancelled: true };
+              }
+
+              const prompt = `You can assume the marketplace "${marketplace.name}" has searchable, Google-indexed product pages. Find the closest available match (exact or equivalent) for "${product.name}" from brand "${brandName}". Accept equivalent product sizes or bundles if they clearly represent the same item.
 
                   Only return inStock as false when you have strong evidence that the product and its close equivalents are unavailable after searching multiple result pages. Otherwise provide the best available match.
 
@@ -343,7 +350,6 @@ export class PriceComparisonProcessor extends WorkerHost {
               }
 
               // Store lookup result in ingestion run (including calculated data)
-              // Use marketplace's IVA rate and country instead of asking LLM
               await this.ingestionRunsService.addLookupResult(validRunId, {
                 productId: product._id,
                 productName: product.name,
@@ -386,13 +392,29 @@ export class PriceComparisonProcessor extends WorkerHost {
                 `✓ ${product.name} on ${marketplace.name}: ${parsed.precioConIva || parsed.precioSinIva ? `sinIVA: $${parsed.precioSinIva || 'N/A'}, conIVA: $${parsed.precioConIva || 'N/A'}` : 'not found'}`,
               );
 
+              // Increment global counter and update progress
+              processedLookups++;
+              const progressValue = totalLookups > 0
+                ? Math.floor((processedLookups / totalLookups) * totalProducts)
+                : 0;
+              
+              // Only update DB progress occasionally to reduce write load
+              if (processedLookups % 5 === 0 || processedLookups === totalLookups) {
+                await this.ingestionRunsService.updateProgress(validRunId, progressValue);
+                
+                const progressPercentage = Math.min(
+                  70,
+                  25 + Math.floor((processedLookups / totalLookups) * 45),
+                );
+                await job.updateProgress(progressPercentage);
+              }
+
               return { success: true, marketplace: marketplace.name };
             } catch (error) {
               this.logger.error(
                 `Failed to search ${product.name} on ${marketplace.name}: ${error.message}`,
               );
               this.logger.error(`Error stack: ${error.stack}`);
-              this.logger.error(`Error type: ${error.constructor.name}`);
 
               // Store failed lookup immediately in DB
               await this.ingestionRunsService.addLookupResult(validRunId, {
@@ -412,35 +434,26 @@ export class PriceComparisonProcessor extends WorkerHost {
                 priceConfidence: 0,
               });
 
+              processedLookups++;
+              // Only update DB progress occasionally to reduce write load
+              if (processedLookups % 5 === 0 || processedLookups === totalLookups) {
+                 const progressValue = totalLookups > 0
+                  ? Math.floor((processedLookups / totalLookups) * totalProducts)
+                  : 0;
+                await this.ingestionRunsService.updateProgress(validRunId, progressValue);
+              }
+
               return { success: false, marketplace: marketplace.name, error };
             }
-          },
-        );
+          });
+        });
 
-        // Wait for all marketplace searches for this product to complete
-        const results = await Promise.allSettled(marketplaceSearchPromises);
-
-        processedLookups += results.length;
-
-        // Update progress after completing all marketplaces for this product
-        const progressValue = totalLookups > 0
-          ? Math.floor((processedLookups / totalLookups) * totalProducts)
-          : 0;
-        await this.ingestionRunsService.updateProgress(
-          validRunId,
-          progressValue,
-        );
-
-        const progressPercentage = Math.min(
-          70,
-          25 + Math.floor((processedLookups / totalLookups) * 45),
-        );
-        await job.updateProgress(progressPercentage);
-
-        this.logger.log(
-          `Completed ${product.name}: ${results.length} marketplace lookups`,
-        );
+        allLookupTasks.push(...productTasks);
       }
+
+      // Wait for all lookup tasks to complete globally
+      this.logger.log(`Queued ${allLookupTasks.length} tasks with global concurrency of 20. Waiting for completion...`);
+      await Promise.allSettled(allLookupTasks);
 
       this.logger.log(
         `Completed ${processedLookups} lookups across ${totalMarketplaces} marketplaces`,
