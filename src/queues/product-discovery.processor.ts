@@ -6,6 +6,7 @@ import { ProductsService } from '../products/products.service';
 export interface ProductDiscoveryJobData {
   triggeredBy?: string;
   timestamp: Date;
+  productId?: string;
 }
 
 export interface ProductDiscoveryResult {
@@ -25,7 +26,7 @@ export class ProductDiscoveryProcessor extends WorkerHost {
 
   async process(job: Job<ProductDiscoveryJobData>): Promise<ProductDiscoveryResult> {
     this.logger.log(`Starting product discovery job ${job.id}`);
-    const { triggeredBy, timestamp } = job.data;
+    const { triggeredBy, timestamp, productId } = job.data;
 
     try {
       await job.updateProgress(5);
@@ -45,6 +46,7 @@ export class ProductDiscoveryProcessor extends WorkerHost {
       // Call the product processing service with progress callback
       const result = await this.productsService.processNutribioticsProducts(
         progressCallback,
+        productId,
       );
 
       // Update counts from result

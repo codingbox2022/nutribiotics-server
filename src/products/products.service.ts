@@ -1006,7 +1006,8 @@ export class ProductsService {
   }
 
   async processNutribioticsProducts(
-    progressCallback?: (progress: number) => Promise<void>
+    progressCallback?: (progress: number) => Promise<void>,
+    productId?: string,
   ): Promise<{
     processed: number;
     newProducts: number;
@@ -1035,12 +1036,18 @@ export class ProductsService {
         };
       }
 
+      const query: FilterQuery<ProductDocument> = {
+        brand: nutribioticsBrand._id,
+        comparedTo: null,
+        status: 'active',
+      };
+
+      if (productId) {
+        query._id = productId;
+      }
+
       const products = await this.productModel
-        .find({
-          brand: nutribioticsBrand._id,
-          comparedTo: null,
-          status: 'active',
-        })
+        .find(query)
         .populate([
           { path: 'brand', select: 'name status' },
           { path: 'ingredients.ingredient', select: 'name measurementUnit status' },
@@ -1061,8 +1068,13 @@ export class ProductsService {
 
       if (progressCallback) await progressCallback(15);
 
-      for (let i = 0; i < products.length; i++) {
-        const product = products[i];
+      // Use p-limit for concurrency control
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const pLimit = require('p-limit');
+      const limit = pLimit(20); // Process 20 products concurrently
+
+      const processingPromises = products.map((product, i) =>
+        limit(async () => {
         const baseProgress = 15;
         const progressPerProduct = 75 / products.length;
         const productStartProgress = baseProgress + (i * progressPerProduct);
@@ -1416,7 +1428,10 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
             scanStatus: 'failed',
           });
         }
-      }
+      }));
+
+      // Wait for all products to be processed
+      await Promise.all(processingPromises);
 
       // Final progress update
       if (progressCallback) await progressCallback(95);

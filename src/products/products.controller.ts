@@ -75,8 +75,13 @@ export class ProductsController {
   updateStatus(
     @Param('id') id: string,
     @Body('status') status: 'active' | 'inactive' | 'rejected' | 'deleted',
+    @Body('name') name?: string,
   ) {
-    return this.productsService.update(id, { status });
+    const updateData: any = { status };
+    if (name) {
+      updateData.name = name;
+    }
+    return this.productsService.update(id, updateData);
   }
 
   @Delete(':id')
@@ -93,10 +98,11 @@ export class ProductsController {
   }
 
   @Post('process-nutribiotics')
-  async processNutribioticsProducts() {
+  async processNutribioticsProducts(@Body() body?: { productId?: string }) {
     const job = await this.productDiscoveryQueue.add('discover-products', {
       timestamp: new Date(),
       triggeredBy: 'user',
+      productId: body?.productId,
     });
 
     return {
