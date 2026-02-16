@@ -62,6 +62,18 @@ export class RecommendationsService {
       .exec();
   }
 
+  async findByRunIdAndProductIds(
+    ingestionRunId: string,
+    productIds: string[],
+  ): Promise<RecommendationDocument[]> {
+    return this.recommendationModel
+      .find({
+        ingestionRunId: new Types.ObjectId(ingestionRunId),
+        productId: { $in: productIds.map((id) => new Types.ObjectId(id)) },
+      })
+      .exec();
+  }
+
   async acceptRecommendation(recommendationId: string, user: any): Promise<any> {
     const recommendation = await this.recommendationModel.findById(recommendationId).exec();
     if (!recommendation) {

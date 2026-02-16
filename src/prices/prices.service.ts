@@ -480,7 +480,10 @@ export class PricesService {
     return comparisons;
   }
 
-  async getComparisonResultsByRunId(ingestionRunId: string, filters?: { search?: string }): Promise<any[]> {
+  async getComparisonResultsByRunId(
+    ingestionRunId: string,
+    filters?: { search?: string },
+  ): Promise<any[]> {
     const nutribioticsBrand = await this.brandModel
       .findOne({ name: { $regex: /^nutrabiotics$/i } })
       .lean()
@@ -519,19 +522,41 @@ export class PricesService {
 
     // Convert ingestionRunId to ObjectId for querying
     const runObjectId = new Types.ObjectId(ingestionRunId);
-    const nutribioticsProductIds = nutribioticsProducts.map(p => p._id);
+    const nutribioticsProductIds = nutribioticsProducts.map((p) => p._id);
 
-    // BATCH QUERY 1: Get all Nutribiotics prices at once
-    const nutribioticsPrices = await this.priceModel
-      .find({
-        productId: { $in: nutribioticsProductIds },
-        marketplaceId: null,
-      })
-      .sort({ createdAt: -1 })
-      .lean()
-      .exec();
+    // EXECUTE INDEPENDENT QUERIES IN PARALLEL
+    const [
+      nutribioticsPrices,
+      allRecommendationsList,
+      allComparedProducts,
+    ] = await Promise.all([
+      // QUERY 1: Nutribiotics prices
+      this.priceModel
+        .find({
+          productId: { $in: nutribioticsProductIds },
+          marketplaceId: null,
+        })
+        .sort({ createdAt: -1 })
+        .lean()
+        .exec(),
 
-    // Create a map of product ID to its latest price
+      // QUERY 2: Recommendations (Batch fetch)
+      this.recommendationsService.findByRunIdAndProductIds(
+        ingestionRunId,
+        nutribioticsProductIds.map((id) => id.toString()),
+      ),
+
+      // QUERY 3: Compared products (Competitors)
+      this.productModel
+        .find({
+          comparedTo: { $in: nutribioticsProductIds },
+          brand: { $ne: nutribioticsBrand._id },
+        })
+        .lean()
+        .exec(),
+    ]);
+
+    // Process Nutribiotics Prices
     const nutribioticsPriceMap = new Map<string, any>();
     for (const price of nutribioticsPrices) {
       const productId = price.productId.toString();
@@ -540,32 +565,13 @@ export class PricesService {
       }
     }
 
-    // BATCH QUERY 2: Get all recommendations at once
-    const allRecommendations = await Promise.all(
-      nutribioticsProducts.map((product) =>
-        this.recommendationsService.getLatestRecommendationForProduct(
-          product._id.toString(),
-          ingestionRunId,
-        )
-      )
-    );
+    // Process Recommendations
     const recommendationMap = new Map<string, any>();
-    nutribioticsProducts.forEach((product, index) => {
-      if (allRecommendations[index]) {
-        recommendationMap.set(product._id.toString(), allRecommendations[index]);
-      }
-    });
+    for (const rec of allRecommendationsList) {
+      recommendationMap.set(rec.productId.toString(), rec);
+    }
 
-    // BATCH QUERY 3: Get all compared products (competitors) at once
-    const allComparedProducts = await this.productModel
-      .find({
-        comparedTo: { $in: nutribioticsProductIds },
-        brand: { $ne: nutribioticsBrand._id }
-      })
-      .lean()
-      .exec();
-
-    // Group competitor products by the Nutribiotics product they're compared to
+    // Process Compared Products
     const comparedProductsByParent = new Map<string, any[]>();
     for (const comparedProduct of allComparedProducts) {
       const parentId = comparedProduct.comparedTo?.toString();
@@ -577,18 +583,19 @@ export class PricesService {
       }
     }
 
-    // BATCH QUERY 4: Get all competitor prices for this run at once
-    const allCompetitorProductIds = allComparedProducts.map(p => p._id);
-    const allCompetitorPricesData = allCompetitorProductIds.length > 0
-      ? await this.priceModel
-          .find({
-            productId: { $in: allCompetitorProductIds },
-            ingestionRunId: runObjectId
-          })
-          .sort({ createdAt: -1 })
-          .lean()
-          .exec()
-      : [];
+    // QUERY 4: Competitor prices (dependent on compared products)
+    const allCompetitorProductIds = allComparedProducts.map((p) => p._id);
+    const allCompetitorPricesData =
+      allCompetitorProductIds.length > 0
+        ? await this.priceModel
+            .find({
+              productId: { $in: allCompetitorProductIds },
+              ingestionRunId: runObjectId,
+            })
+            .sort({ createdAt: -1 })
+            .lean()
+            .exec()
+        : [];
 
     // Group competitor prices by product ID
     const competitorPricesByProduct = new Map<string, any[]>();
@@ -600,7 +607,7 @@ export class PricesService {
       competitorPricesByProduct.get(productId)!.push(price);
     }
 
-    // BATCH QUERY 5: Get all unique marketplace IDs and load them at once
+    // Prepare sets for Marketplaces and Brands
     const allMarketplaceIds = new Set<string>();
     for (const price of allCompetitorPricesData) {
       if (price.marketplaceId) {
@@ -608,20 +615,6 @@ export class PricesService {
       }
     }
 
-    const marketplaces = allMarketplaceIds.size > 0
-      ? await this.marketplaceModel
-          .find({ _id: { $in: Array.from(allMarketplaceIds) } })
-          .select('name')
-          .lean()
-          .exec()
-      : [];
-
-    const marketplaceMap = new Map<string, string>();
-    for (const marketplace of marketplaces) {
-      marketplaceMap.set(marketplace._id.toString(), marketplace.name);
-    }
-
-    // BATCH QUERY 6: Get all unique brand IDs and load them at once
     const allBrandIds = new Set<string>();
     allBrandIds.add(nutribioticsBrand._id.toString());
     for (const product of allComparedProducts) {
@@ -630,31 +623,49 @@ export class PricesService {
       }
     }
 
-    const brands = await this.brandModel
-      .find({ _id: { $in: Array.from(allBrandIds) } })
-      .select('name status')
-      .lean()
-      .exec();
+    // QUERY 5 & 6: Fetch Marketplaces and Brands in PARALLEL
+    const [marketplaces, brands] = await Promise.all([
+      allMarketplaceIds.size > 0
+        ? this.marketplaceModel
+            .find({ _id: { $in: Array.from(allMarketplaceIds) } })
+            .select('name')
+            .lean()
+            .exec()
+        : [],
+      this.brandModel
+        .find({ _id: { $in: Array.from(allBrandIds) } })
+        .select('name status')
+        .lean()
+        .exec(),
+    ]);
+
+    const marketplaceMap = new Map<string, string>();
+    for (const marketplace of marketplaces) {
+      marketplaceMap.set(marketplace._id.toString(), marketplace.name);
+    }
 
     const brandMap = new Map<string, any>();
     for (const brand of brands) {
       brandMap.set(brand._id.toString(), {
         id: brand._id.toString(),
         name: brand.name,
-        status: brand.status
+        status: brand.status,
       });
     }
 
-    // Build comparison data for each product (now using in-memory lookups)
+    // Build comparison data
     const comparisons = nutribioticsProducts.map((product) => {
       const productId = product._id.toString();
 
-      // Get Nutribiotics price from map
+      // Get Nutribiotics price
       const nutribioticsPrice = nutribioticsPriceMap.get(productId);
       const latestRecommendation = recommendationMap.get(productId);
-      const currentPrice = latestRecommendation?.currentPrice ?? nutribioticsPrice?.precioConIva ?? null;
+      const currentPrice =
+        latestRecommendation?.currentPrice ??
+        nutribioticsPrice?.precioConIva ??
+        null;
 
-      // Get compared products from map
+      // Get compared products
       const comparedProducts = comparedProductsByParent.get(productId) || [];
 
       // Collect all competitor prices from THIS run only
@@ -687,7 +698,7 @@ export class PricesService {
         allCompetitorPrices.push(...pricesByMarketplace.values());
       }
 
-      // Calculate min, max, avg from all competitor prices
+      // Calculate stats
       let minCompetitorPrice = 0;
       let maxCompetitorPrice = 0;
       let avgCompetitorPrice = 0;
@@ -699,9 +710,10 @@ export class PricesService {
       if (allCompetitorPrices.length > 0) {
         minCompetitorPrice = Math.min(...allCompetitorPrices);
         maxCompetitorPrice = Math.max(...allCompetitorPrices);
-        avgCompetitorPrice = allCompetitorPrices.reduce((sum, price) => sum + price, 0) / allCompetitorPrices.length;
+        avgCompetitorPrice =
+          allCompetitorPrices.reduce((sum, price) => sum + price, 0) /
+          allCompetitorPrices.length;
 
-        // Get marketplace names for min and max prices from map
         const minMarketplaceId = priceToMarketplaceMap.get(minCompetitorPrice);
         const maxMarketplaceId = priceToMarketplaceMap.get(maxCompetitorPrice);
 
@@ -719,7 +731,6 @@ export class PricesService {
         }
       }
 
-      // Get brand from map
       const brandId = product.brand?.toString();
       const brand = brandId ? brandMap.get(brandId) : null;
 
@@ -735,7 +746,9 @@ export class PricesService {
         maxPriceMarketplace,
         difference,
         differencePercent,
-        lastIngestionDate: lastIngestionDate ? lastIngestionDate.toISOString() : null,
+        lastIngestionDate: lastIngestionDate
+          ? lastIngestionDate.toISOString()
+          : null,
         recommendationId: latestRecommendation?._id?.toString(),
         recommendation: latestRecommendation?.recommendation,
         recommendationReasoning: latestRecommendation?.recommendationReasoning,

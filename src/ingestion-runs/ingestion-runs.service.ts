@@ -177,6 +177,7 @@ export class IngestionRunsService {
     const [runs, total] = await Promise.all([
       this.ingestionRunModel
         .find()
+        .select('-results')
         .sort({ triggeredAt: -1 })
         .skip(skip)
         .limit(limit)

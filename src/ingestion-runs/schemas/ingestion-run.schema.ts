@@ -139,3 +139,5 @@ export class IngestionRun {
 }
 
 export const IngestionRunSchema = SchemaFactory.createForClass(IngestionRun);
+
+IngestionRunSchema.index({ triggeredAt: -1 });
