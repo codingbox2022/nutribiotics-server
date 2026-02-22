@@ -764,25 +764,72 @@ export class ProductsService {
       }
     }
 
-    // Step 4: Build responses (buildProductResponse only resolves missing refs, fast when populated)
-    const data = await Promise.all(
-      originalProducts.map(async (product) => {
-        const [baseProduct, comparedProductResponses] = await Promise.all([
-          this.buildProductResponse(product),
-          Promise.all(
-            (comparedByParent.get(product._id.toString()) || []).map((p) =>
-              this.buildProductResponse(p),
-            ),
-          ),
-        ]);
+    // Step 4: Batch-fetch all ingredient names needed for ingredientContent maps
+    const allProductsForResponse = [...originalProducts, ...allComparedProducts];
+    const ingredientContentIds = new Set<string>();
+    for (const product of allProductsForResponse) {
+      const content = product.ingredientContent;
+      if (content) {
+        const entries = content instanceof Map
+          ? Array.from(content.keys())
+          : Object.keys(content);
+        for (const key of entries) {
+          if (Types.ObjectId.isValid(key)) {
+            ingredientContentIds.add(key);
+          }
+        }
+      }
+    }
 
-        return {
-          ...baseProduct,
-          comparedProducts: comparedProductResponses,
-          latestPrice: latestPricesMap.get(product._id.toString()) ?? null,
-        };
-      }),
-    );
+    const ingredientNameMap = ingredientContentIds.size > 0
+      ? new Map<string, string>(
+          (await this.ingredientModel
+            .find({ _id: { $in: [...ingredientContentIds] } })
+            .select('name')
+            .lean()
+            .exec()
+          ).map((d: any) => [d._id.toString(), d.name] as [string, string]),
+        )
+      : new Map<string, string>();
+
+    // Step 5: Build responses in memory (no per-product DB calls)
+    const buildResponse = (product: ProductDocument) => {
+      const brand = this.formatBrand(product.brand as any);
+      const ingredients = this.formatIngredients(product.ingredients as any);
+      const ingredientQuantities = this.buildIngredientQuantities(ingredients);
+
+      const rawContent = product.ingredientContent;
+      const entries = rawContent instanceof Map
+        ? Array.from(rawContent.entries())
+        : Object.entries(rawContent || {});
+      const ingredientContent: Record<string, number> = {};
+      for (const [key, value] of entries) {
+        ingredientContent[ingredientNameMap.get(key) || key] = Number(value);
+      }
+
+      const productObj = product.toObject ? product.toObject({ virtuals: true }) : product;
+      const {
+        _id, id, brand: _b, ingredients: _i, ingredientContent: _ic, ...rest
+      } = productObj as any;
+
+      return {
+        id: (id ?? _id ?? (product as any)._id).toString(),
+        ...rest,
+        brand,
+        ingredients,
+        ingredientQuantities,
+        ingredientContent,
+      };
+    };
+
+    const data = originalProducts.map((product) => {
+      const compared = comparedByParent.get(product._id.toString()) || [];
+      return {
+        ...buildResponse(product),
+        comparedProducts: compared.map(buildResponse),
+        latestPrice: latestPricesMap.get(product._id.toString()) ?? null,
+      };
+    });
 
     return {
       data,
