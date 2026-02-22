@@ -29,19 +29,6 @@ async function bootstrap() {
   const usersService = app.get(UsersService);
   await usersService.seedDefaultUser();
 
-  const ingredientsService = app.get(IngredientsService);
-  await ingredientsService.seedIngredients();
-
-  const brandsService = app.get(BrandsService);
-  await brandsService.seedBrands();
-
-  const marketplacesService = app.get(MarketplacesService);
-  await marketplacesService.seedMarketplaces();
-
-  const productsService = app.get(ProductsService);
-  await productsService.seedProducts();
-  await productsService.migrateIngredientContent();
-
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
 

@@ -346,7 +346,7 @@ export class ProductsService {
   ): Promise<ProductResponse> {
     try {
       const { ingredients, brand, name, ...rest } = createProductDto;
-      const status = options?.status ?? 'inactive';
+      const status = options?.status ?? 'active';
       const normalizedName = name.trim().toUpperCase();
 
       // Validate comparedTo logic: non-Nutribiotics products must have comparedTo
@@ -1044,7 +1044,26 @@ export class ProductsService {
 
       if (productId) {
         query._id = productId;
+
+        // DEBUG: Check the product's actual status before applying the active filter
+        const rawProduct = await this.productModel.findById(productId).exec();
+        if (rawProduct) {
+          this.logger.debug(`[DEBUG] Product ${productId}: name="${rawProduct.name}", status="${rawProduct.status}", brand="${rawProduct.brand}", comparedTo="${rawProduct.comparedTo}"`);
+          if (rawProduct.status !== 'active') {
+            this.logger.warn(`[DEBUG] Product ${productId} has status="${rawProduct.status}" — it will be EXCLUDED by the status:'active' filter`);
+          }
+          if (rawProduct.comparedTo != null) {
+            this.logger.warn(`[DEBUG] Product ${productId} has comparedTo="${rawProduct.comparedTo}" — it will be EXCLUDED by the comparedTo:null filter (this is a comparable, not a base product)`);
+          }
+          if (rawProduct.brand?.toString() !== nutribioticsBrand._id.toString()) {
+            this.logger.warn(`[DEBUG] Product ${productId} brand="${rawProduct.brand}" does not match Nutribiotics brand="${nutribioticsBrand._id}" — it will be EXCLUDED by the brand filter`);
+          }
+        } else {
+          this.logger.warn(`[DEBUG] Product ${productId} does not exist in the database`);
+        }
       }
+
+      this.logger.debug(`[DEBUG] Final query: ${JSON.stringify(query)}`);
 
       const products = await this.productModel
         .find(query)
@@ -1171,6 +1190,7 @@ Return a markdown table with these fields for each comparable product found in $
 - totalContentUnit (unit like "ml", "g", "tablets")
 - portion (numeric portion size)
 - List of ingredients with: Ingredient Name, Quantity, Unit
+IMPORTANT: Only include ingredients that have a known numeric quantity > 0. Omit ingredients like flavorings, colorants, or sweeteners if their quantity is unknown or zero.
 </outputFormat>
 
 <referenceProduct>
@@ -1208,7 +1228,7 @@ ${existingComparableSummaries.join('\n')}
                 ingredients: z.array(
                   z.object({
                     name: z.string().min(1),
-                    qty: z.number().positive(),
+                    qty: z.number().nonnegative(),
                     measurementUnit: z.enum(['MG', 'MCG', 'KCAL', 'UI', 'G', 'ML'] as const)
                   })
                 ),

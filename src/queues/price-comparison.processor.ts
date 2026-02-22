@@ -100,8 +100,23 @@ export class PriceComparisonProcessor extends WorkerHost {
           throw new Error(`Product with ID ${productId} not found`);
         }
 
+        this.logger.log(`[DEBUG] Target product found: name="${targetProduct.name}", status="${targetProduct.status}", brand="${targetProduct.brand}"`);
+
         // Search for all competitor products that compare to this Nutribiotics product
         this.logger.log(`Finding all competitor products comparable to Nutribiotics product ${productId}...`);
+
+        // DEBUG: First query WITHOUT status filter to see all linked competitors
+        const allLinkedProducts = await this.productModel
+          .find({ comparedTo: new Types.ObjectId(productId) })
+          .populate({ path: 'brand', select: 'name status' })
+          .exec();
+
+        this.logger.log(`[DEBUG] Total products linked via comparedTo (any status): ${allLinkedProducts.length}`);
+        for (const lp of allLinkedProducts) {
+          const lpBrand = (lp.brand as any)?.name || 'Unknown';
+          this.logger.log(`[DEBUG]   - "${lp.name}" | brand="${lpBrand}" | status="${lp.status}" | id=${lp._id}`);
+        }
+
         productQuery = {
           status: 'active',
           comparedTo: new Types.ObjectId(productId),
@@ -110,7 +125,10 @@ export class PriceComparisonProcessor extends WorkerHost {
         // Exclude Nutribiotics brand if it exists
         if (nutribioticsBrand) {
           productQuery.brand = { $ne: nutribioticsBrand._id };
+          this.logger.log(`[DEBUG] Excluding Nutribiotics brand ID: ${nutribioticsBrand._id}`);
         }
+
+        this.logger.log(`[DEBUG] Final product query: ${JSON.stringify(productQuery)}`);
       } else {
         // Default: search all competitor products (excluding Nutribiotics)
         if (nutribioticsBrand) {
@@ -154,8 +172,22 @@ export class PriceComparisonProcessor extends WorkerHost {
         await this.ingestionRunsService.markAsRunning(runId);
       }
 
+      // Log the products that matched the query
+      if (productId) {
+        this.logger.log(`[DEBUG] Products matching final query (status=active, comparedTo=${productId}): ${products.length}`);
+        for (const p of products) {
+          const pBrand = (p.brand as any)?.name || 'Unknown';
+          this.logger.log(`[DEBUG]   - "${p.name}" | brand="${pBrand}" | status="${p.status}" | id=${p._id}`);
+        }
+        this.logger.log(`[DEBUG] Active marketplaces with Google-indexed products: ${marketplaces.length}`);
+        for (const m of marketplaces) {
+          this.logger.log(`[DEBUG]   - "${m.name}" | status="${m.status}" | url=${m.baseUrl}`);
+        }
+      }
+
       // Validate products were found if filtering by productId
       if (productId && products.length === 0) {
+        this.logger.error(`[DEBUG] No active competitor products found for productId=${productId}. Check if linked products have status != 'active' (see DEBUG logs above).`);
         throw new Error(`No competitor products found for the selected product`);
       }
 
