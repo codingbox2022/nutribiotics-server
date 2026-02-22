@@ -106,3 +106,5 @@ ProductSchema.index({ comparedTo: 1 });
 ProductSchema.index({ comparedTo: 1, brand: 1 });
 // Index for status-based queries
 ProductSchema.index({ status: 1, createdAt: -1 });
+// Index for findAll main query (comparedTo: null with optional filters)
+ProductSchema.index({ comparedTo: 1, alertLevel: 1 });

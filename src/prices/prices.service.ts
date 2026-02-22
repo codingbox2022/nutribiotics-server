@@ -193,6 +193,22 @@ export class PricesService {
     };
   }
 
+  async getLatestPricesForProducts(
+    productIds: Types.ObjectId[],
+  ): Promise<Map<string, number>> {
+    if (productIds.length === 0) return new Map();
+
+    const results = await this.priceModel.aggregate([
+      { $match: { productId: { $in: productIds } } },
+      { $sort: { createdAt: -1 } },
+      { $group: { _id: '$productId', precioConIva: { $first: '$precioConIva' } } },
+    ]);
+
+    return new Map(
+      results.map((r: any) => [r._id.toString(), r.precioConIva]),
+    );
+  }
+
   async findOne(id: string): Promise<PriceDocument> {
     const price = await this.priceModel.findById(id).exec();
     if (!price) {

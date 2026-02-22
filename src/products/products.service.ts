@@ -620,6 +620,75 @@ export class ProductsService {
     return data;
   }
 
+  async acceptWithDependencies(
+    productId: string,
+    productName?: string,
+  ): Promise<{
+    product: ProductResponse;
+    acceptedIngredients: string[];
+    acceptedBrands: string[];
+  }> {
+    // 1. Load the product with populated refs
+    const product = await this.productModel
+      .findById(productId)
+      .populate([
+        { path: 'brand', select: 'name status' },
+        { path: 'ingredients.ingredient', select: 'name status' },
+      ])
+      .exec();
+
+    if (!product) {
+      throw new NotFoundException(`Product with ID ${productId} not found`);
+    }
+
+    const acceptedIngredients: string[] = [];
+    const acceptedBrands: string[] = [];
+
+    // 2. Accept all pending ingredients
+    for (const entry of product.ingredients || []) {
+      const ref: any = entry.ingredient;
+      if (ref?.status === ApprovalStatus.NOT_APPROVED) {
+        await this.ingredientModel.findByIdAndUpdate(
+          ref._id,
+          { status: ApprovalStatus.APPROVED },
+          { new: true },
+        );
+        acceptedIngredients.push(ref._id.toString());
+      }
+    }
+
+    // 3. Accept the pending brand
+    const brandRef: any = product.brand;
+    if (brandRef?.status === ApprovalStatus.NOT_APPROVED) {
+      await this.brandModel.findByIdAndUpdate(
+        brandRef._id,
+        { status: ApprovalStatus.APPROVED },
+        { new: true },
+      );
+      acceptedBrands.push(brandRef._id.toString());
+    }
+
+    // 4. Activate the product
+    const updateData: Record<string, unknown> = { status: 'active' };
+    if (productName) {
+      updateData.name = productName;
+    }
+
+    const updatedProduct = await this.productModel
+      .findByIdAndUpdate(productId, updateData, { new: true })
+      .populate([
+        { path: 'brand', select: 'name status' },
+        { path: 'ingredients.ingredient', select: 'name status' },
+      ])
+      .exec();
+
+    return {
+      product: await this.buildProductResponse(updatedProduct!),
+      acceptedIngredients,
+      acceptedBrands,
+    };
+  }
+
   async findAll(
     filters: FindAllFilters,
   ): Promise<PaginatedResult<any>> {
@@ -654,47 +723,63 @@ export class ProductsService {
 
     const skip = (page - 1) * limit;
 
+    const populateOpts = [
+      { path: 'brand', select: 'name status' },
+      { path: 'ingredients.ingredient', select: 'name status' },
+    ];
+
+    // Step 1: Fetch paginated products + count
     const [originalProducts, total] = await Promise.all([
       this.productModel
         .find(query)
         .skip(skip)
         .limit(limit)
-        .populate([
-          { path: 'brand', select: 'name status' },
-          { path: 'ingredients.ingredient', select: 'name status' },
-        ])
+        .populate(populateOpts)
         .exec(),
       this.productModel.countDocuments(query).exec(),
     ]);
 
-    // For each original product, fetch its compared products and latest price
+    const productIds = originalProducts.map((p) => p._id);
+
+    // Step 2: Batch fetch ALL compared products + ALL latest prices (instead of N+1 queries)
+    const [allComparedProducts, latestPricesMap] = await Promise.all([
+      productIds.length > 0
+        ? this.productModel
+            .find({ comparedTo: { $in: productIds } })
+            .populate(populateOpts)
+            .exec()
+        : [],
+      this.pricesService.getLatestPricesForProducts(productIds),
+    ]);
+
+    // Step 3: Group compared products by parent ID
+    const comparedByParent = new Map<string, ProductDocument[]>();
+    for (const cp of allComparedProducts) {
+      const parentId = cp.comparedTo!.toString();
+      const list = comparedByParent.get(parentId);
+      if (list) {
+        list.push(cp);
+      } else {
+        comparedByParent.set(parentId, [cp]);
+      }
+    }
+
+    // Step 4: Build responses (buildProductResponse only resolves missing refs, fast when populated)
     const data = await Promise.all(
       originalProducts.map(async (product) => {
-        const [comparedProducts, prices, baseProduct] = await Promise.all([
-          this.productModel
-            .find({ comparedTo: product._id })
-            .populate([
-              { path: 'brand', select: 'name status' },
-              { path: 'ingredients.ingredient', select: 'name status' },
-            ])
-            .exec(),
-          this.pricesService.findAll({
-            productId: product._id.toString(),
-            limit: 1,
-          }),
+        const [baseProduct, comparedProductResponses] = await Promise.all([
           this.buildProductResponse(product),
+          Promise.all(
+            (comparedByParent.get(product._id.toString()) || []).map((p) =>
+              this.buildProductResponse(p),
+            ),
+          ),
         ]);
-
-        const latestPrice = prices.data.length > 0 ? prices.data[0].precioConIva : null;
-
-        const comparedProductsWithIngredients = await Promise.all(
-          comparedProducts.map((p) => this.buildProductResponse(p)),
-        );
 
         return {
           ...baseProduct,
-          comparedProducts: comparedProductsWithIngredients,
-          latestPrice,
+          comparedProducts: comparedProductResponses,
+          latestPrice: latestPricesMap.get(product._id.toString()) ?? null,
         };
       }),
     );

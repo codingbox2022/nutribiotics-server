@@ -84,6 +84,14 @@ export class ProductsController {
     return this.productsService.update(id, updateData);
   }
 
+  @Post(':id/accept-with-dependencies')
+  acceptWithDependencies(
+    @Param('id') id: string,
+    @Body('name') name?: string,
+  ) {
+    return this.productsService.acceptWithDependencies(id, name);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.productsService.remove(id);
