@@ -346,7 +346,6 @@ export class ProductsService {
   ): Promise<ProductResponse> {
     try {
       const { ingredients, brand, name, ...rest } = createProductDto;
-      const status = options?.status ?? 'active';
       const normalizedName = name.trim().toUpperCase();
 
       // Validate comparedTo logic: non-Nutribiotics products must have comparedTo
@@ -385,7 +384,7 @@ export class ProductsService {
         brand: new Types.ObjectId(brand),
         ingredients: normalizedIngredients,
         ingredientContent,
-        status,
+        ...(options?.status && { status: options.status }),
         comparedTo: createProductDto.comparedTo,
       });
 
@@ -681,6 +680,12 @@ export class ProductsService {
         { path: 'ingredients.ingredient', select: 'name status' },
       ])
       .exec();
+
+    // 5. Activate all comparable products linked to this product
+    await this.productModel.updateMany(
+      { comparedTo: new Types.ObjectId(productId), status: 'inactive' },
+      { status: 'active' },
+    ).exec();
 
     return {
       product: await this.buildProductResponse(updatedProduct!),
@@ -1073,7 +1078,6 @@ export class ProductsService {
               ingredients: this.normalizeIngredients(ingredientInputs),
               ingredientContent,
               comparedTo: null,
-              status: 'active',
             });
             totalSeeded++;
             this.logger.log(`Created new product: ${mainProductData.name}`);
@@ -1119,7 +1123,6 @@ export class ProductsService {
                 ingredients: this.normalizeIngredients(comparableIngredientInputs),
                 ingredientContent: comparableIngredientContent,
                 comparedTo: mainProduct._id,
-                status: 'active',
               });
               totalSeeded++;
             }
@@ -1556,16 +1559,6 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
 
         // Track new products created
         totalNewProducts += pendingCreatedProductIds.length;
-
-        if (pendingCreatedProductIds.length > 0) {
-          await this.productModel.updateMany(
-            { _id: { $in: pendingCreatedProductIds } },
-            { status: 'inactive' },
-          ).exec();
-          this.logger.debug(
-            `Marked ${pendingCreatedProductIds.length} auto-created comparables as inactive`,
-          );
-        }
 
         // Update progress: completed processing for this product
         if (progressCallback) {

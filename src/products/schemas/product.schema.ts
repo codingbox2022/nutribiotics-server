@@ -76,7 +76,7 @@ export class Product {
 
   @Prop({
     enum: ['active', 'inactive', 'rejected', 'deleted'],
-    default: 'inactive',
+    default: 'active',
   })
   status: string;
 }
