@@ -1,9 +1,10 @@
-import { Controller, Post, Body, Get } from '@nestjs/common';
+import { Controller, Post, Body, Get, Param } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { NotificationsService } from './notifications.service';
 import type { NotificationJobData } from './notifications.processor';
 import type { PriceComparisonJobData } from './price-comparison.processor';
+import type { ExportComparisonJobData } from './export-comparison.processor';
 
 @Controller('queues')
 export class QueuesController {
@@ -11,6 +12,8 @@ export class QueuesController {
     private readonly notificationsService: NotificationsService,
     @InjectQueue('price-comparison')
     private readonly priceComparisonQueue: Queue<PriceComparisonJobData>,
+    @InjectQueue('export-comparison')
+    private readonly exportComparisonQueue: Queue<ExportComparisonJobData>,
   ) {}
 
   @Post('notifications')
@@ -65,6 +68,44 @@ export class QueuesController {
       jobId: job.id,
       timestamp: new Date(),
       productId: body?.productId,
+    };
+  }
+
+  @Post('export-comparison')
+  async startExportComparison(@Body() body: { ingestionRunId: string }) {
+    const jobData: ExportComparisonJobData = {
+      ingestionRunId: body.ingestionRunId,
+      timestamp: new Date(),
+      triggeredBy: 'user',
+    };
+    const job = await this.exportComparisonQueue.add('export-excel', jobData);
+    return {
+      message: 'Export job started',
+      jobId: job.id,
+      timestamp: new Date(),
+      ingestionRunId: body.ingestionRunId,
+    };
+  }
+
+  @Get('export-comparison/:jobId')
+  async getExportComparisonStatus(@Param('jobId') jobId: string) {
+    const job = await this.exportComparisonQueue.getJob(jobId);
+    if (!job) {
+      return {
+        status: 'not_found',
+        message: 'Job not found',
+      };
+    }
+    const state = await job.getState();
+    const progress = job.progress;
+    const result = job.returnvalue;
+    const failedReason = job.failedReason;
+    return {
+      jobId: job.id,
+      status: state,
+      progress,
+      result,
+      failedReason,
     };
   }
 }

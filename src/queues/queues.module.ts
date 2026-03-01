@@ -6,6 +6,7 @@ import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { NotificationsProcessor } from './notifications.processor';
 import { NotificationsService } from './notifications.service';
 import { PriceComparisonProcessor } from './price-comparison.processor';
+import { ExportComparisonProcessor } from './export-comparison.processor';
 import { MarketplaceDiscoveryProcessor } from './marketplace-discovery.processor';
 import { ProductDiscoveryProcessor } from './product-discovery.processor';
 import { QueuesController } from './queues.controller';
@@ -84,6 +85,18 @@ import { Price, PriceSchema } from '../prices/schemas/price.schema';
         removeOnFail: 100,
       },
     }),
+    BullModule.registerQueue({
+      name: 'export-comparison',
+      defaultJobOptions: {
+        attempts: 2,
+        backoff: {
+          type: 'exponential',
+          delay: 3000,
+        },
+        removeOnComplete: 20,
+        removeOnFail: 50,
+      },
+    }),
     BullBoardModule.forFeature({
       name: 'notifications',
       adapter: BullMQAdapter,
@@ -100,9 +113,13 @@ import { Price, PriceSchema } from '../prices/schemas/price.schema';
       name: 'product-discovery',
       adapter: BullMQAdapter,
     }),
+    BullBoardModule.forFeature({
+      name: 'export-comparison',
+      adapter: BullMQAdapter,
+    }),
   ],
   controllers: [QueuesController],
-  providers: [NotificationsProcessor, NotificationsService, PriceComparisonProcessor, MarketplaceDiscoveryProcessor, ProductDiscoveryProcessor, RecommendationService],
+  providers: [NotificationsProcessor, NotificationsService, PriceComparisonProcessor, ExportComparisonProcessor, MarketplaceDiscoveryProcessor, ProductDiscoveryProcessor, RecommendationService],
   exports: [BullModule, NotificationsService],
 })
 export class QueuesModule {}

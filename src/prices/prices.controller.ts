@@ -8,15 +8,21 @@ import {
   Delete,
   Query,
   Request,
+  StreamableFile,
+  NotFoundException,
 } from '@nestjs/common';
 import { PricesService } from './prices.service';
+import { ExportCacheService } from './export-cache.service';
 import { CreatePriceDto } from './dto/create-price.dto';
 import { UpdatePriceDto } from './dto/update-price.dto';
 import { FindAllPricesDto } from './dto/find-all-prices.dto';
 
 @Controller('prices')
 export class PricesController {
-  constructor(private readonly pricesService: PricesService) {}
+  constructor(
+    private readonly pricesService: PricesService,
+    private readonly exportCacheService: ExportCacheService,
+  ) {}
 
   @Post()
   create(@Body() createPriceDto: CreatePriceDto) {
@@ -47,6 +53,24 @@ export class PricesController {
     @Query('search') search?: string
   ) {
     return this.pricesService.getComparisonResultsByRunId(ingestionRunId, { search });
+  }
+
+  @Get('export-download/:jobId')
+  async downloadExport(
+    @Param('jobId') jobId: string,
+    @Query('ingestionRunId') ingestionRunId: string,
+  ) {
+    const buffer = this.exportCacheService.get(jobId);
+    if (!buffer) {
+      throw new NotFoundException('Export not found or expired. Please generate the report again.');
+    }
+    const filename = ingestionRunId
+      ? `resultados-comparacion-${ingestionRunId}.xlsx`
+      : `resultados-comparacion-${jobId}.xlsx`;
+    return new StreamableFile(buffer, {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      disposition: `attachment; filename="${filename}"`,
+    });
   }
 
   @Post('recommendations/bulk-accept')

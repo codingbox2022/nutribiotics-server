@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import * as ExcelJS from 'exceljs';
 import { Price, PriceDocument } from './schemas/price.schema';
 import { CreatePriceDto } from './dto/create-price.dto';
 import { UpdatePriceDto } from './dto/update-price.dto';
@@ -982,6 +983,310 @@ export class PricesService {
       ingredientUnits,
       lastIngestionDate: lastIngestionDate ? lastIngestionDate.toISOString() : null,
     };
+  }
+
+  private getBrandDisplayName(brand: { id: string; name: string | null } | null): string {
+    if (!brand) return 'Sin marca';
+    return brand.name ?? brand.id ?? 'Sin marca';
+  }
+
+  private sanitizeSheetName(name: string, used: Set<string>): string {
+    const invalid = /[\\/*?:\[\]]/g;
+    let base = name.replace(invalid, '').trim().slice(0, 31) || 'Hoja';
+    let candidate = base;
+    let n = 1;
+    while (used.has(candidate)) {
+      const suffix = ` (${n})`;
+      candidate = (base.slice(0, 31 - suffix.length) || base).trim() + suffix;
+      n++;
+    }
+    used.add(candidate);
+    return candidate;
+  }
+
+  private formatCurrencyExcel(value: number | null): string {
+    if (value === null || value === undefined) return '';
+    return new Intl.NumberFormat('es-CO', {
+      style: 'currency',
+      currency: 'COP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  }
+
+  private formatDateExcel(isoDate: string | null): string {
+    if (!isoDate) return '';
+    try {
+      return new Intl.DateTimeFormat('es-CO', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }).format(new Date(isoDate));
+    } catch {
+      return isoDate;
+    }
+  }
+
+  private recommendationLabel(recommendation: string | undefined): string {
+    if (!recommendation) return '';
+    const map: Record<string, string> = {
+      raise: 'Subir',
+      lower: 'Bajar',
+      keep: 'Mantener',
+    };
+    return map[recommendation] ?? recommendation;
+  }
+
+  private recommendationStatusLabel(status: string | undefined): string {
+    if (!status) return '';
+    const map: Record<string, string> = {
+      not_approved: 'Pendiente',
+      approved: 'Aprobado',
+      rejected: 'Rechazado',
+    };
+    return map[status] ?? status;
+  }
+
+  /** Project primary violet (HSL 272 54% 20%) as ARGB for Excel header fill; white text. */
+  private static readonly EXCEL_HEADER_FILL = { type: 'pattern' as const, pattern: 'solid' as const, fgColor: { argb: 'FF2E1A4A' } };
+  private static readonly EXCEL_HEADER_FONT = { bold: true, color: { argb: 'FFFFFFFF' } };
+
+  private setHeaderRowStyle(sheet: ExcelJS.Worksheet, rowNumber: number): void {
+    const row = sheet.getRow(rowNumber);
+    row.eachCell({ includeEmpty: false }, (cell) => {
+      cell.fill = PricesService.EXCEL_HEADER_FILL;
+      cell.font = PricesService.EXCEL_HEADER_FONT;
+    });
+  }
+
+  private setColumnWidthsFromContent(sheet: ExcelJS.Worksheet): void {
+    const maxLen: Record<number, number> = {};
+    sheet.eachRow({ includeEmpty: false }, (row) => {
+      row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+        const len = String(cell.value ?? '').length;
+        maxLen[colNumber] = Math.max(maxLen[colNumber] ?? 0, len);
+      });
+    });
+    for (const colNumber of Object.keys(maxLen)) {
+      const col = Number(colNumber);
+      const w = maxLen[col];
+      sheet.getColumn(col).width = Math.min(80, Math.max(10, w + 2));
+    }
+  }
+
+  async exportComparisonResultsToExcel(
+    ingestionRunId: string,
+    onProgress?: (percent: number) => void | Promise<void>,
+  ): Promise<Buffer> {
+    const report = async (p: number) => {
+      if (onProgress) await Promise.resolve(onProgress(p));
+    };
+
+    const comparisonResults = await this.getComparisonResultsByRunId(ingestionRunId);
+    if (comparisonResults.length === 0) {
+      throw new NotFoundException('No hay resultados de comparación para este run');
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const resumenSheet = workbook.addWorksheet('Resumen', { views: [{ state: 'frozen', ySplit: 1 }] });
+
+    // Master sheet headers
+    const masterHeaders = [
+      'Producto',
+      'Marca',
+      'Precio Actual',
+      'Mín. Competencia',
+      'Prom. Competencia',
+      'Máx. Competencia',
+      'Mín. Mercado',
+      'Máx. Mercado',
+      'Diferencia',
+      'Diferencia %',
+      'Recomendación',
+      'Precio Recomendado',
+      'Estado',
+      'Justificación',
+      'Última Ingesta',
+    ];
+    resumenSheet.addRow(masterHeaders);
+    this.setHeaderRowStyle(resumenSheet, 1);
+
+    for (const row of comparisonResults) {
+      const brandName = this.getBrandDisplayName(row.brand);
+      resumenSheet.addRow([
+        row.productName,
+        brandName,
+        row.currentPrice,
+        row.minCompetitorPrice || '',
+        row.avgCompetitorPrice || '',
+        row.maxCompetitorPrice || '',
+        row.minPriceMarketplace ?? '',
+        row.maxPriceMarketplace ?? '',
+        row.difference ?? '',
+        row.differencePercent != null ? `${row.differencePercent.toFixed(1)}%` : '',
+        this.recommendationLabel(row.recommendation),
+        row.recommendedPrice ?? '',
+        this.recommendationStatusLabel(row.recommendationStatus),
+        row.recommendationReasoning ?? '',
+        this.formatDateExcel(row.lastIngestionDate),
+      ]);
+    }
+    this.setColumnWidthsFromContent(resumenSheet);
+
+    // Build global "all products vs marketplaces" data and collect details for per-product sheets
+    const productsMap = new Map<string, { name: string; brand: string }>();
+    const dataSinIva = new Map<string, Map<string, number>>();
+    const dataConIva = new Map<string, Map<string, number>>();
+    const allMarketplacesSet = new Set<string>();
+    const nutrabioticsProductIds = new Set<string>();
+    const detailsForSheets: Array<{ summary: { productName: string }; detail: { product: any; competitors: any[]; ingredientUnits?: Record<string, string> } }> = [];
+    const totalProducts = comparisonResults.length;
+
+    await report(5);
+
+    for (let i = 0; i < comparisonResults.length; i++) {
+      const summary = comparisonResults[i];
+      let detail: { product: any; competitors: any[]; ingredientUnits?: Record<string, string> };
+      try {
+        detail = await this.getProductPriceDetail(summary.id, ingestionRunId);
+      } catch {
+        await report(totalProducts > 0 ? 5 + Math.round(((i + 1) / totalProducts) * 90) : 5);
+        continue;
+      }
+
+      const product = detail.product;
+      await report(totalProducts > 0 ? 5 + Math.round(((i + 1) / totalProducts) * 90) : 5);
+      const productId = product.id;
+      const brandName = this.getBrandDisplayName(product.brand);
+
+      nutrabioticsProductIds.add(productId);
+      productsMap.set(productId, { name: product.name, brand: brandName });
+      if (!dataSinIva.has(productId)) {
+        dataSinIva.set(productId, new Map());
+        dataConIva.set(productId, new Map());
+      }
+      const mainMarketplace = product.marketplace ?? '—';
+      allMarketplacesSet.add(mainMarketplace);
+      if (product.currentPriceWithoutIva != null) dataSinIva.get(productId)!.set(mainMarketplace, product.currentPriceWithoutIva);
+      if (product.currentPrice != null) dataConIva.get(productId)!.set(mainMarketplace, product.currentPrice);
+
+      for (const comp of detail.competitors) {
+        const compId = comp.id;
+        const compBrand = this.getBrandDisplayName(comp.brand);
+        productsMap.set(compId, { name: comp.name, brand: compBrand });
+        if (!dataSinIva.has(compId)) {
+          dataSinIva.set(compId, new Map());
+          dataConIva.set(compId, new Map());
+        }
+        for (const mp of comp.marketplacePrices ?? []) {
+          const mkName = mp.marketplaceName ?? '—';
+          allMarketplacesSet.add(mkName);
+          dataSinIva.get(compId)!.set(mkName, mp.priceWithoutIva);
+          dataConIva.get(compId)!.set(mkName, mp.priceWithIva);
+        }
+      }
+
+      detailsForSheets.push({ summary, detail });
+    }
+
+    const NUTRABIOTICS_STORE = 'Nutrabiotics Store';
+    const allMarketplaces = Array.from(allMarketplacesSet)
+      .filter((m) => m !== NUTRABIOTICS_STORE)
+      .sort();
+    const competitorProductIds = Array.from(productsMap.keys()).filter((id) => !nutrabioticsProductIds.has(id));
+
+    // Global sheet: Precios sin IVA (competitors x marketplaces) — second sheet
+    const sheetSinIva = workbook.addWorksheet('Precios sin IVA', { views: [{ state: 'frozen', ySplit: 1 }] });
+    sheetSinIva.addRow(['Producto', 'Marca', ...allMarketplaces]);
+    this.setHeaderRowStyle(sheetSinIva, 1);
+    for (const productId of competitorProductIds) {
+      const { name, brand } = productsMap.get(productId)!;
+      const prices = dataSinIva.get(productId)!;
+      const row = [name, brand, ...allMarketplaces.map((m) => this.formatCurrencyExcel(prices.get(m) ?? null))];
+      sheetSinIva.addRow(row);
+    }
+    this.setColumnWidthsFromContent(sheetSinIva);
+
+    // Global sheet: Precios con IVA (competitors x marketplaces) — third sheet
+    const sheetConIva = workbook.addWorksheet('Precios con IVA', { views: [{ state: 'frozen', ySplit: 1 }] });
+    sheetConIva.addRow(['Producto', 'Marca', ...allMarketplaces]);
+    this.setHeaderRowStyle(sheetConIva, 1);
+    for (const productId of competitorProductIds) {
+      const { name, brand } = productsMap.get(productId)!;
+      const prices = dataConIva.get(productId)!;
+      const row = [name, brand, ...allMarketplaces.map((m) => this.formatCurrencyExcel(prices.get(m) ?? null))];
+      sheetConIva.addRow(row);
+    }
+    this.setColumnWidthsFromContent(sheetConIva);
+
+    // Per-product detail sheets (fourth onwards): comparison table — competitors only
+    const usedSheetNames = new Set<string>(['Resumen', 'Precios sin IVA', 'Precios con IVA']);
+    for (let d = 0; d < detailsForSheets.length; d++) {
+      const { summary, detail } = detailsForSheets[d];
+      const product = detail.product;
+
+      const sheetName = this.sanitizeSheetName(summary.productName, usedSheetNames);
+      const sheet = workbook.addWorksheet(sheetName, { views: [{ state: 'frozen', ySplit: 1 }] });
+
+      const allProducts: Array<{
+        name: string;
+        brand: string;
+        priceWithIva: number;
+        priceWithoutIva: number;
+        pricePerIngredient: Record<string, number>;
+      }> = [];
+
+      for (const comp of detail.competitors) {
+        const compBrand = this.getBrandDisplayName(comp.brand);
+        const avgWithIva =
+          comp.marketplacePrices?.length
+            ? comp.marketplacePrices.reduce((s: number, mp: any) => s + mp.priceWithIva, 0) / comp.marketplacePrices.length
+            : 0;
+        const avgWithoutIva =
+          comp.marketplacePrices?.length
+            ? comp.marketplacePrices.reduce((s: number, mp: any) => s + mp.priceWithoutIva, 0) / comp.marketplacePrices.length
+            : 0;
+        const avgPerIngredient: Record<string, number> = {};
+        for (const ingId of Object.keys(comp.ingredientContent ?? {})) {
+          const prices = (comp.marketplacePrices ?? [])
+            .map((mp: any) => mp.pricePerIngredient?.[ingId] ?? 0)
+            .filter((p: number) => p > 0);
+          avgPerIngredient[ingId] = prices.length > 0 ? prices.reduce((a: number, b: number) => a + b, 0) / prices.length : 0;
+        }
+        allProducts.push({
+          name: comp.name,
+          brand: compBrand,
+          priceWithIva: avgWithIva,
+          priceWithoutIva: avgWithoutIva,
+          pricePerIngredient: avgPerIngredient,
+        });
+      }
+
+      const headerRow = ['Concepto', ...allProducts.map((p) => `${p.name} (${p.brand})`)];
+      sheet.addRow(headerRow);
+      this.setHeaderRowStyle(sheet, 1);
+
+      sheet.addRow(['Precio sin IVA', ...allProducts.map((p) => this.formatCurrencyExcel(p.priceWithoutIva))]);
+      sheet.addRow(['Precio con IVA', ...allProducts.map((p) => this.formatCurrencyExcel(p.priceWithIva))]);
+
+      const ingredientIds = new Set<string>();
+      Object.keys(product.currentPricePerIngredient ?? {}).forEach((id) => ingredientIds.add(id));
+      detail.competitors.forEach((c: any) => Object.keys(c.ingredientContent ?? {}).forEach((id) => ingredientIds.add(id)));
+      const ingredientList = Array.from(ingredientIds);
+
+      for (const ingId of ingredientList) {
+        const unit = detail.ingredientUnits?.[ingId] ?? 'unidad';
+        const row = [
+          `${ingId} (precio por ${unit})`,
+          ...allProducts.map((p) => this.formatCurrencyExcel(p.pricePerIngredient?.[ingId] ?? null)),
+        ];
+        sheet.addRow(row);
+      }
+      this.setColumnWidthsFromContent(sheet);
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer as ArrayBuffer);
   }
 
   async acceptRecommendation(recommendationId: string, user: any): Promise<any> {

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PricesService } from './prices.service';
 import { PricesController } from './prices.controller';
+import { ExportCacheService } from './export-cache.service';
 import { Price, PriceSchema } from './schemas/price.schema';
 import { Product, ProductSchema } from '../products/schemas/product.schema';
 import { Marketplace, MarketplaceSchema } from '../marketplaces/schemas/marketplace.schema';
@@ -23,7 +24,7 @@ import { RecommendationsModule } from '../recommendations/recommendations.module
     ]),
   ],
   controllers: [PricesController],
-  providers: [PricesService],
-  exports: [PricesService],
+  providers: [PricesService, ExportCacheService],
+  exports: [PricesService, ExportCacheService],
 })
 export class PricesModule {}
