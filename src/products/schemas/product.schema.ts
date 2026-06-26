@@ -59,6 +59,16 @@ export class Product {
   @Prop()
   imageUrl: string;
 
+  // What the product is for. On Nutribiotics products this is admin-entered and used to broaden
+  // discovery toward the product's purpose. On discovered competitors it holds the extracted purpose.
+  @Prop({ type: String, default: null })
+  indications?: string;
+
+  // Competitors only: short "why this was suggested" note to help physicians triage the broadened
+  // discovery results before approving/rejecting.
+  @Prop({ type: String, default: null })
+  matchRationale?: string;
+
   @Prop({ type: Types.ObjectId, ref: 'Product', default: null })
   comparedTo: Types.ObjectId;
 

@@ -597,6 +597,8 @@ export class ProductsService {
         lastScanDate: product.lastScanDate,
         scanStatus: product.scanStatus,
         status: product.status,
+        indications: product.indications,
+        matchRationale: product.matchRationale,
         createdAt: productObj.createdAt,
         updatedAt: productObj.updatedAt,
         brand,
@@ -1307,13 +1309,17 @@ export class ProductsService {
         }
 
         const prompt = `<instructions>
-Search for comparable products available for purchase in ${COUNTRY} (Colombian online stores, pharmacies, retailers).
+Find as MANY potentially comparable products as you can that are available for purchase in ${COUNTRY} (Colombian online stores, pharmacies, retailers). Favor RECALL over precision: it is better to surface a borderline candidate than to miss one. Our physicians review every candidate and make the final match decision, so do NOT pre-filter aggressively.
 
-IMPORTANT: Only include products that are:
-1. Actually available in ${COUNTRY} (not Mexico, Chile, or other countries)
-2. Have similar ingredients and quantities to the reference product
+Include a product if it meets ANY ONE of these criteria (it does NOT need to meet all):
+- It shares one or more key active ingredients with the reference product, OR
+- It is used for the same purpose / indication / health goal as the reference product (see the reference Indications below), even if its ingredients or doses differ, OR
+- It belongs to the same therapeutic or benefit category (e.g. sleep, immune, joint, digestive, energy, cognitive).
 
-If you cannot find specific products with detailed ingredient information, return an empty list rather than products from other countries.
+Do NOT require matching dose, potency, presentation/format, pack size, or full ingredient overlap.
+Expand your search with ingredient synonyms and related actives (e.g. "vitamina C" / "ácido ascórbico", "omega 3" / "aceite de pescado" / "EPA-DHA", "cúrcuma" / "curcumina") and with category-level queries for the same health goal.
+
+The only hard constraint: the product must be actually purchasable in ${COUNTRY} (not Mexico, Chile, or other countries). Capture whatever details you can; if some fields (dose, exact ingredient quantities) are unknown, still include the product and leave those fields blank rather than dropping it.
 </instructions>
 
 <outputFormat>
@@ -1324,14 +1330,17 @@ Return a markdown table with these fields for each comparable product found in $
 - totalContent (numeric value)
 - totalContentUnit (unit like "ml", "g", "tablets")
 - portion (numeric portion size)
+- Indications (what the product is for / the health need it addresses)
+- Why comparable (one short phrase explaining why it matches the reference product, e.g. "same indication: sleep; shares magnesium")
 - List of ingredients with: Ingredient Name, Quantity, Unit
-IMPORTANT: Only include ingredients that have a known numeric quantity > 0. Omit ingredients like flavorings, colorants, or sweeteners if their quantity is unknown or zero.
+Include every ingredient you can identify. If an ingredient's quantity is unknown, still list it and leave the quantity blank rather than omitting the product.
 </outputFormat>
 
 <referenceProduct>
 Name: ${product.name}
 Brand: ${brandName}
 Country: ${COUNTRY}
+${product.indications ? `Indications (what it is for): ${product.indications}` : ''}
 Ingredients:
 ${ingredientsXml}
 </referenceProduct>
@@ -1363,7 +1372,7 @@ ${existingComparableSummaries.join('\n')}
                 ingredients: z.array(
                   z.object({
                     name: z.string().min(1),
-                    qty: z.number().nonnegative(),
+                    qty: z.number().nonnegative().nullable().optional(),
                     measurementUnit: z.enum(['MG', 'MCG', 'KCAL', 'UI', 'G', 'ML'] as const)
                   })
                 ),
@@ -1371,6 +1380,8 @@ ${existingComparableSummaries.join('\n')}
                 totalContentUnit: z.string().min(1).describe('Unit of measurement for totalContent (e.g., "ml", "g", "tablets")'),
                 presentation: z.enum(Object.values(PresentationType) as [string, ...string[]]),
                 portion: z.number().positive(),
+                indications: z.string().optional().describe('What the product is for / the health need it addresses'),
+                matchRationale: z.string().optional().describe('Short reason this product is a possible match, e.g. "same indication: sleep; shares magnesium"'),
               })),
               newIngredients: z.array(z.object({
                 ingredientName: z.string(),
@@ -1385,6 +1396,8 @@ ${existingComparableSummaries.join('\n')}
 ${text}
 
 Extract the comparable products from the text.
+
+For each product, also extract its "indications" (what it is for / the health need it addresses) and a short "matchRationale" (the "Why comparable" phrase explaining why it matches the reference product) when present in the table. If a product's ingredient quantity is unknown, set qty to null rather than omitting the ingredient.
 
 For newIngredients: Compare the ingredients found in the products against this list of existing ingredients in the database:
 ${Array.from(ingredientMap.keys()).join(', ')}
@@ -1516,7 +1529,7 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
               .findOne({ name: { $regex: `^${normalizedIngredientName}$`, $options: 'i' } })
               .exec();
             if (ingDoc) {
-              ingredientInputs.push({ ingredientId: ingDoc._id.toString(), quantity: ing.qty });
+              ingredientInputs.push({ ingredientId: ingDoc._id.toString(), quantity: ing.qty ?? null });
             } else {
               this.logger.warn(`Ingredient not found for name: ${ing.name}. Skipping this ingredient.`);
             }
@@ -1548,6 +1561,8 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
               presentation: p.presentation,
               portion: p.portion,
               comparedTo: product._id,
+              indications: p.indications,
+              matchRationale: p.matchRationale,
             },
             { status: 'inactive' },
           );

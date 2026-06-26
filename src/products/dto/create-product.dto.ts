@@ -69,6 +69,14 @@ export class CreateProductDto {
   @IsOptional()
   imageUrl?: string;
 
+  @IsString()
+  @IsOptional()
+  indications?: string;
+
+  @IsString()
+  @IsOptional()
+  matchRationale?: string;
+
   @IsMongoId()
   @IsOptional()
   comparedTo?: Types.ObjectId;
