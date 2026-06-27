@@ -9,8 +9,6 @@ import marketplacesData from '../files/marketplaces.json';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { Price, PriceDocument } from '../prices/schemas/price.schema';
 import { ProductsService } from '../products/products.service';
-import { generateText } from 'ai';
-import { google } from 'src/providers/googleAiProvider';
 
 interface FindAllFilters {
   search?: string;
@@ -108,183 +106,91 @@ export class MarketplacesService {
     this.logger.log(`Deleted marketplace ${marketplace.name} (${id})`);
   }
 
+  /**
+   * Idempotently ensure the known seed marketplaces exist. Runs on every boot:
+   * inserts any that are missing (matched by name or baseUrl), skips the rest.
+   * Safe to run against a populated database.
+   */
   async seedMarketplaces(): Promise<void> {
-    const count = await this.marketplaceModel.countDocuments().exec();
-    this.logger.log(`Current marketplace count: ${count}`);
-    if (count > 0) {
-      this.logger.log('Marketplaces already seeded');
-      return;
+    let created = 0;
+    for (const mp of marketplacesData as Array<Record<string, any>>) {
+      try {
+        const exists = await this.marketplaceModel
+          .findOne({
+            $or: [
+              { name: { $regex: `^${mp.name}$`, $options: 'i' } },
+              { baseUrl: mp.baseUrl },
+            ],
+          })
+          .exec();
+        if (exists) continue;
+
+        await this.marketplaceModel.create({
+          name: mp.name,
+          country: mp.country || 'Colombia',
+          ivaRate: mp.ivaRate ?? 0.19,
+          baseUrl: mp.baseUrl,
+          status: mp.status || 'active',
+          scanStrategy: mp.scanStrategy || 'browser',
+          seenByUser: mp.seenByUser ?? true,
+        });
+        created++;
+        this.logger.log(`Seeded marketplace: ${mp.name} (${mp.scanStrategy || 'browser'})`);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.error(`Error seeding marketplace ${mp.name}: ${msg}`);
+      }
     }
-
-    this.logger.log(`Marketplaces data length: ${marketplacesData.length}`);
-    try {
-      const normalizedData = marketplacesData.map((marketplace) => ({
-        ...marketplace,
-        searchCapabilities: {
-          googleIndexedProducts: true,
-        },
-      }));
-
-      await this.marketplaceModel.insertMany(normalizedData);
-      this.logger.log(`Seeded ${marketplacesData.length} marketplaces`);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error(`Error seeding marketplaces: ${errorMessage}`, error instanceof Error ? error.stack : undefined);
+    if (created) {
+      this.logger.log(`Seeded ${created} new known marketplace(s)`);
     }
   }
 
-  async discoverMarketplacesFromProducts(): Promise<MarketplaceDocument[]> {
-    const COUNTRY = 'Colombia';
-    const IVA_RATE = 0.19;
+  /**
+   * One-off, idempotent migration retiring the legacy "rejected" marketplace
+   * concept. Rejected sites were non-indexed, so they become active and
+   * browser-scanned. Also backfills scanStrategy and drops the obsolete
+   * searchCapabilities / rejectionReason fields. Safe to run on every boot.
+   */
+  async migrateRetireRejected(): Promise<void> {
+    const rejected = await this.marketplaceModel
+      .updateMany(
+        { status: 'rejected' },
+        { $set: { status: 'active', scanStrategy: 'browser' } },
+      )
+      .exec();
 
-    try {
-      this.logger.log('Starting marketplace discovery from products...');
+    const backfilled = await this.marketplaceModel
+      .updateMany(
+        { scanStrategy: { $exists: false } },
+        { $set: { scanStrategy: 'search' } },
+      )
+      .exec();
 
-      // Get all active products with brand information
-      const products = await this.productModel
-        .find({ status: 'active', comparedTo: null })
-        .populate({ path: 'brand', select: 'name' })
-        .exec();
+    // Drop obsolete fields; strict:false because they are no longer in the schema.
+    const cleaned = await this.marketplaceModel
+      .updateMany(
+        {
+          $or: [
+            { searchCapabilities: { $exists: true } },
+            { rejectionReason: { $exists: true } },
+          ],
+        },
+        { $unset: { searchCapabilities: '', rejectionReason: '' } },
+        { strict: false },
+      )
+      .exec();
 
-      this.logger.log(`Found ${products.length} active products`);
-
-      if (products.length === 0) {
-        this.logger.warn('No active products found. Skipping marketplace discovery.');
-        return [];
-      }
-
-      // Build product list in "Brand → Name" format
-      const productList = products
-        .map((product) => {
-          const brandName = (product.brand as any)?.name || 'Unknown';
-          return `${brandName} → ${product.name}`;
-        })
-        .join('\n');
-
-      // Get existing marketplace names to exclude
-      const existingMarketplaces = await this.marketplaceModel
-        .find({ country: COUNTRY })
-        .select('name')
-        .exec();
-
-      const existingMarketplaceNames = existingMarketplaces
-        .map((m) => m.name)
-        .join(', ');
-
-      // Build prompt for LLM
-      const prompt = `<instructions>
-Given this list of products (in format "Brand → Product Name"), find online stores/marketplaces in ${COUNTRY} where these products are sold.
-
-Return each marketplace in the following format, one per line:
-MarketplaceName | BaseURL
-
-Important requirements:
-- BaseURL must be the store's homepage (e.g., https://example.com), NOT product pages
-- Only include marketplaces that are NOT already in the existing list
-- Focus on legitimate online stores that sell nutritional supplements in ${COUNTRY}
-- Each line must follow exactly this format: Name | URL
-</instructions>
-
-<productList>
-${productList}
-</productList>
-
-${existingMarketplaceNames ? `<excludeMarketplaces>
-DO NOT include these marketplaces as they are already in the database:
-${existingMarketplaceNames}
-</excludeMarketplaces>` : ''}
-
-<country>${COUNTRY}</country>`;
-
-      // Call LLM with web search
-      this.logger.log('Calling LLM to discover marketplaces...');
-      const { text } = await generateText({
-        model: google('gemini-3-pro-preview'),
-        prompt,
-        tools: {
-          google_search: google.tools.googleSearch({}),
-        }
-      });
-
-      this.logger.log('LLM response received. Parsing results...');
-
-      // Parse response - extract lines in format "Name | URL"
-      const lines = text.split('\n').filter((line) => line.trim());
-      const marketplacesToCreate: CreateMarketplaceDto[] = [];
-
-      for (const line of lines) {
-        const trimmedLine = line.trim();
-        // Look for lines with the pattern "Name | URL"
-        if (trimmedLine.includes('|')) {
-          const parts = trimmedLine.split('|').map((p) => p.trim());
-          if (parts.length >= 2) {
-            const [name, rawUrl] = parts;
-            // Basic validation and URL cleanup
-            if (name && rawUrl && rawUrl.startsWith('http')) {
-              // Clean URL: remove UTM parameters and other query strings
-              let cleanUrl = rawUrl;
-              try {
-                const url = new URL(rawUrl);
-                // Keep only protocol, hostname, and port (if any)
-                cleanUrl = `${url.protocol}//${url.host}`;
-              } catch (error) {
-                this.logger.warn(`Failed to parse URL: ${rawUrl}. Using as-is.`);
-              }
-
-              marketplacesToCreate.push({
-                name,
-                baseUrl: cleanUrl,
-                country: COUNTRY,
-                ivaRate: IVA_RATE,
-                status: 'active',
-                seenByUser: false,
-                searchCapabilities: {
-                  googleIndexedProducts: true,
-                },
-              });
-            }
-          }
-        }
-      }
-
-      this.logger.log(`Parsed ${marketplacesToCreate.length} marketplaces from LLM response`);
-
-      // Create marketplaces in database
-      const createdMarketplaces: MarketplaceDocument[] = [];
-      for (const marketplaceDto of marketplacesToCreate) {
-        try {
-          // Check if marketplace already exists (by name or baseUrl)
-          const existing = await this.marketplaceModel
-            .findOne({
-              $or: [
-                { name: { $regex: `^${marketplaceDto.name}$`, $options: 'i' } },
-                { baseUrl: marketplaceDto.baseUrl },
-              ],
-            })
-            .exec();
-
-          if (!existing) {
-            const marketplace = await this.create(marketplaceDto);
-            createdMarketplaces.push(marketplace);
-            this.logger.log(`Created marketplace: ${marketplaceDto.name}`);
-          } else {
-            this.logger.log(`Skipping duplicate marketplace: ${marketplaceDto.name}`);
-          }
-        } catch (error) {
-          this.logger.error(
-            `Error creating marketplace ${marketplaceDto.name}:`,
-            error,
-          );
-        }
-      }
-
+    if (
+      rejected.modifiedCount ||
+      backfilled.modifiedCount ||
+      cleaned.modifiedCount
+    ) {
       this.logger.log(
-        `Marketplace discovery complete. Created ${createdMarketplaces.length} new marketplaces.`,
+        `Marketplace migration: ${rejected.modifiedCount} rejected→active/browser, ` +
+          `${backfilled.modifiedCount} scanStrategy backfilled, ` +
+          `${cleaned.modifiedCount} legacy fields removed`,
       );
-      return createdMarketplaces;
-    } catch (error) {
-      this.logger.error('Error in discoverMarketplacesFromProducts:', error);
-      throw error;
     }
   }
 

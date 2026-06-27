@@ -7,15 +7,7 @@ import {
   IsUrl,
   IsBoolean,
   Min,
-  ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-
-export class SearchCapabilitiesDto {
-  @IsBoolean()
-  @IsOptional()
-  googleIndexedProducts?: boolean;
-}
 
 export class CreateMarketplaceDto {
   @IsString()
@@ -35,13 +27,17 @@ export class CreateMarketplaceDto {
   @IsNotEmpty()
   baseUrl: string;
 
-  @IsEnum(['active', 'inactive', 'rejected'])
+  @IsEnum(['active', 'inactive'])
   @IsOptional()
   status?: string;
 
+  @IsEnum(['search', 'browser'])
+  @IsOptional()
+  scanStrategy?: string;
+
   @IsString()
   @IsOptional()
-  rejectionReason?: string;
+  browserSetup?: string;
 
   @IsNumber()
   @Min(0)
@@ -51,7 +47,4 @@ export class CreateMarketplaceDto {
   @IsBoolean()
   @IsOptional()
   seenByUser?: boolean;
-
-  @IsOptional()
-  searchCapabilities?: SearchCapabilitiesDto;
 }

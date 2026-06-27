@@ -11,6 +11,8 @@ import { MarketplaceDiscoveryProcessor } from './marketplace-discovery.processor
 import { ProductDiscoveryProcessor } from './product-discovery.processor';
 import { QueuesController } from './queues.controller';
 import { RecommendationService } from './recommendation.service';
+import { GoogleSearchPriceFetcher } from './price-fetchers/google-search-price.fetcher';
+import { StagehandPriceFetcher } from './price-fetchers/stagehand-price.fetcher';
 import { IngestionRunsModule } from '../ingestion-runs/ingestion-runs.module';
 import { PricesModule } from '../prices/prices.module';
 import { RecommendationsModule } from '../recommendations/recommendations.module';
@@ -119,7 +121,7 @@ import { Price, PriceSchema } from '../prices/schemas/price.schema';
     }),
   ],
   controllers: [QueuesController],
-  providers: [NotificationsProcessor, NotificationsService, PriceComparisonProcessor, ExportComparisonProcessor, MarketplaceDiscoveryProcessor, ProductDiscoveryProcessor, RecommendationService],
+  providers: [NotificationsProcessor, NotificationsService, PriceComparisonProcessor, ExportComparisonProcessor, MarketplaceDiscoveryProcessor, ProductDiscoveryProcessor, RecommendationService, GoogleSearchPriceFetcher, StagehandPriceFetcher],
   exports: [BullModule, NotificationsService],
 })
 export class QueuesModule {}

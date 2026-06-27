@@ -1,16 +1,56 @@
 [
   {
-    "name": "Cruz Verde",
+    "name": "Farmatodo Colombia",
     "country": "Colombia",
-    "baseUrl": "https://www.cruzverde.com.co",
+    "ivaRate": 0.19,
+    "baseUrl": "https://www.farmatodo.com.co",
     "status": "active",
+    "scanStrategy": "browser",
     "seenByUser": true
   },
   {
-    "name": "Farmatodo Colombia",
+    "name": "Cruz Verde",
     "country": "Colombia",
-    "baseUrl": "https://www.farmatodo.com.co/",
+    "ivaRate": 0.19,
+    "baseUrl": "https://www.cruzverde.com.co",
     "status": "active",
+    "scanStrategy": "browser",
+    "seenByUser": true
+  },
+  {
+    "name": "Locatel Colombia",
+    "country": "Colombia",
+    "ivaRate": 0.19,
+    "baseUrl": "https://www.locatelcolombia.com",
+    "status": "active",
+    "scanStrategy": "browser",
+    "seenByUser": true
+  },
+  {
+    "name": "La Rebaja Virtual",
+    "country": "Colombia",
+    "ivaRate": 0.19,
+    "baseUrl": "https://www.larebajavirtual.com",
+    "status": "active",
+    "scanStrategy": "browser",
+    "seenByUser": true
+  },
+  {
+    "name": "Droguerías Colsubsidio",
+    "country": "Colombia",
+    "ivaRate": 0.19,
+    "baseUrl": "https://www.drogueriascolsubsidio.com",
+    "status": "active",
+    "scanStrategy": "browser",
+    "seenByUser": true
+  },
+  {
+    "name": "Farmacias Pasteur",
+    "country": "Colombia",
+    "ivaRate": 0.19,
+    "baseUrl": "https://www.farmaciaspasteur.com.co",
+    "status": "active",
+    "scanStrategy": "browser",
     "seenByUser": true
   }
 ]

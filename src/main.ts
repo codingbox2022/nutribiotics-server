@@ -29,6 +29,12 @@ async function bootstrap() {
   const usersService = app.get(UsersService);
   await usersService.seedDefaultUser();
 
+  // Retire the legacy "rejected" marketplace concept (idempotent, safe per boot).
+  const marketplacesService = app.get(MarketplacesService);
+  await marketplacesService.migrateRetireRejected();
+  // Ensure the known seed marketplaces exist (idempotent, safe per boot).
+  await marketplacesService.seedMarketplaces();
+
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
 

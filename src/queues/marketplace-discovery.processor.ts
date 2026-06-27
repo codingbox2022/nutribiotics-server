@@ -84,30 +84,25 @@ export class MarketplaceDiscoveryProcessor extends WorkerHost {
 You are discovering online marketplaces in Colombia that sell nutritional supplements.
 
 Your task has TWO goals:
-1) Discover legitimate online marketplaces
-2) Classify whether each marketplace is suitable for AUTOMATED PRODUCT SEARCH using Google-indexed product pages
+1) Discover legitimate online marketplaces that sell nutritional supplements
+2) Classify HOW each marketplace's product prices can be read automatically
 
-IMPORTANT:
-Some marketplaces are real and legitimate but are NOT suitable for automated search.
-These MUST be included and marked as REJECTED, not ignored.
+Every legitimate supplement marketplace must be INCLUDED. There is no "rejected"
+category — sites that are hard to read automatically are simply marked BROWSER.
 
 --------------------------------
-DEFINITIONS
+SCAN STRATEGY
 --------------------------------
 
-ACCEPTED marketplace:
-- Has individual product pages
-- Product pages are publicly accessible and indexed by Google
+SEARCH (prefer when confident):
+- Has individual product pages publicly accessible and indexed by Google
 - Products can be found using queries like:
   "Product Name" site:example.com
-- Does NOT require internal JS-only search to see products
 
-REJECTED marketplace:
-- Products are only accessible via internal search
-- Product pages are not Google-indexed
-- Site is JS-heavy, app-only, or hides inventory
-- Or primarily sells products offline
-- Or does not reliably list nutritional supplements online
+BROWSER (use when NOT confident about the above):
+- Products are only accessible via the site's internal search
+- Product pages are not reliably indexed by Google
+- Site is JS-heavy, single-page-app, or hides inventory behind search
 
 --------------------------------
 OUTPUT FORMAT (STRICT)
@@ -115,22 +110,20 @@ OUTPUT FORMAT (STRICT)
 
 Return ONE marketplace per line using EXACTLY this format:
 
-MarketplaceName | BaseURL | STATUS | REASON
+MarketplaceName | BaseURL | STRATEGY
 
 Where:
 - BaseURL is the clean homepage URL (e.g. https://example.com)
-- STATUS is either ACCEPTED or REJECTED
-- REASON is a short explanation in SPANISH (max 12 words)
+- STRATEGY is either SEARCH or BROWSER
 
 Examples:
-Farmatodo Colombia | https://www.farmatodo.com.co | REJECTED | Productos no indexados, solo búsqueda interna
-Mercado Libre Colombia | https://www.mercadolibre.com.co | ACCEPTED | Páginas de productos públicas e indexadas por Google
+Farmatodo Colombia | https://www.farmatodo.com.co | BROWSER
+Mercado Libre Colombia | https://www.mercadolibre.com.co | SEARCH
 
 --------------------------------
 RULES
 --------------------------------
-- Include BOTH ACCEPTED and REJECTED marketplaces
-- DO NOT omit marketplaces just because they are rejected
+- Include every legitimate supplement marketplace you find
 - DO NOT include marketplaces already in the exclude list
 - DO NOT include product page URLs
 - DO NOT include markdown or numbering
@@ -172,16 +165,15 @@ ${existingMarketplaceNames}
       const marketplacesToCreate: Array<{
         name: string;
         baseUrl: string;
-        status: 'active' | 'rejected';
-        rejectionReason?: string;
+        scanStrategy: 'search' | 'browser';
       }> = [];
 
       for (const line of lines) {
         const parts = line.split('|').map((p) => p.trim());
-        if (parts.length !== 4) continue;
+        if (parts.length < 3) continue;
 
-        const [name, rawUrl, statusRaw, reason] = parts;
-        if (!name || !rawUrl || !statusRaw) continue;
+        const [name, rawUrl, strategyRaw] = parts;
+        if (!name || !rawUrl || !strategyRaw) continue;
 
         let cleanUrl = rawUrl;
         try {
@@ -191,14 +183,13 @@ ${existingMarketplaceNames}
           continue;
         }
 
-        const status =
-          statusRaw.toUpperCase() === 'ACCEPTED' ? 'active' : 'rejected';
+        const scanStrategy =
+          strategyRaw.toUpperCase() === 'BROWSER' ? 'browser' : 'search';
 
         marketplacesToCreate.push({
           name,
           baseUrl: cleanUrl,
-          status,
-          rejectionReason: status === 'rejected' ? reason : undefined,
+          scanStrategy,
         });
       }
 
@@ -224,17 +215,14 @@ ${existingMarketplaceNames}
           baseUrl: dto.baseUrl,
           country: COUNTRY,
           ivaRate: IVA_RATE,
-          status: dto.status,
-          rejectionReason: dto.rejectionReason,
+          status: 'active',
           seenByUser: false,
-          searchCapabilities: {
-            googleIndexedProducts: dto.status === 'active',
-          },
+          scanStrategy: dto.scanStrategy,
         } as any);
 
         createdMarketplaces.push(marketplace);
         this.logger.log(
-          `Created marketplace: ${dto.name} (${dto.status})`,
+          `Created marketplace: ${dto.name} (${dto.scanStrategy})`,
         );
       }
 

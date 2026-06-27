@@ -3,8 +3,6 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { generateText } from 'ai';
-import { z } from 'zod';
 import { IngestionRunsService } from '../ingestion-runs/ingestion-runs.service';
 import { PricesService } from '../prices/prices.service';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
@@ -16,8 +14,14 @@ import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
 import { RecommendationService, CompetitorPriceData } from './recommendation.service';
 import { Price, PriceDocument } from '../prices/schemas/price.schema';
 import { RecommendationsService } from '../recommendations/recommendations.service';
-import { google } from 'src/providers/googleAiProvider';
 import { belongsToMarketplaceDomain, calculatePriceConfidence } from '../common/utils/price-confidence.util';
+import { GoogleSearchPriceFetcher } from './price-fetchers/google-search-price.fetcher';
+import { StagehandPriceFetcher } from './price-fetchers/stagehand-price.fetcher';
+import {
+  MarketplacePriceFetcher,
+  MarketplacePriceLookup,
+  SearchCountryConfig,
+} from './price-fetchers/price-fetcher.interface';
 
 export interface PriceComparisonJobData {
   triggeredBy?: string;
@@ -31,14 +35,6 @@ const MARKETPLACE_SEARCH_TIMEOUT_MS = 5 * 60 * 1000;
 const GENERIC_KEEP_REASON = 'No se encontró información suficiente de competidores; se recomienda mantener el precio actual.';
 
 // Country and currency configuration
-// Country and currency configuration
-interface SearchCountryConfig {
-  countryName: string;
-  gl: string;
-  currencyName: string;
-  currencyCode: string;
-}
-
 const COUNTRY_SEARCH_CONFIG: Record<string, SearchCountryConfig> = {
   COLOMBIA: {
     countryName: 'COLOMBIA',
@@ -62,6 +58,8 @@ export class PriceComparisonProcessor extends WorkerHost {
     private readonly pricesService: PricesService,
     private readonly recommendationService: RecommendationService,
     private readonly recommendationsService: RecommendationsService,
+    private readonly googleSearchFetcher: GoogleSearchPriceFetcher,
+    private readonly stagehandFetcher: StagehandPriceFetcher,
     @InjectModel(Product.name)
     private productModel: Model<ProductDocument>,
     @InjectModel(Marketplace.name)
@@ -144,7 +142,6 @@ export class PriceComparisonProcessor extends WorkerHost {
         this.marketplaceModel
           .find({
             status: 'active',
-            'searchCapabilities.googleIndexedProducts': true,
           })
           .exec(),
       ]);
@@ -179,7 +176,7 @@ export class PriceComparisonProcessor extends WorkerHost {
           const pBrand = (p.brand as any)?.name || 'Unknown';
           this.logger.log(`[DEBUG]   - "${p.name}" | brand="${pBrand}" | status="${p.status}" | id=${p._id}`);
         }
-        this.logger.log(`[DEBUG] Active marketplaces with Google-indexed products: ${marketplaces.length}`);
+        this.logger.log(`[DEBUG] Active marketplaces to scan: ${marketplaces.length}`);
         for (const m of marketplaces) {
           this.logger.log(`[DEBUG]   - "${m.name}" | status="${m.status}" | url=${m.baseUrl}`);
         }
@@ -203,20 +200,12 @@ export class PriceComparisonProcessor extends WorkerHost {
       }
       const validRunId = runId;
 
-      // Schema for LLM web search response
-      const searchSchema = z.object({
-        precioSinIva: z.number().nullable().optional(),
-        precioConIva: z.number().nullable().optional(),
-        productUrl: z.string().nullable().optional(),
-        productName: z.string().nullable().optional(),
-        inStock: z.boolean().default(false),
-        currency: z.string().nullable().optional(),
-      });
-
       // Use p-limit for global concurrency control across all products and marketplaces
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const pLimit = require('p-limit');
-      const limit = pLimit(20); // Limit to 20 concurrent marketplace requests globally
+      const limit = pLimit(20); // Limit to 20 concurrent search (Google) lookups globally
+      // Browser (Stagehand) lookups are far heavier — cap them separately (default 1).
+      const browserLimit = pLimit(Number(process.env.BROWSER_SCAN_CONCURRENCY) || 1);
 
       // Iterating through products to prepare all lookup tasks
       const allLookupTasks: Promise<any>[] = [];
@@ -233,9 +222,16 @@ export class PriceComparisonProcessor extends WorkerHost {
           ? Object.fromEntries(product.ingredientContent)
           : (product.ingredientContent || {});
 
-        // Queue marketplace searches for this product
+        // Queue marketplace searches for this product — pick the acquisition
+        // strategy (and its concurrency limiter) per marketplace.
         const productTasks = marketplaces.map((marketplace) => {
-          return limit(async () => {
+          const isBrowser = marketplace.scanStrategy === 'browser';
+          const taskLimit = isBrowser ? browserLimit : limit;
+          const fetcher: MarketplacePriceFetcher = isBrowser
+            ? this.stagehandFetcher
+            : this.googleSearchFetcher;
+
+          return taskLimit(async () => {
             try {
               // Check cancellation again inside the task
               if (await this.ingestionRunsService.isCancelled(validRunId)) {
@@ -246,114 +242,25 @@ export class PriceComparisonProcessor extends WorkerHost {
               const normalizedCountry = (marketplace.country || DEFAULT_COUNTRY).toUpperCase();
               const config = COUNTRY_SEARCH_CONFIG[normalizedCountry] || COUNTRY_SEARCH_CONFIG[DEFAULT_COUNTRY];
 
-              const {
-                countryName: SEARCH_COUNTRY_NAME,
-                gl: SEARCH_COUNTRY_GL,
-                currencyName: SEARCH_CURRENCY_NAME,
-                currencyCode: SEARCH_CURRENCY_CODE,
-              } = config;
+              const SEARCH_CURRENCY_CODE = config.currencyCode;
 
-              const prompt = `You can assume the marketplace "${marketplace.name}" has searchable, Google-indexed product pages. Find the closest available match (exact or equivalent) for "${product.name}" from brand "${brandName}". Accept equivalent product sizes or bundles if they clearly represent the same item.
-
-                  IMPORTANT: Search explicitly for ${SEARCH_COUNTRY_NAME}N stores (gl=${SEARCH_COUNTRY_GL}). The price MUST be in ${SEARCH_CURRENCY_NAME} (${SEARCH_CURRENCY_CODE}).
-                  - Do NOT return prices in USD, EUR, or other currencies.
-                  - Do NOT return results from international stores (e.g., amazon.com, ebay.com) unless they are explicitly the ${SEARCH_COUNTRY_NAME}N version (e.g., amazon.com.${SEARCH_COUNTRY_GL} is not real, but if it ships to ${SEARCH_COUNTRY_NAME} in ${SEARCH_CURRENCY_CODE} that is okay, but prefer local stores).
-                  - If the store is international and does not show price in ${SEARCH_CURRENCY_CODE}, treat it as "inStock": false.
-
-                  Only return inStock as false when you have strong evidence that the product and its close equivalents are unavailable after searching multiple result pages. Otherwise provide the best available match.
-
-                  Return ONLY a valid JSON object (no markdown, no extra text) with the following fields:
-                  - precioSinIva (number or null): Price without tax/IVA/VAT if shown on the page
-                  - precioConIva (number or null): Price with tax/IVA/VAT included (usually the main displayed price). MUST BE IN ${SEARCH_CURRENCY_CODE}.
-                  - productUrl (string): URL to the product page
-                  - productName (string): The exact product name found
-                  - inStock (boolean): Whether the product is available
-                  - currency (string): The currency of the found price (e.g., "${SEARCH_CURRENCY_CODE}", "USD").
-
-                  If only one price is shown, put it in precioConIva and set precioSinIva to null.`;
-
-              this.logger.log(`[${marketplace.name}] Starting LLM search for "${product.name}"...`);
+              this.logger.log(`[${marketplace.name}] Starting ${fetcher.strategy} lookup for "${product.name}"...`);
               const searchStartTime = Date.now();
 
-              let result;
+              let parsed: MarketplacePriceLookup;
               try {
-                result = await this.withTimeout(
-                  generateText({
-                    model: google('gemini-2.5-flash'),
-                    prompt,
-                    tools: {
-                      google_search: google.tools.googleSearch({}),
-                    }
-                  }),
+                parsed = await this.withTimeout(
+                  fetcher.fetchPrice({ marketplace, product, brandName, country: config }),
                   MARKETPLACE_SEARCH_TIMEOUT_MS,
-                  `LLM search timeout for ${product.name} on ${marketplace.name}`,
+                  `${fetcher.strategy} lookup timeout for ${product.name} on ${marketplace.name}`,
                 );
-              } catch (generateError) {
-                this.logger.error(`[${marketplace.name}] generateText failed for "${product.name}": ${generateError.message}`);
-                throw generateError;
+              } catch (fetchError) {
+                this.logger.error(`[${marketplace.name}] ${fetcher.strategy} lookup failed for "${product.name}": ${fetchError.message}`);
+                throw fetchError;
               }
 
               const searchDuration = Date.now() - searchStartTime;
-              this.logger.log(`[${marketplace.name}] LLM search completed in ${searchDuration}ms for "${product.name}"`);
-
-              // Try to parse JSON response, handle malformed JSON gracefully
-              let parsed: z.infer<typeof searchSchema>;
-              try {
-                // Handle empty response
-                if (!result.text || result.text.trim() === '') {
-                  this.logger.warn(
-                    `Empty LLM response for ${product.name} on ${marketplace.name}, treating as not found`,
-                  );
-                    parsed = {
-                      precioSinIva: null,
-                      precioConIva: null,
-                      productUrl: null,
-                      productName: null,
-                      inStock: false,
-                      currency: null,
-                    };
-                } else {
-                  // Remove markdown code blocks if present
-                  let jsonText = result.text.trim();
-                  if (jsonText.startsWith('```')) {
-                    jsonText = jsonText.replace(/```json?\n?/g, '').replace(/```\n?$/g, '');
-                  }
-
-                  // Extract only the JSON object (everything between first { and last })
-                  const firstBrace = jsonText.indexOf('{');
-                  const lastBrace = jsonText.lastIndexOf('}');
-
-                  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
-                    this.logger.warn(
-                      `No valid JSON object found in LLM response for ${product.name} on ${marketplace.name}, treating as not found. Raw: ${result.text.substring(0, 200)}`,
-                    );
-                      parsed = {
-                        precioSinIva: null,
-                        precioConIva: null,
-                        productUrl: null,
-                        productName: null,
-                        inStock: false,
-                        currency: null,
-                      };
-                  } else {
-                    jsonText = jsonText.substring(firstBrace, lastBrace + 1);
-                    const jsonResponse = JSON.parse(jsonText);
-                    parsed = searchSchema.parse(jsonResponse);
-                  }
-                }
-              } catch (parseError) {
-                this.logger.warn(
-                  `Failed to parse LLM response for ${product.name} on ${marketplace.name}: ${parseError.message}. Treating as not found. Raw response: ${result.text?.substring(0, 200) || '(empty)'}`,
-                );
-                parsed = {
-                  precioSinIva: null,
-                  precioConIva: null,
-                  productUrl: null,
-                  productName: null,
-                  inStock: false,
-                  currency: null,
-                };
-              }
+              this.logger.log(`[${marketplace.name}] ${fetcher.strategy} lookup completed in ${searchDuration}ms for "${product.name}"`);
 
               // Ensure precioConIva is always populated if we have any price
               // The displayed price should always be treated as "with IVA"
@@ -534,8 +441,13 @@ export class PriceComparisonProcessor extends WorkerHost {
       }
 
       // Wait for all lookup tasks to complete globally
-      this.logger.log(`Queued ${allLookupTasks.length} tasks with global concurrency of 20. Waiting for completion...`);
-      await Promise.allSettled(allLookupTasks);
+      this.logger.log(`Queued ${allLookupTasks.length} tasks. Waiting for completion...`);
+      try {
+        await Promise.allSettled(allLookupTasks);
+      } finally {
+        // Release the shared local browser instance (no-op if never started).
+        await this.stagehandFetcher.dispose();
+      }
 
       this.logger.log(
         `Completed ${processedLookups} lookups across ${totalMarketplaces} marketplaces`,

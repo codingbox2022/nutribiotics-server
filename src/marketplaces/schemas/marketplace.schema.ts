@@ -17,21 +17,19 @@ export class Marketplace {
   @Prop({ required: true })
   baseUrl: string;
 
-  @Prop({ enum: ['active', 'inactive', 'rejected'], default: 'active' })
+  @Prop({ enum: ['active', 'inactive'], default: 'active' })
   status: string;
 
-  @Prop({ type: String, required: false })
-  rejectionReason?: string;
+  // How this marketplace's prices are acquired during a scan:
+  // 'search' = Google-indexed (cheap LLM web search), 'browser' = needs a real browser.
+  @Prop({ enum: ['search', 'browser'], default: 'search' })
+  scanStrategy: string;
 
-  @Prop({
-    type: {
-      googleIndexedProducts: { type: Boolean, default: false },
-    },
-    default: () => ({ googleIndexedProducts: false }),
-  })
-  searchCapabilities: {
-    googleIndexedProducts: boolean;
-  };
+  // Optional natural-language instruction the browser fetcher runs BEFORE searching,
+  // for sites that gate prices (e.g. Farmatodo's city picker). Overrides the generic
+  // cookie/location priming default. Only used when scanStrategy === 'browser'.
+  @Prop({ type: String, required: false })
+  browserSetup?: string;
 
   @Prop({ default: 0 })
   productsScanned: number;
