@@ -113,6 +113,7 @@ export class MarketplacesService {
    */
   async seedMarketplaces(): Promise<void> {
     let created = 0;
+    let updated = 0;
     for (const mp of marketplacesData as Array<Record<string, any>>) {
       try {
         const exists = await this.marketplaceModel
@@ -123,7 +124,23 @@ export class MarketplacesService {
             ],
           })
           .exec();
-        if (exists) continue;
+
+        if (exists) {
+          // Keep the per-site browser config in sync with the seed file, without
+          // touching status/scanStrategy so manual changes are respected.
+          const patch: Record<string, any> = {};
+          if (mp.searchUrlTemplate && exists.searchUrlTemplate !== mp.searchUrlTemplate) {
+            patch.searchUrlTemplate = mp.searchUrlTemplate;
+          }
+          if (mp.browserSetup && exists.browserSetup !== mp.browserSetup) {
+            patch.browserSetup = mp.browserSetup;
+          }
+          if (Object.keys(patch).length) {
+            await this.marketplaceModel.updateOne({ _id: exists._id }, { $set: patch }).exec();
+            updated++;
+          }
+          continue;
+        }
 
         await this.marketplaceModel.create({
           name: mp.name,
@@ -133,6 +150,8 @@ export class MarketplacesService {
           status: mp.status || 'active',
           scanStrategy: mp.scanStrategy || 'browser',
           seenByUser: mp.seenByUser ?? true,
+          ...(mp.browserSetup ? { browserSetup: mp.browserSetup } : {}),
+          ...(mp.searchUrlTemplate ? { searchUrlTemplate: mp.searchUrlTemplate } : {}),
         });
         created++;
         this.logger.log(`Seeded marketplace: ${mp.name} (${mp.scanStrategy || 'browser'})`);
@@ -141,8 +160,8 @@ export class MarketplacesService {
         this.logger.error(`Error seeding marketplace ${mp.name}: ${msg}`);
       }
     }
-    if (created) {
-      this.logger.log(`Seeded ${created} new known marketplace(s)`);
+    if (created || updated) {
+      this.logger.log(`Seed marketplaces: ${created} created, ${updated} config-updated`);
     }
   }
 

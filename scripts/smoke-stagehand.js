@@ -12,6 +12,12 @@ require('dotenv').config();
 const {
   StagehandPriceFetcher,
 } = require('../dist/queues/price-fetchers/stagehand-price.fetcher');
+const {
+  classifyMarketplaceUrl,
+  isCanonicalProductUrl,
+  belongsToMarketplaceDomain,
+  calculatePriceConfidence,
+} = require('../dist/common/utils/price-confidence.util');
 
 const EXPECTED_KEYS = [
   'currency',
@@ -38,6 +44,7 @@ const hardTimeout = setTimeout(() => {
     ivaRate: 0.19,
     scanStrategy: 'browser',
     browserSetup: process.env.SMOKE_SETUP || undefined,
+    searchUrlTemplate: process.env.SMOKE_SEARCH_URL || undefined,
   };
   const product = { name: process.env.SMOKE_PRODUCT || 'Centrum Mujer' };
   const brandName = process.env.SMOKE_BRAND || 'Centrum';
@@ -66,6 +73,28 @@ const hardTimeout = setTimeout(() => {
     console.log('\nRESULT:', JSON.stringify(result, null, 2));
     console.log(`\nShape matches MarketplacePriceLookup: ${shapeOk ? '✓' : '✗ got ' + keys.join(',')}`);
     console.log(`Has price: ${result.precioConIva != null ? '✓ ' + result.precioConIva : '— (not found / blocked — mechanism still OK)'}`);
+
+    // Replicate the processor's confidence scoring to see if this result would
+    // clear the 0.6 recommendation threshold.
+    if (result.inStock && result.precioConIva != null) {
+      const resolvedUrl = result.productUrl || marketplace.baseUrl;
+      const urlType = classifyMarketplaceUrl(resolvedUrl);
+      const isCanonical = isCanonicalProductUrl(urlType);
+      const domainMatches = isCanonical
+        ? belongsToMarketplaceDomain(resolvedUrl, marketplace.baseUrl)
+        : false;
+      const precioSinIvaCalculated = result.precioSinIva == null; // processor derives it from IVA
+      let conf = calculatePriceConfidence({
+        inStock: true,
+        hasPrecioConIva: true,
+        domainMatches,
+        precioSinIvaCalculated,
+      });
+      if (!isCanonical) conf = Number(Math.max(0.05, conf * 0.85).toFixed(2));
+      console.log(
+        `Confidence: ${conf}  (urlType=${urlType}, domainMatch=${domainMatches}) → ${conf >= 0.6 ? '✓ feeds recommendations' : '✗ below 0.6 threshold'}`,
+      );
+    }
   } catch (e) {
     console.error('\n✗ fetchPrice threw (unexpected — should degrade to empty):', e.message);
   } finally {

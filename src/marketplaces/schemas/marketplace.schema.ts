@@ -31,6 +31,12 @@ export class Marketplace {
   @Prop({ type: String, required: false })
   browserSetup?: string;
 
+  // Optional per-site search-results URL template; `{query}` is replaced with the
+  // URL-encoded search term. When set, the browser fetcher navigates here directly
+  // instead of driving the on-page search box. Only used when scanStrategy === 'browser'.
+  @Prop({ type: String, required: false })
+  searchUrlTemplate?: string;
+
   @Prop({ default: 0 })
   productsScanned: number;
 

@@ -6,6 +6,7 @@
     "baseUrl": "https://www.farmatodo.com.co",
     "status": "active",
     "scanStrategy": "browser",
+    "searchUrlTemplate": "https://www.farmatodo.com.co/buscar?product={query}",
     "seenByUser": true
   },
   {
@@ -15,6 +16,7 @@
     "baseUrl": "https://www.cruzverde.com.co",
     "status": "active",
     "scanStrategy": "browser",
+    "searchUrlTemplate": "https://www.cruzverde.com.co/search?query={query}",
     "seenByUser": true
   },
   {
@@ -24,6 +26,7 @@
     "baseUrl": "https://www.locatelcolombia.com",
     "status": "active",
     "scanStrategy": "browser",
+    "searchUrlTemplate": "https://www.locatelcolombia.com/{query}?_q={query}&map=ft",
     "seenByUser": true
   },
   {
@@ -33,6 +36,7 @@
     "baseUrl": "https://www.larebajavirtual.com",
     "status": "active",
     "scanStrategy": "browser",
+    "searchUrlTemplate": "https://www.larebajavirtual.com/{query}?_q={query}&map=ft",
     "seenByUser": true
   },
   {
@@ -42,6 +46,7 @@
     "baseUrl": "https://www.drogueriascolsubsidio.com",
     "status": "active",
     "scanStrategy": "browser",
+    "searchUrlTemplate": "https://www.drogueriascolsubsidio.com/{query}?_q={query}&map=ft",
     "seenByUser": true
   },
   {

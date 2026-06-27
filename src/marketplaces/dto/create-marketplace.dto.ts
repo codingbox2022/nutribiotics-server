@@ -39,6 +39,10 @@ export class CreateMarketplaceDto {
   @IsOptional()
   browserSetup?: string;
 
+  @IsString()
+  @IsOptional()
+  searchUrlTemplate?: string;
+
   @IsNumber()
   @Min(0)
   @IsOptional()

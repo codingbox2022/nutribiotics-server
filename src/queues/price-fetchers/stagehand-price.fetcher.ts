@@ -6,6 +6,10 @@ import {
   MarketplacePriceLookup,
   PriceFetchContext,
 } from './price-fetcher.interface';
+import {
+  classifyMarketplaceUrl,
+  isCanonicalProductUrl,
+} from '../../common/utils/price-confidence.util';
 
 // Default extraction model for Stagehand's act/extract reasoning. Overridable so
 // it can be tuned at smoke-test time without a code change.
@@ -23,7 +27,6 @@ const extractionSchema = z.object({
     .number()
     .nullable()
     .describe('Price excluding tax/IVA if separately shown, else null'),
-  productUrl: z.string().nullable().describe('Absolute URL of the product page'),
   productName: z.string().nullable().describe('The exact product name found'),
   inStock: z.boolean().describe('Whether a matching product is available'),
   currency: z.string().nullable().describe('Currency code of the price, e.g. COP'),
@@ -74,7 +77,26 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
         stagehand.context.activePage() ?? (await stagehand.context.newPage());
       stagehand.context.setActivePage(page);
 
-      await page.goto(marketplace.baseUrl, {
+      // Build the search query first (avoid a redundant brand when the product
+      // name already contains it, e.g. "Centrum Mujer" + "Centrum").
+      const searchQuery =
+        brandName && !product.name.toLowerCase().includes(brandName.toLowerCase())
+          ? `${product.name} ${brandName}`
+          : product.name;
+
+      // Per-site optimization: if the marketplace defines a search-URL template,
+      // navigate straight to its results page (deterministic, far more reliable
+      // than driving the JS search box). Otherwise start from the homepage and
+      // drive the on-page search (the generic path for discovery-found sites).
+      const usingTemplate = Boolean(marketplace.searchUrlTemplate);
+      const searchUrl = usingTemplate
+        ? marketplace.searchUrlTemplate!.replace(
+            /\{query\}/g,
+            encodeURIComponent(searchQuery),
+          )
+        : marketplace.baseUrl;
+
+      await page.goto(searchUrl, {
         waitUntil: 'domcontentloaded',
         timeoutMs: NAV_TIMEOUT_MS,
       });
@@ -93,14 +115,14 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
         );
       }
 
-      // Use the marketplace's own (often JS-only) search. Non-fatal: if a step
-      // fails we still try to extract from whatever page we ended up on.
+      // Run the on-page search only when we didn't jump straight to a results URL,
+      // then wait for the result list to render.
       try {
-        await stagehand.act(
-          `Type "${product.name} ${brandName}" into the site's search box and press Enter to run the search.`,
-        );
-        // Async (e.g. Algolia/VTEX) result lists render after submit — nudge
-        // Stagehand to wait until the products are actually on screen.
+        if (!usingTemplate) {
+          await stagehand.act(
+            `Type "${searchQuery}" into the site's search box and press Enter to run the search.`,
+          );
+        }
         await stagehand.act(
           'Wait until the product search results (with their prices) are visible on the page.',
         );
@@ -110,19 +132,63 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
         );
       }
 
+      this.logger.log(
+        `[${marketplace.name}] results URL: ${stagehand.context.activePage()?.url()}`,
+      );
+
+      // Read the price from the results page first — this is the reliable extraction.
       const extracted = await stagehand.extract(
-        `From this page (search results or a product page), find the closest available match ` +
-          `(exact or equivalent size/bundle) for "${product.name}" from brand "${brandName}" and report its price ` +
-          `in ${country.currencyName} (${country.currencyCode}). The price MUST be in ${country.currencyCode}; if only ` +
-          `another currency is shown, set inStock to false. If no matching product is visible, set inStock to false and prices to null.`,
+        `From the search results, find the closest available match (exact or equivalent size/bundle) for ` +
+          `"${product.name}" from brand "${brandName}" and report its price in ${country.currencyName} ` +
+          `(${country.currencyCode}). The price MUST be in ${country.currencyCode}; if only another currency ` +
+          `is shown, set inStock to false. If no matching product is shown, set inStock to false and prices to null.`,
         extractionSchema,
         {}, // force the (instruction, schema, options) overload so the result is typed to our schema
       );
 
+      // Best-effort: open the matched product to capture a real, on-domain product
+      // URL (page.url()) for the confidence model. This NEVER affects the price we
+      // already read above — a failed open just leaves productUrl null.
+      let productUrl: string | null = null;
+      if (extracted.inStock) {
+        try {
+          const urlBefore = stagehand.context.activePage()?.url() ?? null;
+          await stagehand.act(
+            `Click the product title or image of the search result that best matches "${product.name}" ` +
+              `from brand "${brandName}" to navigate to its product detail page.`,
+          );
+          // Let SPA (VTEX/Angular) route changes settle so page.url() reflects the
+          // product page rather than the search results we clicked from.
+          try {
+            await stagehand.act('Wait for the product detail page to finish loading.');
+          } catch {
+            // best-effort settle
+          }
+          const urlAfter = stagehand.context.activePage()?.url() ?? null;
+          const base = marketplace.baseUrl.replace(/\/+$/, '');
+          // Keep the URL only if the click actually NAVIGATED to a product page:
+          // the URL changed, it isn't the homepage, and it's shaped like a product
+          // page (not a search/category listing). Otherwise leave it null — an
+          // honest null beats passing a search URL off as the product's URL.
+          if (
+            urlAfter &&
+            urlAfter !== urlBefore &&
+            urlAfter.replace(/\/+$/, '') !== base &&
+            isCanonicalProductUrl(classifyMarketplaceUrl(urlAfter))
+          ) {
+            productUrl = urlAfter;
+          }
+        } catch (urlError: any) {
+          this.logger.warn(
+            `[${marketplace.name}] could not open product page for URL: ${urlError.message}`,
+          );
+        }
+      }
+
       return {
         precioConIva: extracted.precioConIva ?? null,
         precioSinIva: extracted.precioSinIva ?? null,
-        productUrl: extracted.productUrl ?? null,
+        productUrl,
         productName: extracted.productName ?? null,
         inStock: extracted.inStock ?? false,
         currency: extracted.currency ?? null,

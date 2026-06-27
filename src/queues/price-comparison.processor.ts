@@ -14,7 +14,13 @@ import { Brand, BrandDocument } from '../brands/schemas/brand.schema';
 import { RecommendationService, CompetitorPriceData } from './recommendation.service';
 import { Price, PriceDocument } from '../prices/schemas/price.schema';
 import { RecommendationsService } from '../recommendations/recommendations.service';
-import { belongsToMarketplaceDomain, calculatePriceConfidence } from '../common/utils/price-confidence.util';
+import {
+  belongsToMarketplaceDomain,
+  calculatePriceConfidence,
+  classifyMarketplaceUrl,
+  isCanonicalProductUrl,
+  MarketplaceUrlType,
+} from '../common/utils/price-confidence.util';
 import { GoogleSearchPriceFetcher } from './price-fetchers/google-search-price.fetcher';
 import { StagehandPriceFetcher } from './price-fetchers/stagehand-price.fetcher';
 import {
@@ -46,8 +52,6 @@ const COUNTRY_SEARCH_CONFIG: Record<string, SearchCountryConfig> = {
 };
 
 const DEFAULT_COUNTRY = 'COLOMBIA';
-
-type MarketplaceUrlType = 'product_detail' | 'search' | 'category' | 'redirect' | 'unknown';
 
 @Processor('price-comparison')
 export class PriceComparisonProcessor extends WorkerHost {
@@ -316,10 +320,10 @@ export class PriceComparisonProcessor extends WorkerHost {
 
               if (normalizedProductUrl) {
                 resolvedProductUrl = normalizedProductUrl.toString();
-                urlType = this.classifyMarketplaceUrl(resolvedProductUrl);
+                urlType = classifyMarketplaceUrl(resolvedProductUrl);
               }
 
-              const isCanonicalUrl = this.isCanonicalProductUrl(urlType);
+              const isCanonicalUrl = isCanonicalProductUrl(urlType);
 
               let priceConfidence = 0;
               if (lookupStatus === 'success') {
@@ -777,84 +781,4 @@ export class PriceComparisonProcessor extends WorkerHost {
     }
   }
 
-  private classifyMarketplaceUrl(url: string | null | undefined): MarketplaceUrlType {
-    const parsed = this.normalizeUrl(url);
-    if (!parsed) {
-      return 'unknown';
-    }
-
-    const pathname = parsed.pathname.toLowerCase();
-    const searchParams = parsed.searchParams;
-
-    const redirectParamKeys = ['url', 'u', 'target', 'dest', 'destination', 'redirect', 'redir', 'r', 'out'];
-    for (const key of redirectParamKeys) {
-      const value = searchParams.get(key);
-      if (value && /(https?:\/\/|www\.)/i.test(value)) {
-        return 'redirect';
-      }
-    }
-
-    if (
-      pathname.includes('/redirect') ||
-      pathname.startsWith('/out') ||
-      pathname.includes('/goto') ||
-      pathname.includes('/click') ||
-      pathname.includes('/tracking') ||
-      pathname.includes('/trk')
-    ) {
-      return 'redirect';
-    }
-
-    const searchParamKeys = ['q', 'query', 'search', 's', 'keyword', 'keywords', 'k', 'term'];
-    for (const key of searchParamKeys) {
-      if (searchParams.has(key)) {
-        return 'search';
-      }
-    }
-
-    if (
-      pathname.includes('/search') ||
-      pathname.includes('/buscar') ||
-      pathname.includes('/results') ||
-      pathname === '/s' ||
-      pathname.startsWith('/s/')
-    ) {
-      return 'search';
-    }
-
-    if (
-      pathname.includes('/category') ||
-      pathname.includes('/categoria') ||
-      pathname.includes('/collection') ||
-      pathname.includes('/collections') ||
-      pathname.includes('/department') ||
-      pathname.includes('/departments') ||
-      pathname.includes('/product-category') ||
-      pathname.includes('/catalog') ||
-      pathname.includes('/catalogo') ||
-      pathname.includes('/tienda') ||
-      pathname.includes('/productos') ||
-      pathname.includes('/c/')
-    ) {
-      return 'category';
-    }
-
-    if (
-      pathname.includes('/product') ||
-      pathname.includes('/producto') ||
-      pathname.includes('/p/') ||
-      pathname.includes('/item') ||
-      pathname.includes('/items') ||
-      pathname.includes('/dp/') ||
-      pathname.includes('/gp/product')
-    ) {
-      return 'product_detail';
-    }
-
-    return 'unknown';
-  }
-
-  private isCanonicalProductUrl(urlType: MarketplaceUrlType): boolean {
-    return urlType === 'product_detail';
-  }
 }
