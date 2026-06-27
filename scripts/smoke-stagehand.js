@@ -80,9 +80,12 @@ const hardTimeout = setTimeout(() => {
       const resolvedUrl = result.productUrl || marketplace.baseUrl;
       const urlType = classifyMarketplaceUrl(resolvedUrl);
       const isCanonical = isCanonicalProductUrl(urlType);
-      const domainMatches = isCanonical
-        ? belongsToMarketplaceDomain(resolvedUrl, marketplace.baseUrl)
-        : false;
+      const isBrowserStrategy = marketplace.scanStrategy === 'browser';
+      const domainMatches = isBrowserStrategy
+        ? true // browser reads from the marketplace's own page → domain-verified
+        : isCanonical
+          ? belongsToMarketplaceDomain(resolvedUrl, marketplace.baseUrl)
+          : false;
       const precioSinIvaCalculated = result.precioSinIva == null; // processor derives it from IVA
       let conf = calculatePriceConfidence({
         inStock: true,

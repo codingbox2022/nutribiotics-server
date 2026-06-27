@@ -79,4 +79,18 @@ describe('confidence end-to-end for a browser hit', () => {
     if (!isCanonical) conf = Number(Math.max(0.05, conf * 0.85).toFixed(2));
     expect(conf).toBeLessThan(0.6);
   });
+
+  it('a browser listing-only price (domain-verified, no product page) clears the threshold at ~0.79', () => {
+    // Browser strategy credits domainMatches by construction; the non-canonical
+    // penalty still applies because we only have the listing, not a product page.
+    let conf = calculatePriceConfidence({
+      inStock: true,
+      hasPrecioConIva: true,
+      domainMatches: true,
+      precioSinIvaCalculated: true,
+    });
+    conf = Number(Math.max(0.05, conf * 0.85).toFixed(2));
+    expect(conf).toBeGreaterThanOrEqual(0.6);
+    expect(conf).toBeLessThan(0.93);
+  });
 });

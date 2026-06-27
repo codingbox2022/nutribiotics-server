@@ -327,9 +327,18 @@ export class PriceComparisonProcessor extends WorkerHost {
 
               let priceConfidence = 0;
               if (lookupStatus === 'success') {
-                const domainMatches = isCanonicalUrl
-                  ? belongsToMarketplaceDomain(resolvedProductUrl, marketplace.baseUrl)
-                  : false;
+                // Browser-strategy prices are read from the marketplace's own
+                // rendered page, so they are domain-verified by construction —
+                // credit the domain signal even when we only captured a listing
+                // URL (not a product page). A non-canonical browser price still
+                // takes the 0.85 penalty below, landing it around 0.79 vs the
+                // 0.93 of one with a real product URL.
+                const isBrowserStrategy = marketplace.scanStrategy === 'browser';
+                const domainMatches = isBrowserStrategy
+                  ? true
+                  : isCanonicalUrl
+                    ? belongsToMarketplaceDomain(resolvedProductUrl, marketplace.baseUrl)
+                    : false;
                 priceConfidence = calculatePriceConfidence({
                   inStock: Boolean(parsed.inStock),
                   hasPrecioConIva: Boolean(parsed.precioConIva),

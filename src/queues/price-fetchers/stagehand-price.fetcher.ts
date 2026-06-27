@@ -9,6 +9,7 @@ import {
 import {
   classifyMarketplaceUrl,
   isCanonicalProductUrl,
+  belongsToMarketplaceDomain,
 } from '../../common/utils/price-confidence.util';
 
 // Default extraction model for Stagehand's act/extract reasoning. Overridable so
@@ -174,7 +175,8 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
             urlAfter &&
             urlAfter !== urlBefore &&
             urlAfter.replace(/\/+$/, '') !== base &&
-            isCanonicalProductUrl(classifyMarketplaceUrl(urlAfter))
+            isCanonicalProductUrl(classifyMarketplaceUrl(urlAfter)) &&
+            belongsToMarketplaceDomain(urlAfter, marketplace.baseUrl)
           ) {
             productUrl = urlAfter;
           }
