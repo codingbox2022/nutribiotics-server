@@ -232,13 +232,19 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
       model: STAGEHAND_MODEL,
       // Give JS-rendered result lists time to settle before act/extract read the DOM.
       domSettleTimeout: Number(process.env.BROWSER_DOM_SETTLE_MS) || 8000,
-      // These flags pass through to Playwright's chromium.launch. They are
-      // mandatory when running in the container (non-root `node` user on a slim
-      // image with a 64MB /dev/shm): without them Chromium crashes on startup,
-      // the CDP port never opens, and Stagehand's connect fails with ECONNREFUSED.
-      // Harmless on local macOS runs, so kept unconditionally.
+      // Stagehand env:'LOCAL' spawns Chromium via chrome-launcher (a real Chrome
+      // process on a random --remote-debugging-port, driven over CDP) — NOT
+      // Playwright. Two container consequences handled here:
+      //  1) --no-sandbox is load-bearing: as the non-root `node` user on the slim
+      //     image, Chrome's setuid sandbox fails and the process dies on startup;
+      //     the debug port never opens and the CDP connect throws ECONNREFUSED.
+      //  2) chrome-launcher IGNORES PLAYWRIGHT_BROWSERS_PATH; it finds the binary
+      //     via executablePath / CHROME_PATH / `which`. Pin CHROME_PATH in the
+      //     container (see Dockerfile) so the exact chromium is launched instead
+      //     of relying on nondeterministic discovery. Unset locally → auto-detect.
       localBrowserLaunchOptions: {
         headless: true,
+        executablePath: process.env.CHROME_PATH || undefined,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -261,6 +267,20 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
     this.stagehand = stagehand;
     this.logger.log(`Local browser started (model: ${STAGEHAND_MODEL})`);
     return stagehand;
+  }
+
+  /**
+   * Boot-time validation: launch the browser once and release it, so a Chromium
+   * launch failure surfaces loudly at startup (with the real stack) instead of
+   * silently degrading every per-lookup call to "not found". Rethrows the real
+   * init error on failure.
+   */
+  async selfCheck(): Promise<void> {
+    try {
+      await this.getStagehand();
+    } finally {
+      await this.dispose();
+    }
   }
 
   /** Release the browser at the end of a run. No-op if never started. */
