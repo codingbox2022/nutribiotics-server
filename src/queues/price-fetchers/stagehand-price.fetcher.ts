@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Stagehand } from '@browserbasehq/stagehand';
+import { existsSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { z } from 'zod';
 import {
   MarketplacePriceFetcher,
@@ -16,6 +18,24 @@ import {
 // it can be tuned at smoke-test time without a code change.
 const STAGEHAND_MODEL = process.env.STAGEHAND_MODEL || 'google/gemini-2.5-flash';
 const NAV_TIMEOUT_MS = Number(process.env.BROWSER_NAV_TIMEOUT_MS) || 45_000;
+
+// chrome-launcher (used by Stagehand env:'LOCAL') finds the browser via
+// executablePath / CHROME_PATH / `which` — it ignores PLAYWRIGHT_BROWSERS_PATH.
+// Prefer CHROME_PATH, but defensively ignore an unset, unexpanded ("${...}", e.g.
+// a mis-entered Dokploy env value), or non-existent path and fall back to the
+// common system locations. Returns undefined so chrome-launcher auto-discovers
+// (correct on local macOS, where no CHROME_PATH is set).
+const CHROME_CANDIDATES = [
+  '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+];
+function resolveChromePath(): string | undefined {
+  const env = process.env.CHROME_PATH;
+  if (env && !env.includes('${') && existsSync(env)) return env;
+  return CHROME_CANDIDATES.find((c) => existsSync(c));
+}
 
 // Zod schema Stagehand uses to structure the page extraction. Mirrors
 // MarketplacePriceLookup so the processor consumes it unchanged.
@@ -244,7 +264,7 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
       //     of relying on nondeterministic discovery. Unset locally → auto-detect.
       localBrowserLaunchOptions: {
         headless: true,
-        executablePath: process.env.CHROME_PATH || undefined,
+        executablePath: resolveChromePath(),
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -267,6 +287,51 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
     this.stagehand = stagehand;
     this.logger.log(`Local browser started (model: ${STAGEHAND_MODEL})`);
     return stagehand;
+  }
+
+  /**
+   * Diagnostic: spawn the Chromium binary directly and capture its stderr, so a
+   * launch crash reports the REAL cause (missing shared library, sandbox, seccomp,
+   * bad binary...) instead of the opaque CDP "ECONNREFUSED". Synchronous and
+   * best-effort; intended to run once after a failed init. Returns a log-ready
+   * multi-line string.
+   */
+  diagnoseBrowserLaunch(): string {
+    const lines: string[] = [];
+    lines.push(`CHROME_PATH env = ${JSON.stringify(process.env.CHROME_PATH)}`);
+    const binPath = resolveChromePath();
+    lines.push(`resolved binary = ${binPath ?? '(none found on disk)'}`);
+    if (!binPath) {
+      lines.push(
+        `No Chromium found at any of: ${CHROME_CANDIDATES.join(', ')}. Install one or fix CHROME_PATH.`,
+      );
+      return lines.join('\n');
+    }
+    const probes: string[][] = [
+      ['--version'],
+      [
+        '--headless=new',
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-gpu',
+        '--disable-dev-shm-usage',
+        '--dump-dom',
+        'about:blank',
+      ],
+    ];
+    for (const args of probes) {
+      try {
+        const r = spawnSync(binPath, args, { timeout: 20_000, encoding: 'utf8' });
+        lines.push(`--- ${binPath} ${args[0]} → status=${r.status} signal=${r.signal ?? ''}${r.error ? ' spawnError=' + r.error.message : ''}`);
+        const err = (r.stderr || '').trim();
+        const out = (r.stdout || '').trim();
+        if (err) lines.push(`  stderr: ${err.slice(0, 1500)}`);
+        else if (out) lines.push(`  stdout: ${out.slice(0, 300)}`);
+      } catch (e: any) {
+        lines.push(`--- ${binPath} ${args[0]} → threw: ${e?.message ?? e}`);
+      }
+    }
+    return lines.join('\n');
   }
 
   /**

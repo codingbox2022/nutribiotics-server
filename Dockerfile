@@ -23,6 +23,7 @@ RUN npm ci --omit=dev && npm cache clean --force
 # deterministic. Runs as root here, before `USER node`; /usr/bin is world-readable.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends chromium fonts-liberation \
+    && npx --yes playwright install-deps chromium \
     && rm -rf /var/lib/apt/lists/*
 ENV CHROME_PATH=/usr/bin/chromium
 

@@ -48,8 +48,8 @@ async function bootstrap() {
   // to skip, or BROWSER_SELFCHECK_FATAL=true to hard-fail the container (Dokploy
   // marks the deploy unhealthy) once the browser path is proven stable in prod.
   if (process.env.BROWSER_SELFCHECK !== 'false') {
+    const browserFetcher = app.get(StagehandPriceFetcher, { strict: false });
     try {
-      const browserFetcher = app.get(StagehandPriceFetcher, { strict: false });
       await browserFetcher.selfCheck();
       logger.log('✅ Browser self-check OK (Chromium launched and closed)');
     } catch (err) {
@@ -58,6 +58,15 @@ async function bootstrap() {
           (err as Error)?.stack ?? String(err)
         }`,
       );
+      // Spawn Chromium directly to surface its REAL stderr (missing lib / sandbox
+      // / seccomp) instead of the opaque CDP ECONNREFUSED above.
+      try {
+        logger.error(
+          `🔎 Chromium launch diagnostic:\n${browserFetcher.diagnoseBrowserLaunch()}`,
+        );
+      } catch (diagErr) {
+        logger.error(`Chromium diagnostic itself failed: ${String(diagErr)}`);
+      }
       if (process.env.BROWSER_SELFCHECK_FATAL === 'true') {
         process.exit(1);
       }
