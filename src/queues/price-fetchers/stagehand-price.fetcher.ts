@@ -79,6 +79,10 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
 
   private stagehand: Stagehand | null = null;
   private initPromise: Promise<Stagehand> | null = null;
+  // Run the (synchronous, ~40s worst-case) Chromium diagnostic at most once per
+  // run when a lookup's init fails, so we capture the real crash cause without
+  // spamming it across all 486 lookups. Reset in dispose().
+  private diagnosedThisRun = false;
 
   async fetchPrice(ctx: PriceFetchContext): Promise<MarketplacePriceLookup> {
     const { marketplace, product, brandName, country } = ctx;
@@ -90,6 +94,15 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
       this.logger.error(
         `Stagehand init failed; skipping browser lookup for "${product.name}" on ${marketplace.name}: ${initError.message}`,
       );
+      // First failure of the run: spawn Chromium directly to capture the REAL
+      // cause (exit signal SIGKILL = OOM-killed; a shared-lib error = missing dep;
+      // sandbox/namespace text = seccomp/perms) instead of the opaque ECONNREFUSED.
+      if (!this.diagnosedThisRun) {
+        this.diagnosedThisRun = true;
+        this.logger.error(
+          `🔎 Chromium launch diagnostic (scan-time):\n${this.diagnoseBrowserLaunch()}`,
+        );
+      }
       return { ...EMPTY_RESULT };
     }
 
@@ -353,6 +366,7 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
     const stagehand = this.stagehand;
     this.stagehand = null;
     this.initPromise = null;
+    this.diagnosedThisRun = false;
     if (stagehand) {
       try {
         await stagehand.close();
