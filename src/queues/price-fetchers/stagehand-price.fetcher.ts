@@ -232,9 +232,32 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
       model: STAGEHAND_MODEL,
       // Give JS-rendered result lists time to settle before act/extract read the DOM.
       domSettleTimeout: Number(process.env.BROWSER_DOM_SETTLE_MS) || 8000,
-      localBrowserLaunchOptions: { headless: true },
+      // These flags pass through to Playwright's chromium.launch. They are
+      // mandatory when running in the container (non-root `node` user on a slim
+      // image with a 64MB /dev/shm): without them Chromium crashes on startup,
+      // the CDP port never opens, and Stagehand's connect fails with ECONNREFUSED.
+      // Harmless on local macOS runs, so kept unconditionally.
+      localBrowserLaunchOptions: {
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+        ],
+      },
     });
-    await stagehand.init();
+    // Surface the real Chromium failure. Callers only log initError.message,
+    // which reduces a launch crash to an opaque "ECONNREFUSED"; the stack here
+    // carries the actionable cause (missing lib, sandbox, etc.).
+    try {
+      await stagehand.init();
+    } catch (initError: any) {
+      this.logger.error(
+        `Stagehand LOCAL init failed (model: ${STAGEHAND_MODEL}): ${initError?.stack ?? initError?.message ?? initError}`,
+      );
+      throw initError;
+    }
     this.stagehand = stagehand;
     this.logger.log(`Local browser started (model: ${STAGEHAND_MODEL})`);
     return stagehand;
