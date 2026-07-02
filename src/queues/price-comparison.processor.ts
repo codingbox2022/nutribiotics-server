@@ -458,8 +458,9 @@ export class PriceComparisonProcessor extends WorkerHost {
       try {
         await Promise.allSettled(allLookupTasks);
       } finally {
-        // Release the shared local browser instance (no-op if never started).
-        await this.stagehandFetcher.dispose();
+        // Keep the persistent browser alive across runs (launching a fresh one
+        // per run is what dies in the container); just free this run's tabs.
+        await this.stagehandFetcher.cleanupAfterRun();
       }
 
       this.logger.log(

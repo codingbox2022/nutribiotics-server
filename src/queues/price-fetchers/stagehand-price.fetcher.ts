@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnApplicationShutdown } from '@nestjs/common';
 import { Stagehand } from '@browserbasehq/stagehand';
 import { existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
@@ -18,6 +18,16 @@ import {
 // it can be tuned at smoke-test time without a code change.
 const STAGEHAND_MODEL = process.env.STAGEHAND_MODEL || 'google/gemini-2.5-flash';
 const NAV_TIMEOUT_MS = Number(process.env.BROWSER_NAV_TIMEOUT_MS) || 45_000;
+
+// After a launch failure, don't retry a fresh 25s launch on every one of the
+// hundreds of lookups in a run — wait out this cooldown, then allow a relaunch
+// in a later run. Recovery without a same-run retry storm.
+const RELAUNCH_COOLDOWN_MS =
+  Number(process.env.BROWSER_RELAUNCH_COOLDOWN_MS) || 60_000;
+// Bounded-lifetime recycle to cap memory growth of a never-disposed browser.
+// 0 = disabled (default). Keep disabled until the container runs with --init,
+// since a recycle triggers a relaunch that needs a PID-1 reaper to be reliable.
+const RECYCLE_EVERY_RUNS = Number(process.env.BROWSER_RECYCLE_EVERY_RUNS) || 0;
 
 // chrome-launcher (used by Stagehand env:'LOCAL') finds the browser via
 // executablePath / CHROME_PATH / `which` — it ignores PLAYWRIGHT_BROWSERS_PATH.
@@ -67,13 +77,20 @@ const EMPTY_RESULT: MarketplacePriceLookup = {
  * Chromium (Stagehand, env=LOCAL) to use the site's own search and read the
  * rendered product page — reaching sites Google search can't.
  *
- * One browser instance is lazily created and REUSED across all browser lookups
- * in a run (cheap because browser lookups are serialized by BROWSER_SCAN_CONCURRENCY,
- * default 1), then released via dispose() at the end of the run. Raising that
- * concurrency would require a page/context per concurrent lookup.
+ * The browser is PERSISTENT for the whole app lifetime: launched once (at boot
+ * warm-up or first use), reused across ALL runs, and closed only on app shutdown.
+ * We never tear it down per-run because Chromium is spawned via chrome-launcher
+ * and Node is PID 1 in the container — without a reaper, a *second* launch dies
+ * (OOM) before binding its debug port (ECONNREFUSED). Launching exactly once
+ * sidesteps that entirely. A relaunch happens in only one place: when the browser
+ * is detected dead (see getStagehand). Browser lookups are serialized by
+ * BROWSER_SCAN_CONCURRENCY (default 1); raising it needs a page per concurrent
+ * lookup (the shared active page is context-global).
  */
 @Injectable()
-export class StagehandPriceFetcher implements MarketplacePriceFetcher {
+export class StagehandPriceFetcher
+  implements MarketplacePriceFetcher, OnApplicationShutdown
+{
   readonly strategy = 'browser' as const;
   private readonly logger = new Logger(StagehandPriceFetcher.name);
 
@@ -81,8 +98,10 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
   private initPromise: Promise<Stagehand> | null = null;
   // Run the (synchronous, ~40s worst-case) Chromium diagnostic at most once per
   // run when a lookup's init fails, so we capture the real crash cause without
-  // spamming it across all 486 lookups. Reset in dispose().
+  // spamming it across all 486 lookups. Re-armed in cleanupAfterRun().
   private diagnosedThisRun = false;
+  private lastLaunchFailAt = 0; // epoch ms of the last failed launch (cooldown)
+  private runsSinceLaunch = 0; // for the bounded-lifetime recycle
 
   async fetchPrice(ctx: PriceFetchContext): Promise<MarketplacePriceLookup> {
     const { marketplace, product, brandName, country } = ctx;
@@ -238,15 +257,69 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
     }
   }
 
-  /** Lazily create and reuse a single local browser instance. */
+  /**
+   * Return the persistent browser, launching it once and reusing it forever.
+   * The ONLY relaunch site: if a cached browser is detected dead, it is torn
+   * down and relaunched (cooldown-guarded so a failing launch doesn't retry on
+   * every lookup in a run).
+   */
   private async getStagehand(): Promise<Stagehand> {
     if (this.stagehand) {
-      return this.stagehand;
+      if (await this.isBrowserAlive(this.stagehand)) {
+        return this.stagehand;
+      }
+      this.logger.warn('Persistent browser unresponsive; recycling.');
+      await this.teardown({ force: true });
     }
     if (!this.initPromise) {
+      const since = Date.now() - this.lastLaunchFailAt;
+      if (this.lastLaunchFailAt && since < RELAUNCH_COOLDOWN_MS) {
+        throw new Error(
+          `browser launch on cooldown (${Math.round(
+            (RELAUNCH_COOLDOWN_MS - since) / 1000,
+          )}s left) after a recent failure`,
+        );
+      }
       this.initPromise = this.createStagehand();
     }
-    return this.initPromise;
+    try {
+      return await this.initPromise;
+    } catch (err) {
+      // Clear the rejected promise and stamp the cooldown so a later run can
+      // relaunch, but the rest of THIS run fails fast instead of relaunching.
+      this.initPromise = null;
+      this.lastLaunchFailAt = Date.now();
+      throw err;
+    }
+  }
+
+  /**
+   * Best-effort liveness probe for the persistent browser. A crashed/OOM-killed
+   * Chrome closes its CDP socket, so a cheap Browser-domain round-trip rejects.
+   * Feature-detected (Stagehand 3.6.x exposes page.sendCDP); if unavailable we
+   * assume alive rather than force a needless relaunch.
+   */
+  private async isBrowserAlive(sh: Stagehand): Promise<boolean> {
+    try {
+      const ctx: any = (sh as any).context;
+      const page = ctx?.activePage?.() ?? ctx?.pages?.()?.[0];
+      if (!page) return false;
+      if (typeof page.sendCDP === 'function') {
+        await this.withTimeout(page.sendCDP('Browser.getVersion'), 3_000);
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+    return Promise.race([
+      p,
+      new Promise<T>((_, reject) =>
+        setTimeout(() => reject(new Error(`timed out after ${ms}ms`)), ms),
+      ),
+    ]);
   }
 
   private async createStagehand(): Promise<Stagehand> {
@@ -348,32 +421,92 @@ export class StagehandPriceFetcher implements MarketplacePriceFetcher {
   }
 
   /**
-   * Boot-time validation: launch the browser once and release it, so a Chromium
-   * launch failure surfaces loudly at startup (with the real stack) instead of
-   * silently degrading every per-lookup call to "not found". Rethrows the real
-   * init error on failure.
+   * Boot-time warm-up: launch the persistent browser and KEEP it, so a Chromium
+   * launch failure surfaces loudly at startup (real stack) and the launched
+   * browser is the exact instance every scan reuses — no per-run relaunch.
+   * Rethrows the real init error on failure.
    */
-  async selfCheck(): Promise<void> {
+  async warmUp(): Promise<void> {
+    await this.getStagehand();
+  }
+
+  /**
+   * End-of-run hook: KEEP the browser alive, only free per-run state. Closes
+   * extra tabs and resets the surviving page to about:blank so the next run
+   * starts clean without paying for a relaunch. Best-effort: any page-API issue
+   * just no-ops and leaves the browser up.
+   */
+  async cleanupAfterRun(): Promise<void> {
+    this.diagnosedThisRun = false;
+    const stagehand = this.stagehand;
+    if (!stagehand) return;
+    if (!(await this.isBrowserAlive(stagehand))) {
+      // Dead → leave fields; the next getStagehand() recycles + relaunches.
+      return;
+    }
+    if (RECYCLE_EVERY_RUNS > 0 && ++this.runsSinceLaunch >= RECYCLE_EVERY_RUNS) {
+      this.logger.log(`Recycling browser after ${this.runsSinceLaunch} runs`);
+      await this.teardown({ force: false });
+      return;
+    }
     try {
-      await this.getStagehand();
-    } finally {
-      await this.dispose();
+      const ctx: any = (stagehand as any).context;
+      const pages: any[] = typeof ctx?.pages === 'function' ? ctx.pages() : [];
+      for (const p of pages.slice(1)) {
+        try {
+          await p.close();
+        } catch {
+          /* best-effort */
+        }
+      }
+      const keep = ctx?.activePage?.() ?? ctx?.pages?.()?.[0] ?? null;
+      if (keep) {
+        try {
+          await keep.goto('about:blank', {
+            waitUntil: 'domcontentloaded',
+            timeoutMs: 10_000,
+          });
+        } catch {
+          /* best-effort */
+        }
+        ctx?.setActivePage?.(keep);
+      }
+    } catch (e: any) {
+      this.logger.warn(`Per-run page cleanup failed (browser kept): ${e.message}`);
     }
   }
 
-  /** Release the browser at the end of a run. No-op if never started. */
+  /** Close the browser on app shutdown (SIGTERM/SIGINT). Requires enableShutdownHooks(). */
+  async onApplicationShutdown(): Promise<void> {
+    await this.teardown();
+  }
+
+  /** Back-compat alias (used by scripts/smoke-stagehand.js). */
   async dispose(): Promise<void> {
+    await this.teardown();
+  }
+
+  /**
+   * Fully close and release the browser. Captures the reference, AWAITS close()
+   * (bounded), THEN nulls the fields — order matters: nulling first (the old bug)
+   * let a concurrent lookup launch a second browser while this one was still
+   * closing. `force` closes a hung/dead browser without waiting on a clean close.
+   */
+  private async teardown(opts: { force?: boolean } = {}): Promise<void> {
     const stagehand = this.stagehand;
-    this.stagehand = null;
-    this.initPromise = null;
-    this.diagnosedThisRun = false;
     if (stagehand) {
       try {
-        await stagehand.close();
+        await this.withTimeout(
+          (stagehand as any).close(opts.force ? { force: true } : undefined),
+          15_000,
+        );
         this.logger.log('Local browser closed');
       } catch (closeError: any) {
         this.logger.warn(`Stagehand close failed: ${closeError.message}`);
       }
     }
+    this.stagehand = null;
+    this.initPromise = null;
+    this.runsSinceLaunch = 0;
   }
 }

@@ -14,6 +14,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: ['log', 'error', 'warn', 'debug', 'verbose'] });
   const logger = new Logger('Bootstrap');
 
+  // Let Nest run onApplicationShutdown hooks on SIGTERM/SIGINT so the persistent
+  // Chromium is closed cleanly when Dokploy stops the container.
+  app.enableShutdownHooks();
+
   app.enableCors();
 
   app.useGlobalPipes(
@@ -42,19 +46,20 @@ async function bootstrap() {
   logger.log(`🚀 Server running on: http://localhost:${port}`);
   logger.log(`📊 Queue Dashboard: http://localhost:${port}/queues`);
 
-  // Boot-time browser self-check: prove Chromium can actually launch so a failure
-  // is loud at startup (with the real stack) instead of silently degrading every
-  // browser price lookup to "not found". On by default; set BROWSER_SELFCHECK=false
-  // to skip, or BROWSER_SELFCHECK_FATAL=true to hard-fail the container (Dokploy
+  // Boot-time browser warm-up: launch the PERSISTENT Chromium now and KEEP it, so
+  // (a) a launch failure is loud at startup with the real stack, and (b) every
+  // scan reuses this one instance instead of relaunching per run (relaunching is
+  // what dies in the container). On by default; set BROWSER_SELFCHECK=false to
+  // skip, or BROWSER_SELFCHECK_FATAL=true to hard-fail the container (Dokploy
   // marks the deploy unhealthy) once the browser path is proven stable in prod.
   if (process.env.BROWSER_SELFCHECK !== 'false') {
     const browserFetcher = app.get(StagehandPriceFetcher, { strict: false });
     try {
-      await browserFetcher.selfCheck();
-      logger.log('✅ Browser self-check OK (Chromium launched and closed)');
+      await browserFetcher.warmUp();
+      logger.log('✅ Browser warm-up OK (persistent Chromium ready)');
     } catch (err) {
       logger.error(
-        `❌ Browser self-check FAILED — Chromium cannot launch; browser price lookups will be skipped: ${
+        `❌ Browser warm-up FAILED — Chromium cannot launch; browser price lookups will be skipped: ${
           (err as Error)?.stack ?? String(err)
         }`,
       );
