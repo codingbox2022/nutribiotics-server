@@ -1326,7 +1326,7 @@ The only hard constraint: the product must be actually purchasable in ${COUNTRY}
 Return a markdown table with these fields for each comparable product found in ${COUNTRY}:
 - Product Name (without presentation details like "30 cápsulas")
 - Brand
-- Presentation (one of: cucharadas, cápsulas, tableta, softGel, gotas, sobre, vial, mililitro, push)
+- Presentation (one of: cucharadas, cápsulas, tabletas, softgel, gotas, sobre, vial, mililitro, push, dosis, ampollas, gomas, sticks)
 - totalContent (numeric value)
 - totalContentUnit (unit like "ml", "g", "tablets")
 - portion (numeric portion size)
@@ -1353,6 +1353,9 @@ ${existingComparableSummaries.join('\n')}
         const { text, sources } = await generateText({
           model: google('gemini-3-pro-preview'),
           prompt,
+          // Higher temperature widens query expansion (synonyms, related actives,
+          // category-level queries) for better recall on the grounded search pass.
+          temperature: 0.7,
           tools:{
             google_search: google.tools.googleSearch({})
           }
@@ -1364,6 +1367,9 @@ ${existingComparableSummaries.join('\n')}
 
         const { output } = await generateText({
           model: google('gemini-3-pro-preview'),
+          // Extraction is a deterministic transform of the search text — no exploration
+          // wanted, so pin temperature to 0 for stable, reproducible structured output.
+          temperature: 0,
           output: Output.object({
             schema: z.object({
               newProducts: z.array(z.object({
@@ -1419,12 +1425,15 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
 
         const { newProducts, newIngredients, newBrands } = output;
 
-        this.logger.debug(`GPT-4o extraction results for ${product.name}:`);
+        this.logger.debug(`Gemini extraction results for ${product.name}:`);
         this.logger.debug(`New Products: ${JSON.stringify(newProducts, null, 2)}`);
         this.logger.debug(`New Ingredients: ${JSON.stringify(newIngredients, null, 2)}`);
         this.logger.debug(`New Brands: ${JSON.stringify(newBrands, null, 2)}`);
 
         const normalizeKey = (value: string) => value.trim().toUpperCase();
+        // Escape regex metacharacters so names like "Vitamina C (ácido ascórbico)"
+        // don't break the `^name$` lookups below (unescaped `(` = capture group → no match).
+        const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const normalizeMeasurementUnit = (unit?: string): MeasurementUnit => {
           if (!unit) {
             return MeasurementUnit.MG;
@@ -1489,7 +1498,7 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
         // create new brands from newBrands
         for (const brand of dedupedNewBrands) {
           const existing = await this.brandModel
-            .findOne({ name: { $regex: `^${brand.brandName}$`, $options: 'i' } })
+            .findOne({ name: { $regex: `^${escapeRegex(brand.brandName)}$`, $options: 'i' } })
             .exec();
           if (!existing) {
             this.logger.debug(`Creating new brand: ${brand.brandName}`);
@@ -1525,9 +1534,19 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
           const ingredientInputs: IngredientInput[] = [];
           for (const ing of p.ingredients) {
             const normalizedIngredientName = ing.name.trim();
-            const ingDoc = await this.ingredientModel
-              .findOne({ name: { $regex: `^${normalizedIngredientName}$`, $options: 'i' } })
+            let ingDoc = await this.ingredientModel
+              .findOne({ name: { $regex: `^${escapeRegex(normalizedIngredientName)}$`, $options: 'i' } })
               .exec();
+            // Create the ingredient on the fly if it didn't resolve (mirrors brand handling
+            // below) instead of dropping it — keeps recall high for physician review.
+            if (!ingDoc && normalizedIngredientName) {
+              this.logger.debug(`Creating missing ingredient on the fly: ${normalizedIngredientName}`);
+              ingDoc = await this.ingredientModel.create({
+                name: normalizedIngredientName.toUpperCase(),
+                measurementUnit: normalizeMeasurementUnit(ing.measurementUnit),
+                status: ApprovalStatus.NOT_APPROVED,
+              });
+            }
             if (ingDoc) {
               ingredientInputs.push({ ingredientId: ingDoc._id.toString(), quantity: ing.qty ?? null });
             } else {
@@ -1541,7 +1560,7 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
           }
 
           let comparableBrand = await this.brandModel
-            .findOne({ name: { $regex: `^${p.brand}$`, $options: 'i' } })
+            .findOne({ name: { $regex: `^${escapeRegex(p.brand)}$`, $options: 'i' } })
             .exec();
 
           if (!comparableBrand) {
@@ -1580,12 +1599,16 @@ Use your judgment to determine if a brand is the same as an existing brand (cons
           await progressCallback(Math.round(productStartProgress + progressPerProduct));
         }
 
+        await this.productModel.findByIdAndUpdate(product._id, {
+          scanStatus: 'completed',
+        });
+
         processedCount++;
         this.logger.debug(`Completed processing for product: ${product.name}`);
         } catch (error) {
           this.logger.error(`Error processing product ${product.name}:`, error);
           await this.productModel.findByIdAndUpdate(product._id, {
-            scanStatus: 'failed',
+            scanStatus: 'error',
           });
         }
       }));

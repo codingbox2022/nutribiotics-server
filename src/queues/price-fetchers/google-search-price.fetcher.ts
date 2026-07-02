@@ -39,17 +39,53 @@ export class GoogleSearchPriceFetcher implements MarketplacePriceFetcher {
   private readonly logger = new Logger(GoogleSearchPriceFetcher.name);
 
   async fetchPrice(ctx: PriceFetchContext): Promise<MarketplacePriceLookup> {
-    const { marketplace, product, brandName, country } = ctx;
+    const { marketplace, product, equivalentQuery } = ctx;
+
+    // Pass 1: exact product + brand.
+    const strict = await this.runSearch(this.buildStrictPrompt(ctx), product.name, marketplace.name);
+    if (strict.inStock || !equivalentQuery) {
+      return { ...strict, matchType: 'exact' };
+    }
+
+    // Pass 2: exact match failed — retry brand-free by ingredient + dose to catch
+    // an equivalent product sold under a different brand (lower-confidence match).
+    this.logger.log(
+      `[${marketplace.name}] no exact match for "${product.name}"; trying equivalent query "${equivalentQuery}"`,
+    );
+    const equivalent = await this.runSearch(
+      this.buildEquivalentPrompt(ctx, equivalentQuery),
+      product.name,
+      marketplace.name,
+    );
+    return equivalent.inStock
+      ? { ...equivalent, matchType: 'equivalent' }
+      : { ...strict, matchType: 'exact' };
+  }
+
+  private async runSearch(
+    prompt: string,
+    productName: string,
+    marketplaceName: string,
+  ): Promise<MarketplacePriceLookup> {
+    const result = await generateText({
+      model: google('gemini-2.5-flash'),
+      prompt,
+      tools: {
+        google_search: google.tools.googleSearch({}),
+      },
+    });
+    return this.parseResponse(result.text, productName, marketplaceName);
+  }
+
+  /** Shared country/currency + JSON-output contract appended to every prompt. */
+  private outputContract(country: PriceFetchContext['country']): string {
     const {
       countryName: SEARCH_COUNTRY_NAME,
       gl: SEARCH_COUNTRY_GL,
       currencyName: SEARCH_CURRENCY_NAME,
       currencyCode: SEARCH_CURRENCY_CODE,
     } = country;
-
-    const prompt = `You can assume the marketplace "${marketplace.name}" has searchable, Google-indexed product pages. Find the closest available match (exact or equivalent) for "${product.name}" from brand "${brandName}". Accept equivalent product sizes or bundles if they clearly represent the same item.
-
-                  IMPORTANT: Search explicitly for ${SEARCH_COUNTRY_NAME}N stores (gl=${SEARCH_COUNTRY_GL}). The price MUST be in ${SEARCH_CURRENCY_NAME} (${SEARCH_CURRENCY_CODE}).
+    return `                  IMPORTANT: Search explicitly for ${SEARCH_COUNTRY_NAME}N stores (gl=${SEARCH_COUNTRY_GL}). The price MUST be in ${SEARCH_CURRENCY_NAME} (${SEARCH_CURRENCY_CODE}).
                   - Do NOT return prices in USD, EUR, or other currencies.
                   - Do NOT return results from international stores (e.g., amazon.com, ebay.com) unless they are explicitly the ${SEARCH_COUNTRY_NAME}N version (e.g., amazon.com.${SEARCH_COUNTRY_GL} is not real, but if it ships to ${SEARCH_COUNTRY_NAME} in ${SEARCH_CURRENCY_CODE} that is okay, but prefer local stores).
                   - If the store is international and does not show price in ${SEARCH_CURRENCY_CODE}, treat it as "inStock": false.
@@ -65,16 +101,20 @@ export class GoogleSearchPriceFetcher implements MarketplacePriceFetcher {
                   - currency (string): The currency of the found price (e.g., "${SEARCH_CURRENCY_CODE}", "USD").
 
                   If only one price is shown, put it in precioConIva and set precioSinIva to null.`;
+  }
 
-    const result = await generateText({
-      model: google('gemini-2.5-flash'),
-      prompt,
-      tools: {
-        google_search: google.tools.googleSearch({}),
-      },
-    });
+  private buildStrictPrompt(ctx: PriceFetchContext): string {
+    const { marketplace, product, brandName, country } = ctx;
+    return `You can assume the marketplace "${marketplace.name}" has searchable, Google-indexed product pages. Find the closest available match (exact or equivalent) for "${product.name}" from brand "${brandName}". Accept equivalent product sizes or bundles if they clearly represent the same item.
 
-    return this.parseResponse(result.text, product.name, marketplace.name);
+${this.outputContract(country)}`;
+  }
+
+  private buildEquivalentPrompt(ctx: PriceFetchContext, equivalentQuery: string): string {
+    const { marketplace, product, brandName, country } = ctx;
+    return `You can assume the marketplace "${marketplace.name}" has searchable, Google-indexed product pages. The exact product "${product.name}" from brand "${brandName}" is NOT sold here. Instead, find ANY equivalent dietary supplement — regardless of brand — whose main active ingredient(s) and dose match: ${equivalentQuery}. Prefer the closest dose and presentation. This is a cross-brand equivalent used only for price comparison, so a DIFFERENT brand is expected and acceptable. Set inStock true only if you find such an equivalent priced in ${country.currencyCode}.
+
+${this.outputContract(country)}`;
   }
 
   /** Tolerant JSON extraction; any failure degrades to "not found", as before. */

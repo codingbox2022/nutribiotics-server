@@ -37,6 +37,10 @@ export interface PriceComparisonJobData {
 }
 
 const MIN_RECOMMENDATION_PRICE_CONFIDENCE = 0.6;
+// Cross-brand equivalent matches (found via the fetchers' brand-free fallback
+// pass) are a looser comparison than an exact product+brand hit, so discount
+// their confidence.
+const EQUIVALENT_MATCH_CONFIDENCE_FACTOR = 0.85;
 const MARKETPLACE_SEARCH_TIMEOUT_MS = 5 * 60 * 1000;
 const GENERIC_KEEP_REASON = 'No se encontró información suficiente de competidores; se recomienda mantener el precio actual.';
 
@@ -142,6 +146,8 @@ export class PriceComparisonProcessor extends WorkerHost {
         this.productModel
           .find(productQuery)
           .populate({ path: 'brand', select: 'name status' })
+          // Ingredient name + unit feed the brand-free equivalent fallback query.
+          .populate({ path: 'ingredients.ingredient', select: 'name measurementUnit' })
           .exec(),
         this.marketplaceModel
           .find({
@@ -225,6 +231,8 @@ export class PriceComparisonProcessor extends WorkerHost {
         const productIngredientContent: Record<string, number> = product.ingredientContent instanceof Map
           ? Object.fromEntries(product.ingredientContent)
           : (product.ingredientContent || {});
+        // Brand-free ingredient+dose query for the fetchers' equivalent fallback.
+        const equivalentQuery = this.buildEquivalentQuery(product);
 
         // Queue marketplace searches for this product — pick the acquisition
         // strategy (and its concurrency limiter) per marketplace.
@@ -254,7 +262,7 @@ export class PriceComparisonProcessor extends WorkerHost {
               let parsed: MarketplacePriceLookup;
               try {
                 parsed = await this.withTimeout(
-                  fetcher.fetchPrice({ marketplace, product, brandName, country: config }),
+                  fetcher.fetchPrice({ marketplace, product, brandName, country: config, equivalentQuery }),
                   MARKETPLACE_SEARCH_TIMEOUT_MS,
                   `${fetcher.strategy} lookup timeout for ${product.name} on ${marketplace.name}`,
                 );
@@ -349,6 +357,13 @@ export class PriceComparisonProcessor extends WorkerHost {
                 if (!isCanonicalUrl) {
                   priceConfidence = Number(Math.max(0.05, priceConfidence * 0.85).toFixed(2));
                 }
+
+                // Cross-brand equivalent (brand-free fallback) → discount confidence.
+                if (parsed.matchType === 'equivalent') {
+                  priceConfidence = Number(
+                    Math.max(0.05, priceConfidence * EQUIVALENT_MATCH_CONFIDENCE_FACTOR).toFixed(2),
+                  );
+                }
               }
 
               // Store lookup result in ingestion run (including calculated data)
@@ -391,7 +406,7 @@ export class PriceComparisonProcessor extends WorkerHost {
               }
 
               this.logger.log(
-                `✓ ${product.name} on ${marketplace.name}: ${parsed.precioConIva || parsed.precioSinIva ? `sinIVA: $${parsed.precioSinIva || 'N/A'}, conIVA: $${parsed.precioConIva || 'N/A'}` : 'not found'}`,
+                `✓ ${product.name} on ${marketplace.name}: ${parsed.precioConIva || parsed.precioSinIva ? `sinIVA: $${parsed.precioSinIva || 'N/A'}, conIVA: $${parsed.precioConIva || 'N/A'} [${parsed.matchType ?? 'exact'} match]` : 'not found'}`,
               );
 
               // Increment global counter and update progress
@@ -751,6 +766,27 @@ export class PriceComparisonProcessor extends WorkerHost {
     }
 
     return brand.name;
+  }
+
+  /**
+   * Brand-free ingredient + dose search term for the fetchers' equivalent-match
+   * fallback, e.g. "Coenzima Q10 200mg". Built from the product's populated
+   * ingredients — primary (highest-dose) actives first, capped to keep the query
+   * focused. Returns null when no ingredient name is available (fallback disabled).
+   * Requires `.populate('ingredients.ingredient')` on the product query.
+   */
+  private buildEquivalentQuery(product: ProductDocument): string | null {
+    const ingredients = [...((product.ingredients as any[]) || [])];
+    const parts = ingredients
+      .filter((pi) => pi?.ingredient?.name)
+      .sort((a, b) => (b.quantity ?? 0) - (a.quantity ?? 0))
+      .slice(0, 3)
+      .map((pi) => {
+        const name = String(pi.ingredient.name).trim();
+        const unit = String(pi.ingredient.measurementUnit ?? '').trim().toLowerCase();
+        return pi.quantity ? `${name} ${pi.quantity}${unit}` : name;
+      });
+    return parts.length ? parts.join(' ') : null;
   }
 
   private async withTimeout<T>(

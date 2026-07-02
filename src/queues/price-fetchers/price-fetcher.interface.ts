@@ -28,6 +28,15 @@ export interface MarketplacePriceLookup {
   productName: string | null;
   inStock: boolean;
   currency: string | null;
+  /**
+   * How the price was matched:
+   * - `exact`: the exact product name + brand.
+   * - `equivalent`: a cross-brand product with the same active ingredient(s) and
+   *   dose, found by the brand-free fallback pass when the exact match failed.
+   * Absent = treated as `exact`. The processor lowers priceConfidence for
+   * `equivalent` matches since they are a looser, cross-brand comparison.
+   */
+  matchType?: 'exact' | 'equivalent';
 }
 
 export interface PriceFetchContext {
@@ -35,6 +44,13 @@ export interface PriceFetchContext {
   product: ProductDocument;
   brandName: string;
   country: SearchCountryConfig;
+  /**
+   * Brand-free ingredient + dose search term (e.g. "Coenzima Q10 200mg"), built
+   * by the processor from the product's ingredients. When the exact name+brand
+   * pass finds nothing, fetchers retry with this to catch equivalent products
+   * sold under a different brand. Null/absent → no fallback pass.
+   */
+  equivalentQuery?: string | null;
 }
 
 /**

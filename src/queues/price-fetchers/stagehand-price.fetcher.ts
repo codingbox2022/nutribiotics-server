@@ -104,7 +104,7 @@ export class StagehandPriceFetcher
   private runsSinceLaunch = 0; // for the bounded-lifetime recycle
 
   async fetchPrice(ctx: PriceFetchContext): Promise<MarketplacePriceLookup> {
-    const { marketplace, product, brandName, country } = ctx;
+    const { marketplace, product, brandName, country, equivalentQuery } = ctx;
 
     let stagehand: Stagehand;
     try {
@@ -125,17 +125,62 @@ export class StagehandPriceFetcher
       return { ...EMPTY_RESULT };
     }
 
+    // Pass 1: exact product + brand. Build the search query first (avoid a
+    // redundant brand when the product name already contains it, e.g.
+    // "Centrum Mujer" + "Centrum").
+    const strictQuery =
+      brandName && !product.name.toLowerCase().includes(brandName.toLowerCase())
+        ? `${product.name} ${brandName}`
+        : product.name;
+    const strict = await this.searchAndExtract(
+      stagehand,
+      marketplace,
+      country,
+      strictQuery,
+      `the closest available match (exact or equivalent size/bundle) for "${product.name}" from brand "${brandName}"`,
+      product.name,
+    );
+    if (strict.inStock || !equivalentQuery) {
+      return { ...strict, matchType: 'exact' };
+    }
+
+    // Pass 2: exact match failed — retry brand-free by ingredient + dose to catch
+    // an equivalent product sold under a different brand (lower-confidence match).
+    this.logger.log(
+      `[${marketplace.name}] no exact match for "${product.name}"; trying equivalent query "${equivalentQuery}"`,
+    );
+    const equivalent = await this.searchAndExtract(
+      stagehand,
+      marketplace,
+      country,
+      equivalentQuery,
+      `any dietary supplement — regardless of brand — whose main active ingredient(s) and dose match "${equivalentQuery}" (a DIFFERENT brand is expected and acceptable)`,
+      product.name,
+    );
+    return equivalent.inStock
+      ? { ...equivalent, matchType: 'equivalent' }
+      : { ...strict, matchType: 'exact' };
+  }
+
+  /**
+   * One browser pass: navigate to the marketplace, run `searchQuery` through the
+   * site's own search, and extract the price of the result described by
+   * `matchDescriptor`. Any browse/extract failure degrades to EMPTY_RESULT so the
+   * run stays resilient (mirrors the search fetcher). Called once for the exact
+   * pass and, on a miss, again for the brand-free equivalent pass.
+   */
+  private async searchAndExtract(
+    stagehand: Stagehand,
+    marketplace: PriceFetchContext['marketplace'],
+    country: PriceFetchContext['country'],
+    searchQuery: string,
+    matchDescriptor: string,
+    productName: string,
+  ): Promise<MarketplacePriceLookup> {
     try {
       const page =
         stagehand.context.activePage() ?? (await stagehand.context.newPage());
       stagehand.context.setActivePage(page);
-
-      // Build the search query first (avoid a redundant brand when the product
-      // name already contains it, e.g. "Centrum Mujer" + "Centrum").
-      const searchQuery =
-        brandName && !product.name.toLowerCase().includes(brandName.toLowerCase())
-          ? `${product.name} ${brandName}`
-          : product.name;
 
       // Per-site optimization: if the marketplace defines a search-URL template,
       // navigate straight to its results page (deterministic, far more reliable
@@ -181,7 +226,7 @@ export class StagehandPriceFetcher
         );
       } catch (actError: any) {
         this.logger.warn(
-          `[${marketplace.name}] in-site search step failed for "${product.name}": ${actError.message}`,
+          `[${marketplace.name}] in-site search step failed for "${productName}": ${actError.message}`,
         );
       }
 
@@ -191,8 +236,7 @@ export class StagehandPriceFetcher
 
       // Read the price from the results page first — this is the reliable extraction.
       const extracted = await stagehand.extract(
-        `From the search results, find the closest available match (exact or equivalent size/bundle) for ` +
-          `"${product.name}" from brand "${brandName}" and report its price in ${country.currencyName} ` +
+        `From the search results, find ${matchDescriptor} and report its price in ${country.currencyName} ` +
           `(${country.currencyCode}). The price MUST be in ${country.currencyCode}; if only another currency ` +
           `is shown, set inStock to false. If no matching product is shown, set inStock to false and prices to null.`,
         extractionSchema,
@@ -207,8 +251,8 @@ export class StagehandPriceFetcher
         try {
           const urlBefore = stagehand.context.activePage()?.url() ?? null;
           await stagehand.act(
-            `Click the product title or image of the search result that best matches "${product.name}" ` +
-              `from brand "${brandName}" to navigate to its product detail page.`,
+            `Click the product title or image of the search result that best matches ${matchDescriptor} ` +
+              `to navigate to its product detail page.`,
           );
           // Let SPA (VTEX/Angular) route changes settle so page.url() reflects the
           // product page rather than the search results we clicked from.
@@ -251,7 +295,7 @@ export class StagehandPriceFetcher
       // Treat any browse/extract failure (anti-bot, timeout, no results) as
       // "not found" so the run stays resilient, mirroring the search fetcher.
       this.logger.warn(
-        `[${marketplace.name}] browser lookup failed for "${product.name}": ${error.message}`,
+        `[${marketplace.name}] browser lookup failed for "${productName}": ${error.message}`,
       );
       return { ...EMPTY_RESULT };
     }
